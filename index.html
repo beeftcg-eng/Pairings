@@ -206,8 +206,8 @@
 <script>
 (function(){
   // ---------- CONFIG — replace these ----------
-  const SUPABASE_URL = 'https://rkoftnavclopwvewnook.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_k-ZFO2VxVfY89Laxh0Bu1g_ZFxs3X_y';
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
   const VAPID_PUBLIC_KEY = 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   // ---------------------------------------------
@@ -305,6 +305,25 @@
     const d = new Date(dateStr + 'T00:00:00');
     return Math.round((d - today) / 86400000);
   }
+  function combineDateTime(dateStr, timeStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    if(timeStr){
+      const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if(m){
+        let h = parseInt(m[1],10);
+        const min = parseInt(m[2],10);
+        const ap = m[3].toUpperCase();
+        if(ap==='PM' && h!==12) h += 12;
+        if(ap==='AM' && h===12) h = 0;
+        d.setHours(h, min, 0, 0);
+      }
+    }
+    return d;
+  }
+  function hoursUntil(dateStr, timeStr){
+    const target = combineDateTime(dateStr, timeStr);
+    return (target.getTime() - Date.now()) / 3600000;
+  }
 
   // ---------- recurrence ----------
   function isRepeating(t){ return t.repeat && t.repeat !== 'none'; }
@@ -352,8 +371,8 @@
   async function loadProfile(){
     try{
       const { data } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-      profile = data || { id: session.user.id, email: session.user.email, display_name:'', home_city:'', home_lat:null, home_lng:null };
-    }catch(e){ profile = { id: session.user.id, email: session.user.email, display_name:'', home_city:'', home_lat:null, home_lng:null }; }
+      profile = data || { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null };
+    }catch(e){ profile = { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null }; }
   }
 
   async function loadTournaments(){
@@ -405,7 +424,7 @@
       }
       const ids = [...new Set(list.map(f=>f.requester_id===session.user.id?f.addressee_id:f.requester_id))];
       if(ids.length){
-        const { data: profs } = await supabaseClient.from('profiles').select('id,email,display_name').in('id', ids);
+        const { data: profs } = await supabaseClient.from('profiles').select('id,email,display_name,username').in('id', ids);
         (profs||[]).forEach(p=>profilesById[p.id]=p);
       }
     }catch(e){ /* ignore */ }
@@ -413,13 +432,24 @@
 
   function friendLabel(userId){
     const p = profilesById[userId];
-    return p ? (p.display_name || p.email) : 'Someone';
+    if(!p) return 'Someone';
+    return p.display_name || (p.username ? '@'+p.username : p.email);
+  }
+  function friendSubLabel(userId){
+    const p = profilesById[userId];
+    if(!p) return '';
+    return p.display_name && p.username ? '@'+p.username : '';
   }
 
-  async function sendFriendRequest(email){
+  async function sendFriendRequest(identifier){
     try{
-      const { data: target } = await supabaseClient.from('profiles').select('id').eq('email', email.trim().toLowerCase()).maybeSingle();
-      if(!target){ showToast('No account found with that email'); return false; }
+      const raw = identifier.trim();
+      const isEmail = raw.includes('@');
+      const query = supabaseClient.from('profiles').select('id');
+      const { data: target } = isEmail
+        ? await query.eq('email', raw.toLowerCase()).maybeSingle()
+        : await query.ilike('username', raw.replace(/^@/,'')).maybeSingle();
+      if(!target){ showToast(isEmail ? 'No account found with that email' : 'No account found with that username'); return false; }
       if(target.id === session.user.id){ showToast("That's you!"); return false; }
       const { error } = await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: target.id, status: 'pending' });
       if(error){
@@ -687,10 +717,15 @@
 
     let ringHtml = '';
     if(nextUp){
-      const du = daysUntil(nextUp.date);
-      const pct = Math.max(0, Math.min(1, 1 - du/30));
+      const hrs = hoursUntil(nextUp.date, nextUp.t.time);
+      const happening = hrs <= 0;
+      const wholeHours = Math.max(1, Math.round(hrs));
+      const pct = Math.max(0, Math.min(1, 1 - wholeHours/720)); // 720h = 30 days, for the ring's visual fill
       const r = 30, c = 2*Math.PI*r;
       const offset = c * (1-pct);
+      const numDisplay = happening ? 'Now' : (wholeHours > 999 ? '999+' : wholeHours);
+      const numFontSize = String(numDisplay).length >= 3 ? '14px' : '18px';
+      const label = happening ? 'Happening now' : (wholeHours + (wholeHours===1 ? ' hour to go' : ' hours to go'));
       ringHtml = `
         <div class="ring">
           <svg width="70" height="70" viewBox="0 0 70 70">
@@ -700,10 +735,10 @@
             <circle class="bg" cx="35" cy="35" r="${r}" fill="none" stroke-width="5"/>
             <circle class="fg" cx="35" cy="35" r="${r}" fill="none" stroke-width="5" stroke-dasharray="${c}" stroke-dashoffset="${offset}"/>
           </svg>
-          <div class="num">${du===0?'Now':du}</div>
+          <div class="num" style="font-size:${numFontSize};">${numDisplay}</div>
         </div>
         <div class="hero-info">
-          <div class="hero-label">${du===0?'Today':du===1?'Tomorrow':du+' days to go'}</div>
+          <div class="hero-label">${label}</div>
           <div class="hero-title">${escapeHtml(nextUp.t.name)}</div>
           <div class="hero-meta">${escapeHtml(nextUp.t.store||'')} · ${fmtFriendly(nextUp.date,nextUp.t.time)}</div>
         </div>`;
@@ -1033,15 +1068,15 @@
       const body = overlay.querySelector('#friendsBody');
       body.innerHTML = `
         <div class="field">
-          <label>Add a friend by email</label>
+          <label>Add a friend by username or email</label>
           <div style="display:flex;gap:8px;">
-            <input id="friendEmail" placeholder="friend@example.com" style="flex:1;"/>
+            <input id="friendEmail" placeholder="@username or friend@example.com" style="flex:1;"/>
             <button class="mini-btn" id="sendReqBtn">Send</button>
           </div>
         </div>
         ${pendingIncoming.length ? `<div class="section-label">Requests for you</div>` + pendingIncoming.map(p=>`
           <div class="list-item">
-            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">wants to be friends</div></div>
+            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">${friendSubLabel(p.userId) ? escapeHtml(friendSubLabel(p.userId)) + ' · ' : ''}wants to be friends</div></div>
             <div style="display:flex;gap:6px;">
               <button class="mini-btn accept" data-accept="${p.friendshipId}">Accept</button>
               <button class="mini-btn decline" data-decline="${p.friendshipId}">Decline</button>
@@ -1049,21 +1084,21 @@
           </div>`).join('') : ''}
         ${pendingOutgoing.length ? `<div class="section-label">Sent, waiting</div>` + pendingOutgoing.map(p=>`
           <div class="list-item">
-            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">request pending</div></div>
+            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">${friendSubLabel(p.userId) ? escapeHtml(friendSubLabel(p.userId)) + ' · ' : ''}request pending</div></div>
             <button class="mini-btn decline" data-decline="${p.friendshipId}">Cancel</button>
           </div>`).join('') : ''}
         <div class="section-label">Your friends (${friendsAccepted.length})</div>
         ${friendsAccepted.length ? friendsAccepted.map(p=>`
           <div class="list-item">
-            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div></div>
+            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div>${friendSubLabel(p.userId) ? `<div class="m">${escapeHtml(friendSubLabel(p.userId))}</div>` : ''}</div>
             <button class="mini-btn decline" data-decline="${p.friendshipId}">Remove</button>
           </div>`).join('') : `<div class="modal-sub">No friends yet — send a request above.</div>`}
         <div class="modal-actions"><button class="btn-secondary" id="closeFriends" style="flex:1;">Close</button></div>
       `;
       body.querySelector('#sendReqBtn').onclick = async ()=>{
-        const email = body.querySelector('#friendEmail').value;
-        if(!email.trim()){ showToast('Enter an email'); return; }
-        const ok = await sendFriendRequest(email);
+        const identifier = body.querySelector('#friendEmail').value;
+        if(!identifier.trim()){ showToast('Enter a username or email'); return; }
+        const ok = await sendFriendRequest(identifier);
         if(ok) draw();
       };
       body.querySelectorAll('[data-accept]').forEach(b=>b.onclick = async ()=>{ await acceptFriend(b.dataset.accept); draw(); });
@@ -1107,6 +1142,11 @@
       <div class="modal">
         <h2>Account</h2>
         <div class="modal-sub">${escapeHtml(profile.email)}</div>
+        <div class="field">
+          <label>Username</label>
+          <input id="acc_username" value="${escapeAttr(profile.username||'')}" placeholder="e.g. mtg_mike" maxlength="24"/>
+          <div class="hint">Friends can add you with this instead of your email. Letters, numbers, and underscores only.</div>
+        </div>
         <div class="field"><label>Display name</label><input id="acc_name" value="${escapeAttr(profile.display_name||'')}" placeholder="What friends will see"/></div>
         <div class="field">
           <label>Home city (used to match "near you" notifications)</label>
@@ -1142,6 +1182,11 @@
       );
     };
     overlay.querySelector('#saveProfileBtn').onclick = async ()=>{
+      let username = overlay.querySelector('#acc_username').value.trim().replace(/^@/,'');
+      if(username && !/^[a-zA-Z0-9_]{3,24}$/.test(username)){
+        showToast('Usernames are 3-24 characters: letters, numbers, underscores only');
+        return;
+      }
       const display_name = overlay.querySelector('#acc_name').value.trim();
       const home_city = overlay.querySelector('#acc_city').value.trim();
       let home_lat = profile._pendingLat != null ? profile._pendingLat : profile.home_lat;
@@ -1151,8 +1196,12 @@
         if(geo){ home_lat = geo.lat; home_lng = geo.lng; }
       }
       try{
-        await supabaseClient.from('profiles').update({ display_name, home_city, home_lat, home_lng }).eq('id', session.user.id);
-        profile = Object.assign({}, profile, { display_name, home_city, home_lat, home_lng });
+        const { error } = await supabaseClient.from('profiles').update({ username: username || null, display_name, home_city, home_lat, home_lng }).eq('id', session.user.id);
+        if(error){
+          showToast(error.code === '23505' ? 'That username is taken — try another' : 'Could not save profile');
+          return;
+        }
+        profile = Object.assign({}, profile, { username, display_name, home_city, home_lat, home_lng });
         showToast('Profile saved');
         overlay.remove();
       }catch(e){ showToast('Could not save profile'); }
