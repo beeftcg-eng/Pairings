@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Pairings — TCG Tournament Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
+
+  :root{
+    --void:#100e1a;
+    --panel:#181528;
+    --panel-2:#1f1b33;
+    --line:#2c2745;
+    --text:#eeeaf7;
+    --text-dim:#a49bc4;
+    --rift:#8b5cf6;
+    --rift-2:#c084fc;
+    --teal:#2dd9c1;
+    --amber:#f5b656;
+    --rose:#f0678a;
+    --gold:#ffd166;
+    --radius:14px;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(139,92,246,0.16), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(45,217,193,0.10), transparent 55%),
+      var(--void);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 90px;}
+
+  /* ---------- Header ---------- */
+  .head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand .mark{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,var(--rift-2),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .brand .sub{color:var(--text-dim);font-size:12.5px;}
+  .head-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+  .btn{border:none;border-radius:10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;min-height:40px;}
+  .add-btn{background:linear-gradient(135deg,var(--rift),#6d28d9);color:#fff;padding:9px 14px;box-shadow:0 6px 18px rgba(139,92,246,0.35);white-space:nowrap;}
+  .add-btn:hover{filter:brightness(1.08);}
+  .icon-pill{background:var(--panel);border:1px solid var(--line) !important;color:var(--text);padding:9px 12px;position:relative;white-space:nowrap;}
+  .icon-pill:hover{border-color:var(--teal) !important;}
+  .btn:active{transform:translateY(1px);}
+  .bell-badge{position:absolute;top:-5px;right:-5px;background:var(--rose);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 5px;min-width:16px;text-align:center;line-height:1.4;}
+
+  /* ---------- Hero / next-up ring ---------- */
+  .hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin-bottom:20px;position:relative;overflow:hidden;}
+  .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:180px;height:180px;border-radius:50%;
+    background:radial-gradient(circle,rgba(139,92,246,0.25),transparent 70%);}
+  .ring{flex:none;position:relative;width:70px;height:70px;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring .bg{stroke:rgba(255,255,255,0.08);}
+  .ring .fg{stroke:url(#ringGrad);stroke-linecap:round;transition:stroke-dashoffset .5s ease;}
+  .ring .num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;}
+  .hero-info{flex:1;min-width:0;}
+  .hero-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);font-weight:600;margin-bottom:3px;}
+  .hero-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .hero-meta{color:var(--text-dim);font-size:12.5px;margin-top:2px;}
+  .hero-empty{color:var(--text-dim);font-size:13.5px;}
+
+  /* ---------- Quick links ---------- */
+  .quick-links{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+  .qlink{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
+    color:var(--text-dim);text-decoration:none;font-size:12px;padding:7px 11px;border-radius:9px;}
+  .qlink:hover{border-color:var(--rift);color:var(--text);}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center;}
+  .search{flex:1;min-width:140px;background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    padding:9px 12px;color:var(--text);font-size:14px;}
+  .search::placeholder{color:var(--text-dim);}
+  .chip{background:var(--panel);border:1px solid var(--line);color:var(--text-dim);
+    padding:7px 11px;border-radius:20px;font-size:12px;cursor:pointer;white-space:nowrap;}
+  .chip.active{background:rgba(139,92,246,0.18);border-color:var(--rift);color:var(--rift-2);}
+  .seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-left:auto;}
+  .seg button{background:none;border:none;color:var(--text-dim);padding:8px 12px;font-size:12px;cursor:pointer;}
+  .seg button.active{background:var(--panel-2);color:var(--text);}
+
+  /* ---------- List ---------- */
+  .month-label{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12.5px;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;}
+  .card{display:flex;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:13px;margin-bottom:10px;position:relative;}
+  .card.past{opacity:0.6;}
+  .date-block{flex:none;width:50px;height:50px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;}
+  .date-block .dow{font-size:9.5px;color:var(--teal);text-transform:uppercase;}
+  .date-block .dom{font-size:18px;font-weight:600;line-height:1.1;}
+  .card-body{flex:1;min-width:0;}
+  .card-top{display:flex;justify-content:space-between;gap:8px;}
+  .card-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14.5px;}
+  .card-actions{display:flex;gap:2px;flex:none;}
+  .icon-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:5px 6px;border-radius:6px;min-height:32px;min-width:32px;}
+  .icon-btn:hover{color:var(--text);background:var(--panel-2);}
+  .card-meta{color:var(--text-dim);font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:5px 8px;align-items:center;}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:3px 8px;border-radius:20px;font-weight:600;}
+  .badge.format{background:rgba(139,92,246,0.16);color:var(--rift-2);}
+  .badge.fee{background:rgba(245,182,86,0.16);color:var(--amber);}
+  .badge.repeat{background:rgba(45,217,193,0.14);color:var(--teal);}
+  .badge.result{background:rgba(255,209,102,0.16);color:var(--gold);}
+  .rsvp-row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+  .rsvp-btn{font-size:11px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--text-dim);cursor:pointer;min-height:32px;}
+  .rsvp-btn.going.active{background:rgba(45,217,193,0.18);border-color:var(--teal);color:var(--teal);}
+  .rsvp-btn.maybe.active{background:rgba(245,182,86,0.18);border-color:var(--amber);color:var(--amber);}
+  .rsvp-btn.skip.active{background:rgba(240,103,138,0.18);border-color:var(--rose);color:var(--rose);}
+  .result-btn{font-size:11px;padding:6px 10px;border-radius:8px;border:1px dashed var(--line);background:none;color:var(--text-dim);cursor:pointer;min-height:32px;}
+  .result-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .card-notes{font-size:12px;color:var(--text-dim);margin-top:8px;white-space:pre-wrap;}
+  .card-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;}
+  .card-link{font-size:11.5px;color:var(--teal);text-decoration:none;}
+  .card-link.gold{color:var(--gold);}
+
+  .empty-state{text-align:center;padding:44px 18px;color:var(--text-dim);border:1px dashed var(--line);border-radius:16px;}
+  .empty-state .big{font-family:'Space Grotesk',sans-serif;font-size:16px;color:var(--text);margin-bottom:6px;font-weight:700;}
+
+  /* ---------- Modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(8,7,14,0.72);backdrop-filter:blur(3px);
+    display:flex;align-items:flex-end;justify-content:center;z-index:50;padding-top:env(safe-area-inset-top);}
+  @media(min-width:640px){.overlay{align-items:center;}}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;
+    width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+  @media(min-width:640px){.modal{border-radius:18px;}}
+  .modal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 4px;font-size:17px;}
+  .modal .modal-sub{color:var(--text-dim);font-size:12px;margin-bottom:14px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11.5px;color:var(--text-dim);margin-bottom:5px;font-weight:600;}
+  .field input,.field select,.field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    padding:10px 11px;color:var(--text);font-size:16px;font-family:inherit;}
+  .field textarea{resize:vertical;min-height:60px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:420px){.row2{grid-template-columns:1fr;}}
+  .paste-box{background:var(--panel-2);border:1px dashed var(--rift);border-radius:10px;padding:12px;margin-bottom:16px;}
+  .paste-box .lbl{font-size:12px;font-weight:700;color:var(--rift-2);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .paste-box textarea{width:100%;min-height:64px;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    color:var(--text);padding:9px;font-size:13px;font-family:inherit;}
+  .parse-btn{margin-top:8px;background:var(--rift);color:#fff;border:none;border-radius:7px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;min-height:36px;}
+  .modal-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+  .btn-primary{flex:1;min-width:120px;background:linear-gradient(135deg,var(--rift),#6d28d9);color:#fff;border:none;border-radius:9px;padding:12px;font-weight:700;font-family:'Space Grotesk',sans-serif;cursor:pointer;min-height:44px;}
+  .btn-secondary{background:var(--panel-2);color:var(--text-dim);border:1px solid var(--line);border-radius:9px;padding:12px 16px;cursor:pointer;min-height:44px;}
+  .btn-danger{background:none;color:var(--rose);border:1px solid rgba(240,103,138,0.4);border-radius:9px;padding:12px 16px;cursor:pointer;min-height:44px;}
+  .hint{font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
+
+  .tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--panel-2);padding:4px;border-radius:10px;}
+  .tabs button{flex:1;background:none;border:none;color:var(--text-dim);padding:9px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;min-height:38px;}
+  .tabs button.active{background:var(--panel);color:var(--text);}
+
+  .share-code-display{background:var(--panel-2);border:1px solid var(--rift);border-radius:10px;padding:16px;text-align:center;margin-top:14px;}
+  .share-code-display .code{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;letter-spacing:.1em;color:var(--rift-2);}
+  .list-item{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:13px;}
+  .list-item .info{min-width:0;}
+  .list-item .n{font-weight:700;font-family:'Space Grotesk',sans-serif;font-size:13px;}
+  .list-item .m{color:var(--text-dim);font-size:11.5px;}
+  .mini-btn{font-size:11px;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:7px;cursor:pointer;white-space:nowrap;min-height:34px;}
+  .mini-btn:hover{border-color:var(--teal);}
+  .mini-btn.accept{border-color:var(--teal);color:var(--teal);}
+  .mini-btn.decline{border-color:var(--rose);color:var(--rose);}
+  .section-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin:16px 0 8px;}
+
+  .notif-item{padding:11px 4px;border-bottom:1px solid var(--line);font-size:13px;}
+  .notif-item.unread{background:rgba(139,92,246,0.08);border-radius:8px;padding:11px 8px;}
+  .notif-item .t{color:var(--text-dim);font-size:11px;margin-top:3px;}
+
+  /* ---------- Auth screen ---------- */
+  .auth-wrap{max-width:380px;margin:12vh auto 0;padding:0 16px;}
+  .auth-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 20px;}
+  .auth-card h1{font-family:'Space Grotesk',sans-serif;font-size:26px;margin:0 0 4px;
+    background:linear-gradient(90deg,var(--rift-2),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .auth-sub{color:var(--text-dim);font-size:13px;margin-bottom:20px;}
+  .auth-toggle{text-align:center;margin-top:14px;font-size:13px;color:var(--text-dim);}
+  .auth-toggle a{color:var(--teal);cursor:pointer;text-decoration:underline;}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel-2);
+    border:1px solid var(--line);color:var(--text);padding:10px 18px;border-radius:20px;font-size:13px;z-index:70;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);max-width:90vw;text-align:center;}
+
+  @media(max-width:420px){
+    .brand .mark{font-size:20px;}
+    .icon-pill, .add-btn{padding:8px 10px;font-size:12.5px;}
+    .hero-title{font-size:14.5px;}
+    .card{padding:11px;gap:10px;}
+    .date-block{width:44px;height:44px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app"></div>
+
+<!--
+  ============================================================
+  SETUP REQUIRED — see SETUP.md for the full walkthrough.
+  ============================================================
+-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  // ---------- CONFIG — replace these ----------
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const VAPID_PUBLIC_KEY = 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
+  const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+  // ---------------------------------------------
+
+  const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
+  const app = document.getElementById('app');
+
+  if(!configured){
+    app.innerHTML = `
+      <div class="auth-wrap" style="max-width:520px;">
+        <div class="auth-card">
+          <h1>⚙️ One setup step</h1>
+          <p style="color:var(--text-dim);line-height:1.6;">This app needs a free Supabase project. Follow <code>SETUP.md</code>, then paste your Project URL and anon key near the top of this file's script and reload.</p>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const FUNCTIONS_URL = SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co');
+
+  const FORMATS = ['Constructed','Sealed','Draft','Modified Champion Deck','Team Trios','2v2','Learn to Play','Other'];
+  const REPEATS = [
+    {v:'none', l:'Does not repeat'},
+    {v:'weekly', l:'Weekly'},
+    {v:'biweekly', l:'Every 2 weeks'},
+    {v:'monthly', l:'Monthly'}
+  ];
+
+  let session = null;
+  let profile = null;
+  let tournaments = [];
+  let friendsAccepted = [];
+  let pendingIncoming = [];
+  let pendingOutgoing = [];
+  let profilesById = {};
+  let notifications = [];
+  let filterFormat = 'All';
+  let searchTerm = '';
+  let viewMode = 'upcoming';
+  let pushEnabled = false;
+
+  function uid(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function shareCode(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
+
+  function showToast(msg){
+    document.querySelectorAll('.toast').forEach(t=>t.remove());
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), 2600);
+  }
+
+  function copyText(str){
+    try{ navigator.clipboard.writeText(str); return true; }
+    catch(e){
+      try{
+        const ta = document.createElement('textarea');
+        ta.value = str; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); ta.remove();
+        return true;
+      }catch(e2){ return false; }
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  // ---------- date helpers ----------
+  function dateToStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function todayStr(){ return dateToStr(new Date()); }
+  function fmtDateParts(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    if(isNaN(d)) return {dow:'--',dom:'--'};
+    return { dow: d.toLocaleDateString(undefined,{weekday:'short'}), dom: d.getDate() };
+  }
+  function fmtMonthYear(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    if(isNaN(d)) return 'Undated';
+    return d.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  }
+  function fmtFriendly(dateStr, time){
+    const d = new Date(dateStr + 'T00:00:00');
+    if(isNaN(d)) return '';
+    let s = d.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+    if(time) s += ' · ' + time;
+    return s;
+  }
+  function daysUntil(dateStr){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const d = new Date(dateStr + 'T00:00:00');
+    return Math.round((d - today) / 86400000);
+  }
+
+  // ---------- recurrence ----------
+  function isRepeating(t){ return t.repeat && t.repeat !== 'none'; }
+  function getOccurrenceDates(t, windowStartStr, windowEndStr){
+    if(!t.date) return [];
+    if(!isRepeating(t)) return [t.date];
+    const dates = [];
+    let d = new Date(t.date + 'T00:00:00');
+    const end = new Date(windowEndStr + 'T00:00:00');
+    const start = new Date(windowStartStr + 'T00:00:00');
+    let count = 0;
+    while(d <= end && count < 500){
+      if(d >= start) dates.push(dateToStr(d));
+      if(t.repeat === 'weekly') d.setDate(d.getDate()+7);
+      else if(t.repeat === 'biweekly') d.setDate(d.getDate()+14);
+      else if(t.repeat === 'monthly') d.setMonth(d.getMonth()+1);
+      else break;
+      count++;
+    }
+    return dates;
+  }
+  function getOcc(t, date){
+    if(!isRepeating(t)) return { rsvp: t.rsvp||null, result: t.result||null, skip:false, googleEventId: t.googleEventId||null };
+    const o = (t.occurrences && t.occurrences[date]) || {};
+    return { rsvp: o.rsvp||null, result: o.result||null, skip: !!o.skip, googleEventId: o.googleEventId||null };
+  }
+  function setOcc(t, date, patch){
+    if(!isRepeating(t)){ Object.assign(t, patch); return; }
+    t.occurrences = t.occurrences || {};
+    t.occurrences[date] = Object.assign({}, t.occurrences[date], patch);
+  }
+
+  // ---------- geocoding (free, no key — OpenStreetMap Nominatim) ----------
+  async function geocode(query){
+    if(!query || !query.trim()) return null;
+    try{
+      const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query));
+      const json = await res.json();
+      if(json && json[0]) return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) };
+    }catch(e){}
+    return null;
+  }
+
+  // ---------- Supabase data layer ----------
+  async function loadProfile(){
+    try{
+      const { data } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      profile = data || { id: session.user.id, email: session.user.email, display_name:'', home_city:'', home_lat:null, home_lng:null };
+    }catch(e){ profile = { id: session.user.id, email: session.user.email, display_name:'', home_city:'', home_lat:null, home_lng:null }; }
+  }
+
+  async function loadTournaments(){
+    try{
+      const { data } = await supabaseClient.from('user_data').select('tournaments').eq('user_id', session.user.id).maybeSingle();
+      tournaments = (data && data.tournaments) || [];
+    }catch(e){ tournaments = []; }
+  }
+  async function saveTournaments(){
+    try{
+      await supabaseClient.from('user_data').upsert(
+        { user_id: session.user.id, tournaments, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+    }catch(e){ showToast('Could not save — check your connection'); }
+  }
+
+  async function syncAttendance(t, date){
+    const occ = getOcc(t, date);
+    const key = t.id + '::' + date;
+    try{
+      if(occ.rsvp === 'going'){
+        if(t.lat == null || t.lng == null){
+          const q = t.address || [t.store, t.city].filter(Boolean).join(', ');
+          const geo = await geocode(q);
+          if(geo){ t.lat = geo.lat; t.lng = geo.lng; saveTournaments(); }
+        }
+        await supabaseClient.from('attendances').upsert({
+          user_id: session.user.id, occurrence_key: key, event_name: t.name, event_date: date,
+          store: t.store||null, address: t.address||null, lat: t.lat||null, lng: t.lng||null
+        }, { onConflict: 'user_id,occurrence_key' });
+      } else {
+        await supabaseClient.from('attendances').delete().eq('user_id', session.user.id).eq('occurrence_key', key);
+      }
+    }catch(e){ /* non-fatal */ }
+  }
+
+  async function loadFriendsData(){
+    friendsAccepted = []; pendingIncoming = []; pendingOutgoing = []; profilesById = {};
+    try{
+      const { data: fs } = await supabaseClient.from('friendships').select('*')
+        .or(`requester_id.eq.${session.user.id},addressee_id.eq.${session.user.id}`);
+      const list = fs || [];
+      for(const f of list){
+        const otherId = f.requester_id === session.user.id ? f.addressee_id : f.requester_id;
+        if(f.status === 'accepted') friendsAccepted.push({ friendshipId: f.id, userId: otherId });
+        else if(f.addressee_id === session.user.id) pendingIncoming.push({ friendshipId: f.id, userId: otherId });
+        else pendingOutgoing.push({ friendshipId: f.id, userId: otherId });
+      }
+      const ids = [...new Set(list.map(f=>f.requester_id===session.user.id?f.addressee_id:f.requester_id))];
+      if(ids.length){
+        const { data: profs } = await supabaseClient.from('profiles').select('id,email,display_name').in('id', ids);
+        (profs||[]).forEach(p=>profilesById[p.id]=p);
+      }
+    }catch(e){ /* ignore */ }
+  }
+
+  function friendLabel(userId){
+    const p = profilesById[userId];
+    return p ? (p.display_name || p.email) : 'Someone';
+  }
+
+  async function sendFriendRequest(email){
+    try{
+      const { data: target } = await supabaseClient.from('profiles').select('id').eq('email', email.trim().toLowerCase()).maybeSingle();
+      if(!target){ showToast('No account found with that email'); return false; }
+      if(target.id === session.user.id){ showToast("That's you!"); return false; }
+      const { error } = await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: target.id, status: 'pending' });
+      if(error){
+        showToast(error.code === '23505' ? 'Already friends or a request is pending' : 'Could not send request');
+        return false;
+      }
+      showToast('Friend request sent');
+      await loadFriendsData();
+      return true;
+    }catch(e){ showToast('Could not send request'); return false; }
+  }
+  async function acceptFriend(friendshipId){
+    try{ await supabaseClient.from('friendships').update({ status:'accepted' }).eq('id', friendshipId); await loadFriendsData(); }
+    catch(e){ showToast('Could not accept request'); }
+  }
+  async function removeFriendship(friendshipId){
+    try{ await supabaseClient.from('friendships').delete().eq('id', friendshipId); await loadFriendsData(); }
+    catch(e){ showToast('Could not update friends'); }
+  }
+
+  async function loadNotifications(){
+    try{
+      const { data } = await supabaseClient.from('notifications').select('*').eq('user_id', session.user.id)
+        .order('created_at', { ascending:false }).limit(50);
+      notifications = data || [];
+    }catch(e){ notifications = []; }
+  }
+  function unreadCount(){ return notifications.filter(n=>!n.read).length; }
+  async function markAllRead(){
+    try{
+      await supabaseClient.from('notifications').update({ read:true }).eq('user_id', session.user.id).eq('read', false);
+      notifications.forEach(n=>n.read=true);
+    }catch(e){}
+  }
+
+  function subscribeRealtime(){
+    supabaseClient.channel('notif-' + session.user.id)
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${session.user.id}` }, payload=>{
+        notifications.unshift(payload.new);
+        showToast('🔔 ' + payload.new.message);
+        render();
+      })
+      .subscribe();
+  }
+
+  // ---------- Push notifications ----------
+  function urlBase64ToUint8Array(base64String){
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g,'+').replace(/_/g,'/');
+    const rawData = atob(base64);
+    const arr = new Uint8Array(rawData.length);
+    for(let i=0;i<rawData.length;i++) arr[i] = rawData.charCodeAt(i);
+    return arr;
+  }
+  async function checkPushEnabled(){
+    if(!('serviceWorker' in navigator)) { pushEnabled = false; return; }
+    try{
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg ? await reg.pushManager.getSubscription() : null;
+      pushEnabled = !!sub;
+    }catch(e){ pushEnabled = false; }
+  }
+  async function enablePush(){
+    if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+      showToast('Push notifications are not supported in this browser'); return;
+    }
+    try{
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const perm = await Notification.requestPermission();
+      if(perm !== 'granted'){ showToast('Notification permission was denied'); return; }
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+      const j = sub.toJSON();
+      await supabaseClient.from('push_subscriptions').upsert({
+        user_id: session.user.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth
+      }, { onConflict: 'endpoint' });
+      pushEnabled = true;
+      showToast('Push notifications enabled on this device');
+      render();
+    }catch(e){ console.error(e); showToast('Could not enable push notifications'); }
+  }
+
+  // ---------- Google Calendar ----------
+  function loadGis(cb){
+    if(window.google && window.google.accounts){ cb(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = cb;
+    s.onerror = ()=>showToast('Could not load Google Sign-In');
+    document.head.appendChild(s);
+  }
+  function connectGoogleCalendar(){
+    loadGis(()=>{
+      const client = google.accounts.oauth2.initCodeClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/calendar.events',
+        ux_mode: 'popup',
+        callback: async (response)=>{
+          if(!response.code){ showToast('Google sign-in was cancelled'); return; }
+          try{
+            const res = await fetch(FUNCTIONS_URL + '/google-oauth-exchange', {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
+              body: JSON.stringify({ code: response.code })
+            });
+            const json = await res.json();
+            if(json.error){ showToast(json.error); return; }
+            profile.google_connected = true;
+            showToast('Google Calendar connected');
+            render();
+          }catch(e){ showToast('Could not connect Google Calendar'); }
+        }
+      });
+      client.requestCode();
+    });
+  }
+  async function syncEventToGoogle(t, date){
+    const occ = getOcc(t, date);
+    try{
+      const res = await fetch(FUNCTIONS_URL + '/sync-calendar-event', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
+        body: JSON.stringify({ action:'upsert', event:{
+          googleEventId: occ.googleEventId || null,
+          summary: t.name,
+          description: [t.fee?('Entry: '+t.fee):'', t.notes].filter(Boolean).join('\n\n'),
+          location: t.address || t.store || '',
+          date, time: t.time
+        }})
+      });
+      const json = await res.json();
+      if(json.error){ showToast(json.error); return; }
+      setOcc(t, date, { googleEventId: json.googleEventId });
+      saveTournaments();
+      showToast('Synced to Google Calendar');
+      render();
+    }catch(e){ showToast('Could not sync to Google Calendar'); }
+  }
+  function gcalQuickLink(t, date){
+    const start = date.replace(/-/g,'');
+    const nd = new Date(date+'T00:00:00'); nd.setDate(nd.getDate()+1);
+    const end = dateToStr(nd).replace(/-/g,'');
+    const text = encodeURIComponent(t.name + (t.time ? ' — ' + t.time : ''));
+    const details = encodeURIComponent([t.fee?('Entry: '+t.fee):'', t.notes, t.link].filter(Boolean).join('\n\n'));
+    const location = encodeURIComponent(t.address || t.store || '');
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
+  }
+
+  // ---------- Smart paste parser ----------
+  function parsePastedText(text){
+    const result = {};
+    const monthNames = 'January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec';
+    const monthMap = {jan:0,january:0,feb:1,february:1,mar:2,march:2,apr:3,april:3,may:4,jun:5,june:5,jul:6,july:6,aug:7,august:7,sep:8,sept:8,september:8,oct:9,october:9,nov:10,november:10,dec:11,december:11};
+    let m = text.match(new RegExp('(' + monthNames + ')\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s*(\\d{4})?','i'));
+    if(m){
+      const mon = monthMap[m[1].toLowerCase()];
+      const day = parseInt(m[2],10);
+      let year = m[3] ? parseInt(m[3],10) : new Date().getFullYear();
+      let d = new Date(year, mon, day);
+      const now = new Date(); now.setHours(0,0,0,0);
+      if(!m[3] && d < now){ d = new Date(year+1, mon, day); }
+      result.date = dateToStr(d);
+    } else {
+      m = text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+      if(m){
+        let yr = m[3].length===2 ? '20'+m[3] : m[3];
+        result.date = yr+'-'+String(m[1]).padStart(2,'0')+'-'+String(m[2]).padStart(2,'0');
+      }
+    }
+    let tm = text.match(/\b(\d{1,2}):(\d{2})\s?(am|pm|AM|PM)\b/) || text.match(/\b(\d{1,2})\s?(am|pm|AM|PM)\b/);
+    if(tm){
+      if(tm.length===4){ result.time = tm[1]+':'+tm[2]+' '+tm[3].toUpperCase(); }
+      else { result.time = tm[1]+':00 '+tm[2].toUpperCase(); }
+    }
+    let pr = text.match(/\$\s?(\d+(?:\.\d{2})?)/);
+    if(pr){ result.fee = '$' + pr[1]; }
+    else if(/\bfree\b/i.test(text)){ result.fee = 'Free'; }
+    for(const f of FORMATS){
+      if(new RegExp(f.replace(/\s+/g,'\\s+'),'i').test(text)){ result.format = f; break; }
+    }
+    if(/\b(every week|weekly|each week)\b/i.test(text)) result.repeat = 'weekly';
+    else if(/\b(every other week|biweekly|every 2 weeks)\b/i.test(text)) result.repeat = 'biweekly';
+    else if(/\b(monthly|every month)\b/i.test(text)) result.repeat = 'monthly';
+    const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+    const storeGuess = lines.find(l => /(games?|cards?|comics?|hobby|hobbies|collect|lgs|shop)\b/i.test(l) && l.length < 60);
+    if(storeGuess) result.store = storeGuess;
+    const nameGuess = lines.find(l => l !== storeGuess && l.length > 4 && l.length < 80);
+    if(nameGuess) result.name = nameGuess;
+    result.notes = text.trim();
+    return result;
+  }
+
+  // ---------- Build display instances ----------
+  function buildInstances(){
+    const today = new Date();
+    const windowStart = dateToStr(new Date(today.getFullYear(), today.getMonth(), today.getDate()-120));
+    const windowEnd = dateToStr(new Date(today.getFullYear(), today.getMonth(), today.getDate()+180));
+    const instances = [];
+    tournaments.forEach(t=>{
+      getOccurrenceDates(t, windowStart, windowEnd).forEach(date=>{
+        const occ = getOcc(t, date);
+        if(occ.skip) return;
+        instances.push({ t, date, rsvp: occ.rsvp, result: occ.result, googleEventId: occ.googleEventId });
+      });
+    });
+    return instances;
+  }
+
+  // ============================================================
+  // RENDER: AUTH SCREEN
+  // ============================================================
+  function renderAuth(mode){
+    mode = mode || 'signin';
+    app.innerHTML = `
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <h1>Pairings</h1>
+          <div class="auth-sub">Track your local TCG tournaments — solo, or with friends.</div>
+          <div class="field"><label>Email</label><input id="a_email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+          <div class="field"><label>Password</label><input id="a_password" type="password" placeholder="••••••••" autocomplete="${mode==='signin'?'current-password':'new-password'}"/></div>
+          <button class="btn-primary" id="a_submit" style="width:100%;">${mode==='signin'?'Sign in':'Create account'}</button>
+          <div class="auth-toggle">${mode==='signin' ? `New here? <a id="toSignup">Create an account</a>` : `Already have an account? <a id="toSignin">Sign in</a>`}</div>
+        </div>
+      </div>`;
+    document.getElementById('a_submit').onclick = async ()=>{
+      const email = document.getElementById('a_email').value.trim();
+      const password = document.getElementById('a_password').value;
+      if(!email || !password){ showToast('Enter an email and password'); return; }
+      try{
+        if(mode === 'signin'){
+          const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if(error){ showToast(error.message); return; }
+        } else {
+          const { data, error } = await supabaseClient.auth.signUp({ email, password });
+          if(error){ showToast(error.message); return; }
+          if(!data.session){ showToast('Check your email to confirm your account, then sign in.'); renderAuth('signin'); return; }
+        }
+      }catch(e){ showToast('Something went wrong'); }
+    };
+    const toSignup = document.getElementById('toSignup'); if(toSignup) toSignup.onclick = ()=>renderAuth('signup');
+    const toSignin = document.getElementById('toSignin'); if(toSignin) toSignin.onclick = ()=>renderAuth('signin');
+  }
+
+  // ============================================================
+  // RENDER: MAIN APP
+  // ============================================================
+  function render(){
+    const today = todayStr();
+    let instances = buildInstances();
+    instances = instances.filter(inst=>{
+      if(filterFormat !== 'All' && inst.t.format !== filterFormat) return false;
+      if(searchTerm){
+        const hay = (inst.t.name+' '+inst.t.store+' '+(inst.t.notes||'')).toLowerCase();
+        if(!hay.includes(searchTerm.toLowerCase())) return false;
+      }
+      return true;
+    });
+    const upcoming = instances.filter(i=>i.date >= today).sort((a,b)=>a.date.localeCompare(b.date));
+    const past = instances.filter(i=>i.date < today).sort((a,b)=>b.date.localeCompare(a.date));
+    const list = viewMode === 'upcoming' ? upcoming : past;
+    const nextUp = upcoming[0];
+    const unread = unreadCount();
+
+    let ringHtml = '';
+    if(nextUp){
+      const du = daysUntil(nextUp.date);
+      const pct = Math.max(0, Math.min(1, 1 - du/30));
+      const r = 30, c = 2*Math.PI*r;
+      const offset = c * (1-pct);
+      ringHtml = `
+        <div class="ring">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#c084fc"/><stop offset="100%" stop-color="#2dd9c1"/>
+            </linearGradient></defs>
+            <circle class="bg" cx="35" cy="35" r="${r}" fill="none" stroke-width="5"/>
+            <circle class="fg" cx="35" cy="35" r="${r}" fill="none" stroke-width="5" stroke-dasharray="${c}" stroke-dashoffset="${offset}"/>
+          </svg>
+          <div class="num">${du===0?'Now':du}</div>
+        </div>
+        <div class="hero-info">
+          <div class="hero-label">${du===0?'Today':du===1?'Tomorrow':du+' days to go'}</div>
+          <div class="hero-title">${escapeHtml(nextUp.t.name)}</div>
+          <div class="hero-meta">${escapeHtml(nextUp.t.store||'')} · ${fmtFriendly(nextUp.date,nextUp.t.time)}</div>
+        </div>`;
+    } else {
+      ringHtml = `<div class="ring"><svg width="70" height="70" viewBox="0 0 70 70">
+          <circle class="bg" cx="35" cy="35" r="30" fill="none" stroke-width="5"/></svg>
+          <div class="num" style="font-size:24px;color:var(--text-dim);">–</div></div>
+        <div class="hero-info"><div class="hero-label">No upcoming events</div>
+        <div class="hero-empty">Add one, or paste from a store's events page.</div></div>`;
+    }
+
+    const chips = ['All',...FORMATS].map(f=>`<button class="chip ${filterFormat===f?'active':''}" data-format="${escapeAttr(f)}">${escapeHtml(f)}</button>`).join('');
+
+    let listHtml = '';
+    if(list.length === 0){
+      listHtml = `<div class="empty-state">
+        <div class="big">${viewMode==='upcoming' ? 'Nothing on the calendar yet' : 'No past events logged'}</div>
+        <div>${viewMode==='upcoming' ? 'Tap “+ Add” or paste an event from a store or Facebook.' : 'Events move here once their date passes.'}</div>
+      </div>`;
+    } else {
+      let lastMonth = '';
+      list.forEach(inst=>{
+        const t = inst.t, date = inst.date;
+        const mo = fmtMonthYear(date);
+        if(mo !== lastMonth){ listHtml += `<div class="month-label">${mo}</div>`; lastMonth = mo; }
+        const dp = fmtDateParts(date);
+        const isPast = date < today;
+        const repLabel = isRepeating(t) ? (REPEATS.find(r=>r.v===t.repeat)||{}).l : '';
+        const resultBadge = inst.result && (inst.result.placement || inst.result.record)
+          ? `<span class="badge result">🏆 ${escapeHtml([inst.result.placement, inst.result.record].filter(Boolean).join(' · '))}</span>` : '';
+        listHtml += `
+        <div class="card ${isPast?'past':''}" data-id="${t.id}" data-date="${date}">
+          <div class="date-block"><div class="dow">${dp.dow}</div><div class="dom">${dp.dom}</div></div>
+          <div class="card-body">
+            <div class="card-top">
+              <div class="card-name">${escapeHtml(t.name||'Untitled event')}</div>
+              <div class="card-actions">
+                <button class="icon-btn edit-btn" data-id="${t.id}" title="Edit series">✎</button>
+                <button class="icon-btn del-btn" data-id="${t.id}" data-date="${date}" title="Remove">✕</button>
+              </div>
+            </div>
+            <div class="card-meta">
+              ${t.store ? `<span>${escapeHtml(t.store)}</span>` : ''}
+              ${t.time ? `<span>${escapeHtml(t.time)}</span>` : ''}
+              ${t.format ? `<span class="badge format">${escapeHtml(t.format)}</span>` : ''}
+              ${t.fee ? `<span class="badge fee">${escapeHtml(t.fee)}</span>` : ''}
+              ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
+              ${resultBadge}
+            </div>
+            <div class="rsvp-row">
+              <button class="rsvp-btn going ${inst.rsvp==='going'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="going">Going</button>
+              <button class="rsvp-btn maybe ${inst.rsvp==='maybe'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="maybe">Maybe</button>
+              <button class="rsvp-btn skip ${inst.rsvp==='skip'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="skip">Skip</button>
+              <button class="result-btn" data-id="${t.id}" data-date="${date}" data-action="logresult">${inst.result ? 'Edit result' : '🏆 Log result'}</button>
+            </div>
+            ${inst.result && inst.result.notes ? `<div class="card-notes">Result notes: ${escapeHtml(inst.result.notes)}</div>` : ''}
+            ${t.notes ? `<div class="card-notes">${escapeHtml(t.notes.length>140?t.notes.slice(0,140)+'…':t.notes)}</div>` : ''}
+            <div class="card-links">
+              ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">Event page ↗</a>` : ''}
+              <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
+              ${profile && profile.google_connected ? `<a class="card-link gold" href="#" data-action="gsync" data-id="${t.id}" data-date="${date}">${inst.googleEventId ? '↻ Re-sync' : '⇪ Auto-sync'} to Calendar</a>` : ''}
+            </div>
+          </div>
+        </div>`;
+      });
+    }
+
+    app.innerHTML = `
+      <div class="head">
+        <div class="brand">
+          <div class="mark">Pairings</div>
+          <div class="sub">Your TCG tournament tracker</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn icon-pill" id="openNotif" title="Notifications">🔔${unread>0?` <span class="bell-badge">${unread}</span>`:''}</button>
+          <button class="btn icon-pill" id="openFriends">Friends</button>
+          <button class="btn icon-pill" id="openAccount">Account</button>
+          <button class="btn icon-pill" id="openShare">Share</button>
+          <button class="btn add-btn" id="openAdd">+ Add</button>
+        </div>
+      </div>
+
+      <div class="hero">${ringHtml}</div>
+
+      <div class="quick-links">
+        <a class="qlink" href="https://locator.riftbound.uvsgames.com/events" target="_blank" rel="noopener">🔗 Riftbound events</a>
+        <a class="qlink" href="https://www.facebook.com/events/search/?q=tcg%20tournament" target="_blank" rel="noopener">🔗 Search Facebook events</a>
+        <a class="qlink" href="https://www.google.com/maps/search/game+store+near+me" target="_blank" rel="noopener">🔗 Find local game stores</a>
+      </div>
+
+      <div class="toolbar">
+        <input class="search" id="searchInput" placeholder="Search name, store, notes…" value="${escapeAttr(searchTerm)}"/>
+        <div class="seg">
+          <button data-view="upcoming" class="${viewMode==='upcoming'?'active':''}">Upcoming</button>
+          <button data-view="past" class="${viewMode==='past'?'active':''}">Past</button>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:-6px;">${chips}</div>
+
+      ${listHtml}
+    `;
+
+    document.getElementById('openAdd').onclick = ()=>openModal(null);
+    document.getElementById('openShare').onclick = ()=>openShareModal();
+    document.getElementById('openFriends').onclick = ()=>openFriendsModal();
+    document.getElementById('openAccount').onclick = ()=>openAccountModal();
+    document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
+    document.getElementById('searchInput').oninput = (e)=>{ searchTerm = e.target.value; render(); };
+    app.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{ viewMode=b.dataset.view; render(); });
+    app.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ filterFormat=c.dataset.format; render(); });
+    app.querySelectorAll('.edit-btn').forEach(b=>b.onclick=()=>openModal(b.dataset.id));
+    app.querySelectorAll('.del-btn').forEach(b=>b.onclick=()=>handleDelete(b.dataset.id, b.dataset.date));
+    app.querySelectorAll('.rsvp-btn').forEach(b=>b.onclick=()=>toggleRsvp(b.dataset.id,b.dataset.date,b.dataset.rsvp));
+    app.querySelectorAll('[data-action="logresult"]').forEach(b=>b.onclick=()=>openResultModal(b.dataset.id,b.dataset.date));
+    app.querySelectorAll('[data-action="gsync"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) syncEventToGoogle(t, b.dataset.date); });
+  }
+
+  async function toggleRsvp(id, date, val){
+    const t = tournaments.find(x=>x.id===id);
+    if(!t) return;
+    const cur = getOcc(t, date).rsvp;
+    setOcc(t, date, { rsvp: cur === val ? null : val });
+    await saveTournaments();
+    await syncAttendance(t, date);
+    render();
+  }
+
+  function handleDelete(id, date){
+    const t = tournaments.find(x=>x.id===id);
+    if(!t) return;
+    if(!isRepeating(t)){
+      if(!confirm('Delete this tournament?')) return;
+      tournaments = tournaments.filter(x=>x.id!==id);
+      saveTournaments(); render();
+      showToast('Deleted');
+      return;
+    }
+    openChoiceDialog({
+      title: 'Remove tournament',
+      message: `"${t.name}" repeats ${(REPEATS.find(r=>r.v===t.repeat)||{}).l||''}. What would you like to remove?`,
+      choices: [
+        { label: `Just ${fmtFriendly(date)}`, action: ()=>{ setOcc(t, date, {skip:true}); saveTournaments(); render(); showToast('That date removed'); } },
+        { label: 'Entire series', danger:true, action: ()=>{ tournaments = tournaments.filter(x=>x.id!==id); saveTournaments(); render(); showToast('Series deleted'); } }
+      ]
+    });
+  }
+
+  function openChoiceDialog({title, message, choices}){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:400px;">
+        <h2>${escapeHtml(title)}</h2>
+        <div class="modal-sub">${escapeHtml(message)}</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+          ${choices.map((c,i)=>`<button class="btn-secondary" data-i="${i}" style="text-align:left;${c.danger?'color:var(--rose);border-color:rgba(240,103,138,0.4);':''}">${escapeHtml(c.label)}</button>`).join('')}
+          <button class="btn-secondary" id="cancelChoice" style="text-align:center;">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#cancelChoice').onclick = ()=>overlay.remove();
+    overlay.querySelectorAll('[data-i]').forEach(b=>{
+      b.onclick = ()=>{ overlay.remove(); choices[parseInt(b.dataset.i,10)].action(); };
+    });
+  }
+
+  // ---------- Add/Edit modal ----------
+  function openModal(id){
+    const t = id ? tournaments.find(x=>x.id===id) : {
+      id: uid(), name:'', store:'', date:'', time:'', format:'', fee:'', address:'', city:'', link:'', notes:'',
+      repeat:'none', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null
+    };
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>${id ? 'Edit tournament' : 'Add tournament'}</h2>
+        ${id && isRepeating(t) ? '<div class="modal-sub">Changes here apply to the whole series.</div>' : ''}
+        <div class="paste-box">
+          <div class="lbl">✨ Paste from a store's page or Facebook</div>
+          <textarea id="pasteArea" placeholder="Paste the event text here — name, store, date, time, price…"></textarea>
+          <button class="parse-btn" id="parseBtn" type="button">Parse &amp; fill fields</button>
+        </div>
+        <div class="field"><label>Event name</label><input id="f_name" value="${escapeAttr(t.name)}" placeholder="e.g. Friday Night Sealed"/></div>
+        <div class="row2">
+          <div class="field"><label>Store / venue</label><input id="f_store" value="${escapeAttr(t.store)}" placeholder="e.g. Meeple Mountain Games"/></div>
+          <div class="field"><label>City (for near-you matches)</label><input id="f_city" value="${escapeAttr(t.city||'')}" placeholder="e.g. Austin, TX"/></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>${isRepeating(t) || !id ? 'First date' : 'Date'}</label><input type="date" id="f_date" value="${escapeAttr(t.date)}"/></div>
+          <div class="field"><label>Time</label><input id="f_time" value="${escapeAttr(t.time)}" placeholder="e.g. 6:30 PM"/></div>
+        </div>
+        <div class="field">
+          <label>Repeats</label>
+          <select id="f_repeat">${REPEATS.map(r=>`<option value="${r.v}" ${t.repeat===r.v?'selected':''}>${escapeHtml(r.l)}</option>`).join('')}</select>
+          <div class="hint">A repeating local shows up every week/month automatically — RSVP and results are tracked per date.</div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Format</label>
+            <select id="f_format"><option value="">Select…</option>${FORMATS.map(f=>`<option value="${escapeAttr(f)}" ${t.format===f?'selected':''}>${escapeHtml(f)}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Entry fee</label><input id="f_fee" value="${escapeAttr(t.fee)}" placeholder="e.g. $10, or Free"/></div>
+        </div>
+        <div class="field"><label>Address</label><input id="f_address" value="${escapeAttr(t.address)}" placeholder="Street, city"/></div>
+        <div class="field"><label>Event link</label><input id="f_link" value="${escapeAttr(t.link)}" placeholder="https://…"/></div>
+        <div class="field"><label>Notes (pricing details, prize support, byes, anything else)</label>
+          <textarea id="f_notes" placeholder="e.g. $10 entry, +$5 for a bye, cash payouts top 4">${escapeHtml(t.notes)}</textarea>
+        </div>
+        <div class="modal-actions">
+          ${id ? '<button class="btn-danger" id="deleteBtn" type="button">Delete</button>' : ''}
+          <button class="btn-secondary" id="cancelBtn" type="button">Cancel</button>
+          <button class="btn-primary" id="saveBtn" type="button">${id?'Save changes':'Add tournament'}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#parseBtn').onclick = ()=>{
+      const raw = overlay.querySelector('#pasteArea').value;
+      if(!raw.trim()){ showToast('Paste some event text first'); return; }
+      const p = parsePastedText(raw);
+      if(p.name && !overlay.querySelector('#f_name').value) overlay.querySelector('#f_name').value = p.name;
+      if(p.store && !overlay.querySelector('#f_store').value) overlay.querySelector('#f_store').value = p.store;
+      if(p.date) overlay.querySelector('#f_date').value = p.date;
+      if(p.time && !overlay.querySelector('#f_time').value) overlay.querySelector('#f_time').value = p.time;
+      if(p.format) overlay.querySelector('#f_format').value = p.format;
+      if(p.fee && !overlay.querySelector('#f_fee').value) overlay.querySelector('#f_fee').value = p.fee;
+      if(p.repeat) overlay.querySelector('#f_repeat').value = p.repeat;
+      if(p.notes && !overlay.querySelector('#f_notes').value) overlay.querySelector('#f_notes').value = p.notes;
+      showToast('Filled what we could find — double check before saving');
+    };
+    overlay.querySelector('#cancelBtn').onclick = ()=>overlay.remove();
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    if(id){ overlay.querySelector('#deleteBtn').onclick = ()=>{ overlay.remove(); handleDelete(id, t.date); }; }
+
+    overlay.querySelector('#saveBtn').onclick = async ()=>{
+      const name = overlay.querySelector('#f_name').value.trim();
+      if(!name){ showToast('Give the event a name'); return; }
+      const newCity = overlay.querySelector('#f_city').value.trim();
+      const newAddress = overlay.querySelector('#f_address').value.trim();
+      const updated = {
+        id: t.id, name,
+        store: overlay.querySelector('#f_store').value.trim(),
+        city: newCity,
+        date: overlay.querySelector('#f_date').value,
+        time: overlay.querySelector('#f_time').value.trim(),
+        repeat: overlay.querySelector('#f_repeat').value,
+        format: overlay.querySelector('#f_format').value,
+        fee: overlay.querySelector('#f_fee').value.trim(),
+        address: newAddress,
+        link: overlay.querySelector('#f_link').value.trim(),
+        notes: overlay.querySelector('#f_notes').value.trim(),
+        rsvp: t.rsvp || null,
+        result: t.result || null,
+        occurrences: t.occurrences || {},
+        lat: (newAddress !== t.address || newCity !== t.city) ? null : (t.lat || null),
+        lng: (newAddress !== t.address || newCity !== t.city) ? null : (t.lng || null),
+        googleEventId: t.googleEventId || null
+      };
+      if(!updated.date){ showToast('Pick a date'); return; }
+      if(id){
+        const idx = tournaments.findIndex(x=>x.id===id);
+        tournaments[idx] = updated;
+      } else {
+        tournaments.push(updated);
+      }
+      await saveTournaments();
+      overlay.remove();
+      render();
+      showToast(id ? 'Saved' : 'Added to your calendar');
+    };
+  }
+
+  // ---------- Result modal ----------
+  function openResultModal(id, date){
+    const t = tournaments.find(x=>x.id===id);
+    if(!t) return;
+    const occ = getOcc(t, date);
+    const r = occ.result || { placement:'', record:'', notes:'' };
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:440px;">
+        <h2>Log your result</h2>
+        <div class="modal-sub">${escapeHtml(t.name)} · ${fmtFriendly(date, t.time)}</div>
+        <div class="row2">
+          <div class="field"><label>Placement</label><input id="r_placement" value="${escapeAttr(r.placement)}" placeholder="e.g. 1st, Top 8"/></div>
+          <div class="field"><label>Record</label><input id="r_record" value="${escapeAttr(r.record)}" placeholder="e.g. 3-1"/></div>
+        </div>
+        <div class="field"><label>Notes</label><textarea id="r_notes" placeholder="Deck you played, key matchups, what to improve…">${escapeHtml(r.notes)}</textarea></div>
+        <div class="modal-actions">
+          ${occ.result ? '<button class="btn-danger" id="clearResult" type="button">Clear result</button>' : ''}
+          <button class="btn-secondary" id="cancelResult" type="button">Cancel</button>
+          <button class="btn-primary" id="saveResult" type="button">Save result</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#cancelResult').onclick = ()=>overlay.remove();
+    if(occ.result){
+      overlay.querySelector('#clearResult').onclick = async ()=>{
+        setOcc(t, date, { result: null });
+        await saveTournaments(); overlay.remove(); render();
+        showToast('Result cleared');
+      };
+    }
+    overlay.querySelector('#saveResult').onclick = async ()=>{
+      const placement = overlay.querySelector('#r_placement').value.trim();
+      const record = overlay.querySelector('#r_record').value.trim();
+      const notes = overlay.querySelector('#r_notes').value.trim();
+      if(!placement && !record && !notes){ showToast('Add at least one detail'); return; }
+      setOcc(t, date, { result: { placement, record, notes } });
+      await saveTournaments(); overlay.remove(); render();
+      showToast('Result saved');
+    };
+  }
+
+  // ---------- Friends modal ----------
+  function openFriendsModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>Friends</h2><div id="friendsBody"></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+
+    function draw(){
+      const body = overlay.querySelector('#friendsBody');
+      body.innerHTML = `
+        <div class="field">
+          <label>Add a friend by email</label>
+          <div style="display:flex;gap:8px;">
+            <input id="friendEmail" placeholder="friend@example.com" style="flex:1;"/>
+            <button class="mini-btn" id="sendReqBtn">Send</button>
+          </div>
+        </div>
+        ${pendingIncoming.length ? `<div class="section-label">Requests for you</div>` + pendingIncoming.map(p=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">wants to be friends</div></div>
+            <div style="display:flex;gap:6px;">
+              <button class="mini-btn accept" data-accept="${p.friendshipId}">Accept</button>
+              <button class="mini-btn decline" data-decline="${p.friendshipId}">Decline</button>
+            </div>
+          </div>`).join('') : ''}
+        ${pendingOutgoing.length ? `<div class="section-label">Sent, waiting</div>` + pendingOutgoing.map(p=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">request pending</div></div>
+            <button class="mini-btn decline" data-decline="${p.friendshipId}">Cancel</button>
+          </div>`).join('') : ''}
+        <div class="section-label">Your friends (${friendsAccepted.length})</div>
+        ${friendsAccepted.length ? friendsAccepted.map(p=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div></div>
+            <button class="mini-btn decline" data-decline="${p.friendshipId}">Remove</button>
+          </div>`).join('') : `<div class="modal-sub">No friends yet — send a request above.</div>`}
+        <div class="modal-actions"><button class="btn-secondary" id="closeFriends" style="flex:1;">Close</button></div>
+      `;
+      body.querySelector('#sendReqBtn').onclick = async ()=>{
+        const email = body.querySelector('#friendEmail').value;
+        if(!email.trim()){ showToast('Enter an email'); return; }
+        const ok = await sendFriendRequest(email);
+        if(ok) draw();
+      };
+      body.querySelectorAll('[data-accept]').forEach(b=>b.onclick = async ()=>{ await acceptFriend(b.dataset.accept); draw(); });
+      body.querySelectorAll('[data-decline]').forEach(b=>b.onclick = async ()=>{ await removeFriendship(b.dataset.decline); draw(); });
+      body.querySelector('#closeFriends').onclick = ()=>overlay.remove();
+    }
+    draw();
+  }
+
+  // ---------- Notifications modal ----------
+  function openNotificationsModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const rows = notifications.length ? notifications.map(n=>`
+      <div class="notif-item ${n.read?'':'unread'}">
+        <div>${escapeHtml(n.message)}</div>
+        <div class="t">${new Date(n.created_at).toLocaleString()}</div>
+      </div>`).join('') : `<div class="modal-sub">No notifications yet.</div>`;
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Notifications</h2>
+        <div class="modal-actions" style="margin-top:0;margin-bottom:14px;">
+          <button class="btn-secondary" id="markAllBtn" style="flex:1;">Mark all read</button>
+          <button class="btn-primary" id="pushBtn" style="flex:1;">${pushEnabled ? '🔔 Push enabled on this device' : 'Enable push on this device'}</button>
+        </div>
+        <div style="max-height:50vh;overflow-y:auto;">${rows}</div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeNotif" style="flex:1;">Close</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeNotif').onclick = ()=>overlay.remove();
+    overlay.querySelector('#markAllBtn').onclick = async ()=>{ await markAllRead(); render(); overlay.remove(); };
+    overlay.querySelector('#pushBtn').onclick = async ()=>{ await enablePush(); overlay.remove(); openNotificationsModal(); };
+  }
+
+  // ---------- Account modal ----------
+  function openAccountModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Account</h2>
+        <div class="modal-sub">${escapeHtml(profile.email)}</div>
+        <div class="field"><label>Display name</label><input id="acc_name" value="${escapeAttr(profile.display_name||'')}" placeholder="What friends will see"/></div>
+        <div class="field">
+          <label>Home city (used to match "near you" notifications)</label>
+          <div style="display:flex;gap:8px;">
+            <input id="acc_city" value="${escapeAttr(profile.home_city||'')}" placeholder="e.g. Austin, TX" style="flex:1;"/>
+            <button class="mini-btn" id="useLocationBtn">📍 Use my location</button>
+          </div>
+          <div class="hint">"Near you" matches within about 50 miles, based on this location or your device's GPS.</div>
+        </div>
+        <div class="modal-actions" style="margin-top:8px;">
+          <button class="btn-secondary" id="saveProfileBtn" style="flex:1;">Save profile</button>
+        </div>
+        <div class="section-label">Google Calendar</div>
+        <div class="modal-sub">${profile.google_connected ? 'Connected — use "Auto-sync" on any event to push it to your calendar.' : 'Connect once to auto-sync events without the manual "Add to Calendar" link.'}</div>
+        <div class="modal-actions" style="margin-top:8px;">
+          <button class="btn-primary" id="connectGoogleBtn" style="flex:1;">${profile.google_connected ? 'Reconnect' : 'Connect Google Calendar'}</button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-danger" id="logoutBtn" style="flex:1;">Log out</button>
+          <button class="btn-secondary" id="closeAccount" style="flex:1;">Close</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
+    overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar();
+    overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); overlay.remove(); };
+    overlay.querySelector('#useLocationBtn').onclick = ()=>{
+      if(!navigator.geolocation){ showToast('Geolocation is not available on this device'); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos)=>{ profile._pendingLat = pos.coords.latitude; profile._pendingLng = pos.coords.longitude; showToast('Location captured — tap Save profile'); },
+        ()=>showToast('Could not get your location')
+      );
+    };
+    overlay.querySelector('#saveProfileBtn').onclick = async ()=>{
+      const display_name = overlay.querySelector('#acc_name').value.trim();
+      const home_city = overlay.querySelector('#acc_city').value.trim();
+      let home_lat = profile._pendingLat != null ? profile._pendingLat : profile.home_lat;
+      let home_lng = profile._pendingLng != null ? profile._pendingLng : profile.home_lng;
+      if((home_lat == null || home_lng == null) && home_city){
+        const geo = await geocode(home_city);
+        if(geo){ home_lat = geo.lat; home_lng = geo.lng; }
+      }
+      try{
+        await supabaseClient.from('profiles').update({ display_name, home_city, home_lat, home_lng }).eq('id', session.user.id);
+        profile = Object.assign({}, profile, { display_name, home_city, home_lat, home_lng });
+        showToast('Profile saved');
+        overlay.remove();
+      }catch(e){ showToast('Could not save profile'); }
+    };
+  }
+
+  // ---------- Share modal ----------
+  function openShareModal(){
+    const today = todayStr();
+    const goingInstances = buildInstances().filter(i=>i.date >= today && i.rsvp === 'going').sort((a,b)=>a.date.localeCompare(b.date));
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Share with anyone</h2>
+        <div class="modal-sub">For people without an account — friends on Pairings already see your going list automatically.</div>
+        <div class="tabs"><button class="active" id="tabMine">My going list</button><button id="tabView">View a shared code</button></div>
+        <div id="shareBody"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#shareBody');
+
+    function renderMineTab(){
+      overlay.querySelector('#tabMine').classList.add('active');
+      overlay.querySelector('#tabView').classList.remove('active');
+      if(goingInstances.length === 0){
+        body.innerHTML = `<div class="modal-sub">Mark some upcoming events as "Going" first.</div>
+          <div class="modal-actions"><button class="btn-secondary" id="closeShare" style="flex:1;">Close</button></div>`;
+        overlay.querySelector('#closeShare').onclick = ()=>overlay.remove();
+        return;
+      }
+      const textBlock = "My upcoming tournaments:\n" + goingInstances.map(i=>
+        `• ${i.t.name} — ${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' @ '+i.t.store : ''}${i.t.link ? '\n  '+i.t.link : ''}`
+      ).join('\n');
+      body.innerHTML = `
+        <div class="modal-sub">${goingInstances.length} upcoming event${goingInstances.length>1?'s':''} you're going to.</div>
+        ${goingInstances.map(i=>`<div class="list-item"><div class="info"><div class="n">${escapeHtml(i.t.name)}</div>
+          <div class="m">${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' · '+escapeHtml(i.t.store) : ''}</div></div></div>`).join('')}
+        <div class="modal-actions">
+          <button class="btn-secondary" id="copyTextBtn" style="flex:1;">Copy as text</button>
+          <button class="btn-primary" id="makeCodeBtn" style="flex:1;">Create share code</button>
+        </div>
+        <div id="codeArea"></div>`;
+      body.querySelector('#copyTextBtn').onclick = ()=>{ const ok = copyText(textBlock); showToast(ok?'Copied — paste it anywhere':'Could not copy'); };
+      body.querySelector('#makeCodeBtn').onclick = async ()=>{
+        const code = shareCode();
+        const payload = { createdAt: Date.now(), events: goingInstances.map(i=>({
+          name: i.t.name, store: i.t.store, date: i.date, time: i.t.time, format: i.t.format, fee: i.t.fee, address: i.t.address, link: i.t.link
+        })) };
+        try{
+          await supabaseClient.from('kv_store').upsert({ key: 'share:'+code, value: payload, updated_at: new Date().toISOString() });
+          const area = body.querySelector('#codeArea');
+          area.innerHTML = `<div class="share-code-display"><div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Share this code</div>
+            <div class="code">${code}</div><button class="mini-btn" id="copyCodeBtn" style="margin-top:10px;">Copy code</button>
+            <div class="hint">Anyone with this code can view this list — only share it with people you trust.</div></div>`;
+          area.querySelector('#copyCodeBtn').onclick = ()=>{ const ok = copyText(code); showToast(ok?'Code copied':'Could not copy'); };
+        }catch(e){ showToast('Could not create a share code'); }
+      };
+    }
+    function renderViewTab(){
+      overlay.querySelector('#tabMine').classList.remove('active');
+      overlay.querySelector('#tabView').classList.add('active');
+      body.innerHTML = `
+        <div class="modal-sub">Enter a code someone sent you.</div>
+        <div class="field"><label>Share code</label><input id="codeInput" placeholder="e.g. AB12CD" style="text-transform:uppercase;"/></div>
+        <div class="modal-actions"><button class="btn-primary" id="lookupBtn" style="flex:1;">View list</button></div>
+        <div id="lookupResult"></div>`;
+      body.querySelector('#lookupBtn').onclick = async ()=>{
+        const code = body.querySelector('#codeInput').value.trim().toUpperCase();
+        if(!code){ showToast('Enter a code first'); return; }
+        const resultArea = body.querySelector('#lookupResult');
+        resultArea.innerHTML = `<div class="modal-sub">Looking up…</div>`;
+        try{
+          const { data } = await supabaseClient.from('kv_store').select('value').eq('key','share:'+code).maybeSingle();
+          const payload = data ? data.value : null;
+          if(!payload || !payload.events || payload.events.length===0){
+            resultArea.innerHTML = `<div class="modal-sub">No list found for that code.</div>`; return;
+          }
+          resultArea.innerHTML = payload.events.map((e,idx)=>`
+            <div class="list-item"><div class="info"><div class="n">${escapeHtml(e.name)}</div>
+            <div class="m">${fmtFriendly(e.date, e.time)}${e.store ? ' · '+escapeHtml(e.store) : ''}</div></div>
+            <button class="mini-btn" data-idx="${idx}">Add to mine</button></div>`).join('');
+          resultArea.querySelectorAll('[data-idx]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              const e = payload.events[parseInt(btn.dataset.idx,10)];
+              tournaments.push({ id: uid(), name: e.name, store: e.store||'', date: e.date, time: e.time||'',
+                repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
+                notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null });
+              await saveTournaments();
+              showToast('Added to your calendar');
+            };
+          });
+        }catch(e){ resultArea.innerHTML = `<div class="modal-sub">No list found for that code.</div>`; }
+      };
+    }
+    overlay.querySelector('#tabMine').onclick = renderMineTab;
+    overlay.querySelector('#tabView').onclick = renderViewTab;
+    renderMineTab();
+  }
+
+  // ============================================================
+  // Boot
+  // ============================================================
+  async function bootstrapApp(){
+    await Promise.all([loadProfile(), loadTournaments(), loadFriendsData(), loadNotifications()]);
+    await checkPushEnabled();
+    subscribeRealtime();
+    render();
+  }
+
+  (async ()=>{
+    const { data: { session: s } } = await supabaseClient.auth.getSession();
+    session = s;
+    if(session) await bootstrapApp(); else renderAuth('signin');
+    supabaseClient.auth.onAuthStateChange((event, sess)=>{
+      const hadSession = !!session;
+      session = sess;
+      if(session && !hadSession) bootstrapApp();
+      if(!session) renderAuth('signin');
+    });
+  })();
+})();
+</script>
+</body>
+</html>
