@@ -509,7 +509,9 @@
     try{
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = reg ? await reg.pushManager.getSubscription() : null;
-      pushEnabled = !!sub;
+      if(!sub){ pushEnabled = false; return; }
+      const { data } = await supabaseClient.from('push_subscriptions').select('id').eq('endpoint', sub.endpoint).maybeSingle();
+      pushEnabled = !!data;
     }catch(e){ pushEnabled = false; }
   }
   async function enablePush(){
@@ -525,9 +527,16 @@
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
       const j = sub.toJSON();
-      await supabaseClient.from('push_subscriptions').upsert({
+      const { error } = await supabaseClient.from('push_subscriptions').upsert({
         user_id: session.user.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth
       }, { onConflict: 'endpoint' });
+      if(error){
+        console.error('push_subscriptions upsert failed', error);
+        showToast('Saved on this device but the server rejected it: ' + error.message);
+        pushEnabled = false;
+        render();
+        return;
+      }
       pushEnabled = true;
       showToast('Push notifications enabled on this device');
       render();
