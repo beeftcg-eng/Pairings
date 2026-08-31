@@ -227,7 +227,7 @@
   }
 
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const FUNCTIONS_URL = SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co');
+  const FUNCTIONS_URL = SUPABASE_URL + '/functions/v1';
 
   const FORMATS = ['Constructed','Sealed','Draft','Modified Champion Deck','Team Trios','2v2','Learn to Play','Other'];
   const REPEATS = [
