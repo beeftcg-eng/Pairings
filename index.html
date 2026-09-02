@@ -245,6 +245,7 @@
   let pendingOutgoing = [];
   let profilesById = {};
   let notifications = [];
+  let invitationStatusById = {};
   let filterFormat = 'All';
   let searchTerm = '';
   let viewMode = 'upcoming';
@@ -496,6 +497,11 @@
       const { data } = await supabaseClient.from('notifications').select('*').eq('user_id', session.user.id)
         .order('created_at', { ascending:false }).limit(50);
       notifications = data || [];
+      const inviteIds = [...new Set(notifications.filter(n=>n.type==='event_invite' && n.related_invitation_id).map(n=>n.related_invitation_id))];
+      if(inviteIds.length){
+        const { data: invites } = await supabaseClient.from('event_invitations').select('id,status').in('id', inviteIds);
+        (invites||[]).forEach(i=>{ invitationStatusById[i.id] = i.status; });
+      }
     }catch(e){ notifications = []; }
   }
   function unreadCount(){ return notifications.filter(n=>!n.read).length; }
@@ -1274,15 +1280,18 @@
     overlay.className = 'overlay';
     const rows = notifications.length ? notifications.map(n=>{
       const isInvite = n.type === 'event_invite' && n.related_invitation_id;
+      const inviteStatus = isInvite ? (invitationStatusById[n.related_invitation_id] || 'pending') : null;
       return `
       <div class="notif-item ${n.read?'':'unread'}">
         <div>${escapeHtml(n.message)}</div>
         <div class="t">${new Date(n.created_at).toLocaleString()}</div>
-        ${isInvite ? `
+        ${isInvite && inviteStatus === 'pending' ? `
           <div class="rsvp-row" style="margin-top:8px;">
             <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">Accept</button>
             <button class="rsvp-btn skip" data-invite-decline="${n.related_invitation_id}" data-notif="${n.id}">Decline</button>
           </div>` : ''}
+        ${isInvite && inviteStatus === 'accepted' ? `<div class="t" style="color:var(--teal);margin-top:4px;">✓ Accepted</div>` : ''}
+        ${isInvite && inviteStatus === 'declined' ? `<div class="t" style="color:var(--rose);margin-top:4px;">Declined</div>` : ''}
       </div>`;
     }).join('') : `<div class="modal-sub">No notifications yet.</div>`;
     overlay.innerHTML = `
@@ -1492,12 +1501,24 @@
 
   async function respondToInvitation(invitationId, accept, notifId){
     try{
-      const { data: invite, error: fetchErr } = await supabaseClient.from('event_invitations').select('*').eq('id', invitationId).maybeSingle();
-      if(fetchErr || !invite){ showToast('This invitation is no longer available'); return; }
-      const { error } = await supabaseClient.from('event_invitations').update({ status: accept ? 'accepted' : 'declined' }).eq('id', invitationId);
+      const { data: updated, error } = await supabaseClient
+        .from('event_invitations')
+        .update({ status: accept ? 'accepted' : 'declined' })
+        .eq('id', invitationId)
+        .eq('status', 'pending')
+        .select()
+        .maybeSingle();
+
       if(error){ showToast('Could not update invitation'); return; }
+      if(!updated){
+        showToast('This invitation was already responded to');
+        invitationStatusById[invitationId] = invitationStatusById[invitationId] || 'accepted';
+        render();
+        return;
+      }
+
       if(accept){
-        const e = invite.event;
+        const e = updated.event;
         tournaments.push({
           id: uid(), name: e.name, store: e.store||'', date: e.date, time: e.time||'',
           repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
@@ -1509,6 +1530,7 @@
       } else {
         showToast('Invitation declined');
       }
+      invitationStatusById[invitationId] = accept ? 'accepted' : 'declined';
       if(notifId){
         await supabaseClient.from('notifications').update({ read:true }).eq('id', notifId);
         const n = notifications.find(x=>x.id===notifId);
