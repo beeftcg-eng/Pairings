@@ -4,6 +4,16 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Pairings — TCG Tournament Tracker</title>
+
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#100e1a"/>
+<link rel="icon" href="/favicon-32.png" sizes="32x32"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Pairings"/>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
 
@@ -167,6 +177,22 @@
   .mini-btn.decline{border-color:var(--rose);color:var(--rose);}
   .section-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin:16px 0 8px;}
 
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;}
+  .stat-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .stat-card .val{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;background:linear-gradient(90deg,var(--rift-2),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .stat-card .lbl{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .bar-row{margin-bottom:10px;}
+  .bar-row .bar-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;}
+  .bar-row .bar-top .bn{font-weight:600;}
+  .bar-row .bar-top .bc{color:var(--text-dim);}
+  .bar-track{background:var(--panel-2);border-radius:6px;height:8px;overflow:hidden;}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--rift),var(--teal));border-radius:6px;}
+  .result-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;}
+  .result-row:last-child{border-bottom:none;}
+  .result-row .n{font-weight:600;font-family:'Space Grotesk',sans-serif;}
+  .result-row .m{color:var(--text-dim);font-size:11px;}
+  .result-row .p{color:var(--gold);font-weight:600;white-space:nowrap;}
+
   .notif-item{padding:11px 4px;border-bottom:1px solid var(--line);font-size:13px;}
   .notif-item.unread{background:rgba(139,92,246,0.08);border-radius:8px;padding:11px 8px;}
   .notif-item .t{color:var(--text-dim);font-size:11px;margin-top:3px;}
@@ -227,7 +253,7 @@
   }
 
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const FUNCTIONS_URL = SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co');
+  const FUNCTIONS_URL = SUPABASE_URL + '/functions/v1';
 
   const FORMATS = ['Constructed','Sealed','Draft','Modified Champion Deck','Team Trios','2v2','Learn to Play','Other'];
   const REPEATS = [
@@ -245,10 +271,32 @@
   let pendingOutgoing = [];
   let profilesById = {};
   let notifications = [];
+  let invitationStatusById = {};
   let filterFormat = 'All';
   let searchTerm = '';
   let viewMode = 'upcoming';
   let pushEnabled = false;
+
+  let pendingShareCode = null;
+  (function captureShareParam(){
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('share');
+    if(code){
+      pendingShareCode = code.toUpperCase();
+      const url = new URL(window.location.href);
+      url.searchParams.delete('share');
+      window.history.replaceState({}, '', url.toString());
+    }
+  })();
+
+  function riftboundEventsUrl(){
+    const base = 'https://locator.riftbound.uvsgames.com/events';
+    if(profile && profile.home_city){
+      // Best-effort: their site may or may not read this from the URL — worst case it's just the plain page.
+      return base + '?location=' + encodeURIComponent(profile.home_city) + '&distance=50';
+    }
+    return base;
+  }
 
   function uid(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
   function shareCode(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
@@ -475,6 +523,11 @@
       const { data } = await supabaseClient.from('notifications').select('*').eq('user_id', session.user.id)
         .order('created_at', { ascending:false }).limit(50);
       notifications = data || [];
+      const inviteIds = [...new Set(notifications.filter(n=>n.type==='event_invite' && n.related_invitation_id).map(n=>n.related_invitation_id))];
+      if(inviteIds.length){
+        const { data: invites } = await supabaseClient.from('event_invitations').select('id,status').in('id', inviteIds);
+        (invites||[]).forEach(i=>{ invitationStatusById[i.id] = i.status; });
+      }
     }catch(e){ notifications = []; }
   }
   function unreadCount(){ return notifications.filter(n=>!n.read).length; }
@@ -504,12 +557,20 @@
     for(let i=0;i<rawData.length;i++) arr[i] = rawData.charCodeAt(i);
     return arr;
   }
+  function registerServiceWorker(){
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js').catch(()=>{ /* non-fatal — push just won't be available */ });
+    }
+  }
+
   async function checkPushEnabled(){
     if(!('serviceWorker' in navigator)) { pushEnabled = false; return; }
     try{
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = reg ? await reg.pushManager.getSubscription() : null;
-      pushEnabled = !!sub;
+      if(!sub){ pushEnabled = false; return; }
+      const { data } = await supabaseClient.from('push_subscriptions').select('id').eq('endpoint', sub.endpoint).maybeSingle();
+      pushEnabled = !!data;
     }catch(e){ pushEnabled = false; }
   }
   async function enablePush(){
@@ -525,9 +586,16 @@
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
       const j = sub.toJSON();
-      await supabaseClient.from('push_subscriptions').upsert({
+      const { error } = await supabaseClient.from('push_subscriptions').upsert({
         user_id: session.user.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth
       }, { onConflict: 'endpoint' });
+      if(error){
+        console.error('push_subscriptions upsert failed', error);
+        showToast('Saved on this device but the server rejected it: ' + error.message);
+        pushEnabled = false;
+        render();
+        return;
+      }
       pushEnabled = true;
       showToast('Push notifications enabled on this device');
       render();
@@ -543,7 +611,7 @@
     s.onerror = ()=>showToast('Could not load Google Sign-In');
     document.head.appendChild(s);
   }
-  function connectGoogleCalendar(){
+  function connectGoogleCalendar(onConnected){
     loadGis(()=>{
       const client = google.accounts.oauth2.initCodeClient({
         client_id: GOOGLE_CLIENT_ID,
@@ -562,6 +630,7 @@
             profile.google_connected = true;
             showToast('Google Calendar connected');
             render();
+            if(onConnected) onConnected();
           }catch(e){ showToast('Could not connect Google Calendar'); }
         }
       });
@@ -644,6 +713,27 @@
     return result;
   }
 
+  function splitIntoEventBlocks(text){
+    // First try: blocks separated by one or more blank lines (common when copying a page's event list)
+    let blocks = text.split(/\n\s*\n+/).map(b=>b.trim()).filter(Boolean);
+    if(blocks.length > 1) return blocks;
+
+    // Fallback: split right before each date-like mention
+    const monthNames = 'January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec';
+    const dateRe = new RegExp('(' + monthNames + ')\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?,?\\s*\\d{0,4}', 'gi');
+    const indices = [];
+    let m;
+    while((m = dateRe.exec(text))){ indices.push(m.index); }
+    if(indices.length <= 1) return [text.trim()];
+    const chunks = [];
+    for(let i=0;i<indices.length;i++){
+      const start = indices[i];
+      const end = i+1<indices.length ? indices[i+1] : text.length;
+      chunks.push(text.slice(start, end).trim());
+    }
+    return chunks.filter(Boolean);
+  }
+
   // ---------- Build display instances ----------
   function buildInstances(){
     const today = new Date();
@@ -658,6 +748,66 @@
       });
     });
     return instances;
+  }
+
+  function parseRecord(record){
+    if(!record) return null;
+    const m = String(record).match(/(\d+)\s*-\s*(\d+)(?:\s*-\s*(\d+))?/);
+    if(!m) return null;
+    return { w: parseInt(m[1],10), l: parseInt(m[2],10), d: m[3] ? parseInt(m[3],10) : 0 };
+  }
+
+  function computeStats(){
+    const attendedSet = new Set();
+    const formatCounts = {};
+    const storeCounts = {};
+    const placementCounts = {};
+    const allResults = [];
+    let totalWins = 0, totalLosses = 0, totalDraws = 0;
+
+    function accumulate(t, date, occ){
+      if(occ.skip) return;
+      if(occ.rsvp === 'going' || occ.result){
+        attendedSet.add(t.id + '::' + date);
+        if(t.format) formatCounts[t.format] = (formatCounts[t.format]||0) + 1;
+        if(t.store) storeCounts[t.store] = (storeCounts[t.store]||0) + 1;
+      }
+      if(occ.result){
+        allResults.push({ name: t.name, store: t.store, date, result: occ.result });
+        if(occ.result.placement){
+          placementCounts[occ.result.placement] = (placementCounts[occ.result.placement]||0) + 1;
+        }
+        const rec = parseRecord(occ.result.record);
+        if(rec){ totalWins += rec.w; totalLosses += rec.l; totalDraws += rec.d; }
+      }
+    }
+
+    tournaments.forEach(t=>{
+      if(!isRepeating(t)){
+        accumulate(t, t.date, { rsvp: t.rsvp||null, result: t.result||null, skip:false });
+      } else {
+        Object.keys(t.occurrences||{}).forEach(date=>{
+          const o = t.occurrences[date] || {};
+          accumulate(t, date, { rsvp: o.rsvp||null, result: o.result||null, skip: !!o.skip });
+        });
+      }
+    });
+
+    const decidedGames = totalWins + totalLosses;
+    const winRate = decidedGames > 0 ? Math.round((totalWins/decidedGames) * 100) : null;
+    const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
+
+    return {
+      attended: attendedSet.size,
+      resultsLogged: allResults.length,
+      totalWins, totalLosses, totalDraws, winRate,
+      topFormats: topN(formatCounts, 5),
+      topStores: topN(storeCounts, 5),
+      topPlacements: topN(placementCounts, 5),
+      recentResults: allResults.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10),
+      maxFormatCount: Math.max(1, ...Object.values(formatCounts)),
+      maxStoreCount: Math.max(1, ...Object.values(storeCounts))
+    };
   }
 
   // ============================================================
@@ -776,7 +926,7 @@
             <div class="card-top">
               <div class="card-name">${escapeHtml(t.name||'Untitled event')}</div>
               <div class="card-actions">
-                <button class="icon-btn edit-btn" data-id="${t.id}" title="Edit series">✎</button>
+                ${t.readOnly ? '' : `<button class="icon-btn edit-btn" data-id="${t.id}" title="Edit series">✎</button>`}
                 <button class="icon-btn del-btn" data-id="${t.id}" data-date="${date}" title="Remove">✕</button>
               </div>
             </div>
@@ -786,6 +936,7 @@
               ${t.format ? `<span class="badge format">${escapeHtml(t.format)}</span>` : ''}
               ${t.fee ? `<span class="badge fee">${escapeHtml(t.fee)}</span>` : ''}
               ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
+              ${t.readOnly ? `<span class="badge repeat">👥 Shared with you</span>` : ''}
               ${resultBadge}
             </div>
             <div class="rsvp-row">
@@ -798,6 +949,8 @@
             ${t.notes ? `<div class="card-notes">${escapeHtml(t.notes.length>140?t.notes.slice(0,140)+'…':t.notes)}</div>` : ''}
             <div class="card-links">
               ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">Event page ↗</a>` : ''}
+              <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">🔗 Share with a friend</a>
+              <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">✉ Invite a friend</a>
               <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
               ${profile && profile.google_connected ? `<a class="card-link gold" href="#" data-action="gsync" data-id="${t.id}" data-date="${date}">${inst.googleEventId ? '↻ Re-sync' : '⇪ Auto-sync'} to Calendar</a>` : ''}
             </div>
@@ -815,6 +968,7 @@
         <div class="head-actions">
           <button class="btn icon-pill" id="openNotif" title="Notifications">🔔${unread>0?` <span class="bell-badge">${unread}</span>`:''}</button>
           <button class="btn icon-pill" id="openFriends">Friends</button>
+          <button class="btn icon-pill" id="openStats">📊 Stats</button>
           <button class="btn icon-pill" id="openAccount">Account</button>
           <button class="btn icon-pill" id="openShare">Share</button>
           <button class="btn add-btn" id="openAdd">+ Add</button>
@@ -824,9 +978,10 @@
       <div class="hero">${ringHtml}</div>
 
       <div class="quick-links">
-        <a class="qlink" href="https://locator.riftbound.uvsgames.com/events" target="_blank" rel="noopener">🔗 Riftbound events</a>
-        <a class="qlink" href="https://www.facebook.com/events/search/?q=tcg%20tournament" target="_blank" rel="noopener">🔗 Search Facebook events</a>
+        <a class="qlink" href="${riftboundEventsUrl()}" target="_blank" rel="noopener">🔗 Riftbound events${profile && profile.home_city ? ' near '+escapeHtml(profile.home_city) : ''}</a>
+        <a class="qlink" href="https://www.facebook.com/events/" target="_blank" rel="noopener">🔗 Facebook Events</a>
         <a class="qlink" href="https://www.google.com/maps/search/game+store+near+me" target="_blank" rel="noopener">🔗 Find local game stores</a>
+        <button class="qlink" id="openBulkImport" style="cursor:pointer;font-family:inherit;">📋 Bulk import from paste</button>
       </div>
 
       <div class="toolbar">
@@ -842,8 +997,10 @@
     `;
 
     document.getElementById('openAdd').onclick = ()=>openModal(null);
+    document.getElementById('openBulkImport').onclick = ()=>openBulkImportModal();
     document.getElementById('openShare').onclick = ()=>openShareModal();
     document.getElementById('openFriends').onclick = ()=>openFriendsModal();
+    document.getElementById('openStats').onclick = ()=>openStatsModal();
     document.getElementById('openAccount').onclick = ()=>openAccountModal();
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
     document.getElementById('searchInput').oninput = (e)=>{ searchTerm = e.target.value; render(); };
@@ -854,6 +1011,8 @@
     app.querySelectorAll('.rsvp-btn').forEach(b=>b.onclick=()=>toggleRsvp(b.dataset.id,b.dataset.date,b.dataset.rsvp));
     app.querySelectorAll('[data-action="logresult"]').forEach(b=>b.onclick=()=>openResultModal(b.dataset.id,b.dataset.date));
     app.querySelectorAll('[data-action="gsync"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) syncEventToGoogle(t, b.dataset.date); });
+    app.querySelectorAll('[data-action="shareevent"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) shareEventLink(t, b.dataset.date); });
+    app.querySelectorAll('[data-action="inviteevent"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) openInviteModal(t, b.dataset.date); });
   }
 
   async function toggleRsvp(id, date, val){
@@ -919,6 +1078,14 @@
         <h2>${id ? 'Edit tournament' : 'Add tournament'}</h2>
         ${id && isRepeating(t) ? '<div class="modal-sub">Changes here apply to the whole series.</div>' : ''}
         <div class="paste-box">
+          <div class="lbl">🔗 Paste a Riftbound event link</div>
+          <div style="display:flex;gap:8px;">
+            <input id="linkFetchInput" placeholder="https://locator.riftbound.uvsgames.com/events/…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
+            <button class="parse-btn" id="linkFetchBtn" type="button" style="margin-top:0;white-space:nowrap;">Fetch details</button>
+          </div>
+          <div class="hint">Fills in date, time, store, and address automatically. The event name isn't available this way — you'll still type that in yourself.</div>
+        </div>
+        <div class="paste-box">
           <div class="lbl">✨ Paste from a store's page or Facebook</div>
           <textarea id="pasteArea" placeholder="Paste the event text here — name, store, date, time, price…"></textarea>
           <button class="parse-btn" id="parseBtn" type="button">Parse &amp; fill fields</button>
@@ -955,6 +1122,33 @@
         </div>
       </div>`;
     document.body.appendChild(overlay);
+
+    overlay.querySelector('#linkFetchBtn').onclick = async ()=>{
+      const url = overlay.querySelector('#linkFetchInput').value.trim();
+      if(!url){ showToast('Paste a Riftbound event link first'); return; }
+      const btn = overlay.querySelector('#linkFetchBtn');
+      btn.disabled = true;
+      btn.textContent = 'Fetching…';
+      try{
+        const res = await fetch(FUNCTIONS_URL + '/fetch-event-link', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
+          body: JSON.stringify({ url })
+        });
+        const p = await res.json();
+        if(p.error){ showToast(p.error); return; }
+        if(!p.foundAnything){ showToast("Couldn't find event details on that page — try pasting text instead"); return; }
+        if(p.date) overlay.querySelector('#f_date').value = p.date;
+        if(p.time && !overlay.querySelector('#f_time').value) overlay.querySelector('#f_time').value = p.time;
+        if(p.store && !overlay.querySelector('#f_store').value) overlay.querySelector('#f_store').value = p.store;
+        if(p.address && !overlay.querySelector('#f_address').value) overlay.querySelector('#f_address').value = p.address;
+        if(p.format) overlay.querySelector('#f_format').value = p.format;
+        if(p.fee && !overlay.querySelector('#f_fee').value) overlay.querySelector('#f_fee').value = p.fee;
+        if(!overlay.querySelector('#f_link').value) overlay.querySelector('#f_link').value = url;
+        showToast('Filled what we could find — the event name still needs typing in');
+      }catch(e){ showToast('Could not fetch that page'); }
+      finally{ btn.disabled = false; btn.textContent = 'Fetch details'; }
+    };
 
     overlay.querySelector('#parseBtn').onclick = ()=>{
       const raw = overlay.querySelector('#pasteArea').value;
@@ -1009,6 +1203,72 @@
       overlay.remove();
       render();
       showToast(id ? 'Saved' : 'Added to your calendar');
+    };
+  }
+
+  // ---------- Bulk import modal ----------
+  function openBulkImportModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Bulk import events</h2>
+        <div class="modal-sub">Paste the whole list of events from a store's page, Riftbound events, or Facebook — we'll try to split it into separate events automatically.</div>
+        <div class="field"><textarea id="bulkPasteArea" style="min-height:160px;" placeholder="Paste multiple events here, one after another…"></textarea></div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="cancelBulk" style="flex:1;">Cancel</button>
+          <button class="btn-primary" id="parseBulkBtn" style="flex:1;">Find events</button>
+        </div>
+        <div id="bulkReviewArea"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#cancelBulk').onclick = ()=>overlay.remove();
+
+    overlay.querySelector('#parseBulkBtn').onclick = ()=>{
+      const raw = overlay.querySelector('#bulkPasteArea').value;
+      if(!raw.trim()){ showToast('Paste some event text first'); return; }
+      const blocks = splitIntoEventBlocks(raw);
+      const parsed = blocks.map(b=>({ block: b, ...parsePastedText(b) })).filter(p=>p.name || p.date);
+
+      const reviewArea = overlay.querySelector('#bulkReviewArea');
+      if(parsed.length === 0){
+        reviewArea.innerHTML = `<div class="modal-sub">Couldn't find any distinct events in that text — try pasting a smaller chunk, or add this one manually instead.</div>`;
+        return;
+      }
+      reviewArea.innerHTML = `
+        <div class="section-label">Found ${parsed.length} possible event${parsed.length>1?'s':''} — uncheck any that look wrong</div>
+        ${parsed.map((p,idx)=>`
+          <div class="list-item">
+            <div class="info">
+              <div class="n">${escapeHtml(p.name || 'Untitled event')}</div>
+              <div class="m">${p.date ? fmtFriendly(p.date, p.time) : 'No date found'}${p.store ? ' · '+escapeHtml(p.store) : ''}</div>
+            </div>
+            <input type="checkbox" data-bulk-idx="${idx}" ${p.date ? 'checked' : ''} style="width:20px;height:20px;flex:none;"/>
+          </div>`).join('')}
+        <div class="modal-actions">
+          <button class="btn-primary" id="addBulkBtn" style="flex:1;">Add selected events</button>
+        </div>
+      `;
+      reviewArea.querySelector('#addBulkBtn').onclick = async ()=>{
+        const checked = Array.from(reviewArea.querySelectorAll('[data-bulk-idx]:checked')).map(el=>parseInt(el.dataset.bulkIdx,10));
+        if(checked.length === 0){ showToast('Select at least one event'); return; }
+        let added = 0;
+        checked.forEach(idx=>{
+          const p = parsed[idx];
+          if(!p.date) return; // need at least a date to be useful
+          tournaments.push({
+            id: uid(), name: p.name || 'Untitled event', store: p.store || '', date: p.date, time: p.time || '',
+            repeat: p.repeat || 'none', format: p.format || '', fee: p.fee || '', address: '', city: '', link: '',
+            notes: p.notes || '', rsvp: null, result: null, occurrences: {}, lat: null, lng: null, googleEventId: null
+          });
+          added++;
+        });
+        await saveTournaments();
+        overlay.remove();
+        render();
+        showToast(`Added ${added} event${added===1?'':'s'} — double-check details on each, since this was an automatic guess`);
+      };
     };
   }
 
@@ -1112,11 +1372,22 @@
   function openNotificationsModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    const rows = notifications.length ? notifications.map(n=>`
+    const rows = notifications.length ? notifications.map(n=>{
+      const isInvite = n.type === 'event_invite' && n.related_invitation_id;
+      const inviteStatus = isInvite ? (invitationStatusById[n.related_invitation_id] || 'pending') : null;
+      return `
       <div class="notif-item ${n.read?'':'unread'}">
         <div>${escapeHtml(n.message)}</div>
         <div class="t">${new Date(n.created_at).toLocaleString()}</div>
-      </div>`).join('') : `<div class="modal-sub">No notifications yet.</div>`;
+        ${isInvite && inviteStatus === 'pending' ? `
+          <div class="rsvp-row" style="margin-top:8px;">
+            <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">Accept</button>
+            <button class="rsvp-btn skip" data-invite-decline="${n.related_invitation_id}" data-notif="${n.id}">Decline</button>
+          </div>` : ''}
+        ${isInvite && inviteStatus === 'accepted' ? `<div class="t" style="color:var(--teal);margin-top:4px;">✓ Accepted</div>` : ''}
+        ${isInvite && inviteStatus === 'declined' ? `<div class="t" style="color:var(--rose);margin-top:4px;">Declined</div>` : ''}
+      </div>`;
+    }).join('') : `<div class="modal-sub">No notifications yet.</div>`;
     overlay.innerHTML = `
       <div class="modal">
         <h2>Notifications</h2>
@@ -1132,6 +1403,80 @@
     overlay.querySelector('#closeNotif').onclick = ()=>overlay.remove();
     overlay.querySelector('#markAllBtn').onclick = async ()=>{ await markAllRead(); render(); overlay.remove(); };
     overlay.querySelector('#pushBtn').onclick = async ()=>{ await enablePush(); overlay.remove(); openNotificationsModal(); };
+    overlay.querySelectorAll('[data-invite-accept]').forEach(b=>b.onclick = async ()=>{
+      overlay.remove();
+      await respondToInvitation(b.dataset.inviteAccept, true, b.dataset.notif);
+      openNotificationsModal();
+    });
+    overlay.querySelectorAll('[data-invite-decline]').forEach(b=>b.onclick = async ()=>{
+      overlay.remove();
+      await respondToInvitation(b.dataset.inviteDecline, false, b.dataset.notif);
+      openNotificationsModal();
+    });
+  }
+
+  // ---------- Stats modal ----------
+  function openStatsModal(){
+    const s = computeStats();
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+
+    if(s.attended === 0 && s.resultsLogged === 0){
+      overlay.innerHTML = `
+        <div class="modal">
+          <h2>Your stats</h2>
+          <div class="empty-state">
+            <div class="big">Nothing to show yet</div>
+            <div>Mark some events as "Going" and log a result or two, and your stats will show up here.</div>
+          </div>
+          <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">Close</button></div>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+      overlay.querySelector('#closeStats').onclick = ()=>overlay.remove();
+      return;
+    }
+
+    const formatBars = s.topFormats.map(([name,count])=>`
+      <div class="bar-row">
+        <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxFormatCount)*100)}%;"></div></div>
+      </div>`).join('');
+
+    const storeBars = s.topStores.map(([name,count])=>`
+      <div class="bar-row">
+        <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxStoreCount)*100)}%;"></div></div>
+      </div>`).join('');
+
+    const recentRows = s.recentResults.map(r=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(r.name)}</div>
+          <div class="m">${fmtFriendly(r.date)}${r.store ? ' · '+escapeHtml(r.store) : ''}</div>
+        </div>
+        <div class="p">${escapeHtml([r.result.placement, r.result.record].filter(Boolean).join(' · ') || '—')}</div>
+      </div>`).join('');
+
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Your stats</h2>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">Events attended</div></div>
+          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">Results logged</div></div>
+          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">Win rate</div></div>
+          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">Overall record</div></div>
+        </div>
+
+        ${s.topFormats.length ? `<div class="section-label">Formats you play most</div>${formatBars}` : ''}
+        ${s.topStores.length ? `<div class="section-label">Where you play most</div>${storeBars}` : ''}
+        ${recentRows ? `<div class="section-label">Recent results</div>${recentRows}` : ''}
+
+        <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">Close</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeStats').onclick = ()=>overlay.remove();
   }
 
   // ---------- Account modal ----------
@@ -1172,7 +1517,7 @@
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
-    overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar();
+    overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); overlay.remove(); };
     overlay.querySelector('#useLocationBtn').onclick = ()=>{
       if(!navigator.geolocation){ showToast('Geolocation is not available on this device'); return; }
@@ -1206,6 +1551,151 @@
         overlay.remove();
       }catch(e){ showToast('Could not save profile'); }
     };
+  }
+
+  // ---------- Single-event share link ----------
+  async function shareEventLink(t, date){
+    const code = shareCode();
+    const payload = {
+      createdAt: Date.now(),
+      events: [{
+        name: t.name, store: t.store, date, time: t.time, format: t.format,
+        fee: t.fee, address: t.address, link: t.link
+      }]
+    };
+    try{
+      await supabaseClient.from('kv_store').upsert({ key: 'share:'+code, value: payload, updated_at: new Date().toISOString() });
+      const url = window.location.origin + window.location.pathname + '?share=' + code;
+      const ok = copyText(url);
+      showToast(ok ? 'Link copied — send it to a friend' : ('Could not copy — here\'s the link: ' + url));
+    }catch(e){ showToast('Could not create a share link'); }
+  }
+
+  async function openSharedEventModal(code){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>Shared with you</h2><div id="sharedBody"><div class="modal-sub">Loading…</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#sharedBody');
+    try{
+      const { data } = await supabaseClient.from('kv_store').select('value').eq('key', 'share:'+code).maybeSingle();
+      const payload = data ? data.value : null;
+      if(!payload || !payload.events || payload.events.length===0){
+        body.innerHTML = `<div class="modal-sub">This link has expired or doesn't exist.</div>
+          <div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">Close</button></div>`;
+        body.querySelector('#closeShared').onclick = ()=>overlay.remove();
+        return;
+      }
+      body.innerHTML = payload.events.map((e,idx)=>`
+        <div class="list-item">
+          <div class="info"><div class="n">${escapeHtml(e.name)}</div>
+          <div class="m">${fmtFriendly(e.date, e.time)}${e.store ? ' · '+escapeHtml(e.store) : ''}</div></div>
+          <button class="mini-btn" data-idx="${idx}">Add to mine</button>
+        </div>`).join('') +
+        `<div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">Close</button></div>`;
+      body.querySelectorAll('[data-idx]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const e = payload.events[parseInt(btn.dataset.idx,10)];
+          tournaments.push({
+            id: uid(), name: e.name, store: e.store||'', date: e.date, time: e.time||'',
+            repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
+            notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
+            readOnly: true
+          });
+          await saveTournaments();
+          render();
+          showToast('Added to your calendar');
+          btn.textContent = 'Added ✓';
+          btn.disabled = true;
+        };
+      });
+      body.querySelector('#closeShared').onclick = ()=>overlay.remove();
+    }catch(e){
+      body.innerHTML = `<div class="modal-sub">Could not load this shared link.</div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">Close</button></div>`;
+      body.querySelector('#closeShared').onclick = ()=>overlay.remove();
+    }
+  }
+
+  // ---------- Direct friend invitations ----------
+  function openInviteModal(t, date){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const friendRows = friendsAccepted.map(f=>`
+      <div class="list-item">
+        <div class="info"><div class="n">${escapeHtml(friendLabel(f.userId))}</div>${friendSubLabel(f.userId) ? `<div class="m">${escapeHtml(friendSubLabel(f.userId))}</div>` : ''}</div>
+        <button class="mini-btn" data-friend="${f.userId}">Invite</button>
+      </div>`).join('');
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Invite a friend</h2>
+        <div class="modal-sub">${escapeHtml(t.name)} · ${fmtFriendly(date, t.time)}</div>
+        ${friendsAccepted.length ? friendRows : `<div class="modal-sub">You don't have any friends added yet — add one first from the Friends button.</div>`}
+        <div class="modal-actions"><button class="btn-secondary" id="closeInvite" style="flex:1;">Close</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeInvite').onclick = ()=>overlay.remove();
+    overlay.querySelectorAll('[data-friend]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+        try{
+          const eventSnapshot = {
+            name: t.name, store: t.store, date, time: t.time, format: t.format,
+            fee: t.fee, address: t.address, link: t.link
+          };
+          const { error } = await supabaseClient.from('event_invitations').insert({
+            from_user_id: session.user.id, to_user_id: btn.dataset.friend, event: eventSnapshot
+          });
+          if(error){ showToast('Could not send invite'); btn.disabled = false; btn.textContent = 'Invite'; return; }
+          btn.textContent = 'Sent ✓';
+          showToast('Invitation sent');
+        }catch(e){ showToast('Could not send invite'); btn.disabled = false; btn.textContent = 'Invite'; }
+      };
+    });
+  }
+
+  async function respondToInvitation(invitationId, accept, notifId){
+    try{
+      const { data: updated, error } = await supabaseClient
+        .from('event_invitations')
+        .update({ status: accept ? 'accepted' : 'declined' })
+        .eq('id', invitationId)
+        .eq('status', 'pending')
+        .select()
+        .maybeSingle();
+
+      if(error){ showToast('Could not update invitation'); return; }
+      if(!updated){
+        showToast('This invitation was already responded to');
+        invitationStatusById[invitationId] = invitationStatusById[invitationId] || 'accepted';
+        render();
+        return;
+      }
+
+      if(accept){
+        const e = updated.event;
+        tournaments.push({
+          id: uid(), name: e.name, store: e.store||'', date: e.date, time: e.time||'',
+          repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
+          notes:'', rsvp:'going', result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
+          readOnly: true
+        });
+        await saveTournaments();
+        showToast('Added to your calendar');
+      } else {
+        showToast('Invitation declined');
+      }
+      invitationStatusById[invitationId] = accept ? 'accepted' : 'declined';
+      if(notifId){
+        await supabaseClient.from('notifications').update({ read:true }).eq('id', notifId);
+        const n = notifications.find(x=>x.id===notifId);
+        if(n) n.read = true;
+      }
+      render();
+    }catch(e){ showToast('Could not respond to invitation'); }
   }
 
   // ---------- Share modal ----------
@@ -1290,7 +1780,8 @@
               const e = payload.events[parseInt(btn.dataset.idx,10)];
               tournaments.push({ id: uid(), name: e.name, store: e.store||'', date: e.date, time: e.time||'',
                 repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
-                notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null });
+                notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
+                readOnly: true });
               await saveTournaments();
               showToast('Added to your calendar');
             };
@@ -1311,9 +1802,15 @@
     await checkPushEnabled();
     subscribeRealtime();
     render();
+    if(pendingShareCode){
+      const code = pendingShareCode;
+      pendingShareCode = null;
+      openSharedEventModal(code);
+    }
   }
 
   (async ()=>{
+    registerServiceWorker();
     const { data: { session: s } } = await supabaseClient.auth.getSession();
     session = s;
     if(session) await bootstrapApp(); else renderAuth('signin');
