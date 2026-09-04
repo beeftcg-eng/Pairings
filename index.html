@@ -115,6 +115,7 @@
   .card-meta{color:var(--text-dim);font-size:12px;margin-top:3px;display:flex;flex-wrap:wrap;gap:5px 8px;align-items:center;}
   .badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;padding:3px 8px;border-radius:20px;font-weight:600;}
   .badge.format{background:rgba(139,92,246,0.16);color:var(--rift-2);}
+  .badge.game{background:rgba(45,217,193,0.16);color:var(--teal);}
   .badge.fee{background:rgba(245,182,86,0.16);color:var(--amber);}
   .badge.repeat{background:rgba(45,217,193,0.14);color:var(--teal);}
   .badge.result{background:rgba(255,209,102,0.16);color:var(--gold);}
@@ -255,7 +256,8 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const FUNCTIONS_URL = SUPABASE_URL + '/functions/v1';
 
-  const FORMATS = ['Constructed','Sealed','Draft','Modified Champion Deck','Team Trios','2v2','Learn to Play','Other'];
+  const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
+  const FORMATS = ['Constructed','Sealed','Draft','Standard','Limited','Modified Champion Deck','Team Trios','2v2','Learn to Play','Other'];
   const REPEATS = [
     {v:'none', l:'Does not repeat'},
     {v:'weekly', l:'Weekly'},
@@ -273,6 +275,7 @@
   let notifications = [];
   let invitationStatusById = {};
   let filterFormat = 'All';
+  let filterGame = 'All';
   let searchTerm = '';
   let viewMode = 'upcoming';
   let pushEnabled = false;
@@ -701,6 +704,20 @@
     for(const f of FORMATS){
       if(new RegExp(f.replace(/\s+/g,'\\s+'),'i').test(text)){ result.format = f; break; }
     }
+    const gamePatterns = [
+      [/one\s*piece/i, 'One Piece Card Game'],
+      [/riftbound/i, 'Riftbound'],
+      [/magic:?\s*the\s*gathering|\bmtg\b/i, 'Magic: The Gathering'],
+      [/pok[eé]mon/i, 'Pokémon TCG'],
+      [/yu-?gi-?oh/i, 'Yu-Gi-Oh!'],
+      [/digimon/i, 'Digimon Card Game'],
+      [/flesh\s*and\s*blood/i, 'Flesh and Blood'],
+      [/lorcana/i, 'Disney Lorcana'],
+      [/star\s*wars.*unlimited/i, 'Star Wars: Unlimited']
+    ];
+    for(const [re, name] of gamePatterns){
+      if(re.test(text)){ result.game = name; break; }
+    }
     if(/\b(every week|weekly|each week)\b/i.test(text)) result.repeat = 'weekly';
     else if(/\b(every other week|biweekly|every 2 weeks)\b/i.test(text)) result.repeat = 'biweekly';
     else if(/\b(monthly|every month)\b/i.test(text)) result.repeat = 'monthly';
@@ -761,7 +778,9 @@
     const attendedSet = new Set();
     const formatCounts = {};
     const storeCounts = {};
+    const gameCounts = {};
     const placementCounts = {};
+    const matchupStats = {};
     const allResults = [];
     let totalWins = 0, totalLosses = 0, totalDraws = 0;
 
@@ -771,6 +790,7 @@
         attendedSet.add(t.id + '::' + date);
         if(t.format) formatCounts[t.format] = (formatCounts[t.format]||0) + 1;
         if(t.store) storeCounts[t.store] = (storeCounts[t.store]||0) + 1;
+        if(t.game) gameCounts[t.game] = (gameCounts[t.game]||0) + 1;
       }
       if(occ.result){
         allResults.push({ name: t.name, store: t.store, date, result: occ.result });
@@ -779,6 +799,14 @@
         }
         const rec = parseRecord(occ.result.record);
         if(rec){ totalWins += rec.w; totalLosses += rec.l; totalDraws += rec.d; }
+        (occ.result.matches||[]).forEach(m=>{
+          const key = (m.opponent||'').trim();
+          if(!key || !m.outcome) return;
+          matchupStats[key] = matchupStats[key] || {w:0,l:0,d:0};
+          if(m.outcome==='W') matchupStats[key].w++;
+          else if(m.outcome==='L') matchupStats[key].l++;
+          else if(m.outcome==='D') matchupStats[key].d++;
+        });
       }
     }
 
@@ -797,16 +825,27 @@
     const winRate = decidedGames > 0 ? Math.round((totalWins/decidedGames) * 100) : null;
     const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
 
+    const matchups = Object.entries(matchupStats)
+      .map(([name, rec]) => ({
+        name, ...rec, total: rec.w+rec.l+rec.d,
+        winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null
+      }))
+      .sort((a,b)=>b.total-a.total)
+      .slice(0, 8);
+
     return {
       attended: attendedSet.size,
       resultsLogged: allResults.length,
       totalWins, totalLosses, totalDraws, winRate,
       topFormats: topN(formatCounts, 5),
       topStores: topN(storeCounts, 5),
+      topGames: topN(gameCounts, 5),
       topPlacements: topN(placementCounts, 5),
+      matchups,
       recentResults: allResults.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10),
       maxFormatCount: Math.max(1, ...Object.values(formatCounts)),
-      maxStoreCount: Math.max(1, ...Object.values(storeCounts))
+      maxStoreCount: Math.max(1, ...Object.values(storeCounts)),
+      maxGameCount: Math.max(1, ...Object.values(gameCounts))
     };
   }
 
@@ -853,6 +892,7 @@
     let instances = buildInstances();
     instances = instances.filter(inst=>{
       if(filterFormat !== 'All' && inst.t.format !== filterFormat) return false;
+      if(filterGame !== 'All' && (inst.t.game||'Unspecified') !== filterGame) return false;
       if(searchTerm){
         const hay = (inst.t.name+' '+inst.t.store+' '+(inst.t.notes||'')).toLowerCase();
         if(!hay.includes(searchTerm.toLowerCase())) return false;
@@ -900,7 +940,10 @@
         <div class="hero-empty">Add one, or paste from a store's events page.</div></div>`;
     }
 
-    const chips = ['All',...FORMATS].map(f=>`<button class="chip ${filterFormat===f?'active':''}" data-format="${escapeAttr(f)}">${escapeHtml(f)}</button>`).join('');
+    const usedGames = [...new Set(tournaments.map(t=>t.game||'Unspecified'))].sort();
+    const gameChips = usedGames.length > 1 ? ['All',...usedGames].map(g=>`<button class="chip ${filterGame===g?'active':''}" data-game="${escapeAttr(g)}">${escapeHtml(g)}</button>`).join('') : '';
+    const usedFormats = [...new Set(tournaments.map(t=>t.format).filter(Boolean))].sort();
+    const chips = usedFormats.length ? ['All',...usedFormats].map(f=>`<button class="chip ${filterFormat===f?'active':''}" data-format="${escapeAttr(f)}">${escapeHtml(f)}</button>`).join('') : '';
 
     let listHtml = '';
     if(list.length === 0){
@@ -933,6 +976,7 @@
             <div class="card-meta">
               ${t.store ? `<span>${escapeHtml(t.store)}</span>` : ''}
               ${t.time ? `<span>${escapeHtml(t.time)}</span>` : ''}
+              ${t.game ? `<span class="badge game">${escapeHtml(t.game)}</span>` : ''}
               ${t.format ? `<span class="badge format">${escapeHtml(t.format)}</span>` : ''}
               ${t.fee ? `<span class="badge fee">${escapeHtml(t.fee)}</span>` : ''}
               ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
@@ -979,6 +1023,7 @@
 
       <div class="quick-links">
         <a class="qlink" href="${riftboundEventsUrl()}" target="_blank" rel="noopener">🔗 Riftbound events${profile && profile.home_city ? ' near '+escapeHtml(profile.home_city) : ''}</a>
+        <a class="qlink" href="https://en.onepiece-cardgame.com/events/" target="_blank" rel="noopener">🔗 One Piece TCG events</a>
         <a class="qlink" href="https://www.facebook.com/events/" target="_blank" rel="noopener">🔗 Facebook Events</a>
         <a class="qlink" href="https://www.google.com/maps/search/game+store+near+me" target="_blank" rel="noopener">🔗 Find local game stores</a>
         <button class="qlink" id="openBulkImport" style="cursor:pointer;font-family:inherit;">📋 Bulk import from paste</button>
@@ -991,7 +1036,8 @@
           <button data-view="past" class="${viewMode==='past'?'active':''}">Past</button>
         </div>
       </div>
-      <div class="toolbar" style="margin-top:-6px;">${chips}</div>
+      ${gameChips ? `<div class="toolbar" style="margin-top:-6px;">${gameChips}</div>` : ''}
+      ${chips ? `<div class="toolbar" style="margin-top:-6px;">${chips}</div>` : ''}
 
       ${listHtml}
     `;
@@ -1005,7 +1051,8 @@
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
     document.getElementById('searchInput').oninput = (e)=>{ searchTerm = e.target.value; render(); };
     app.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{ viewMode=b.dataset.view; render(); });
-    app.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{ filterFormat=c.dataset.format; render(); });
+    app.querySelectorAll('.chip[data-format]').forEach(c=>c.onclick=()=>{ filterFormat=c.dataset.format; render(); });
+    app.querySelectorAll('.chip[data-game]').forEach(c=>c.onclick=()=>{ filterGame=c.dataset.game; render(); });
     app.querySelectorAll('.edit-btn').forEach(b=>b.onclick=()=>openModal(b.dataset.id));
     app.querySelectorAll('.del-btn').forEach(b=>b.onclick=()=>handleDelete(b.dataset.id, b.dataset.date));
     app.querySelectorAll('.rsvp-btn').forEach(b=>b.onclick=()=>toggleRsvp(b.dataset.id,b.dataset.date,b.dataset.rsvp));
@@ -1068,7 +1115,7 @@
   // ---------- Add/Edit modal ----------
   function openModal(id){
     const t = id ? tournaments.find(x=>x.id===id) : {
-      id: uid(), name:'', store:'', date:'', time:'', format:'', fee:'', address:'', city:'', link:'', notes:'',
+      id: uid(), name:'', game:'', store:'', date:'', time:'', format:'', fee:'', address:'', city:'', link:'', notes:'',
       repeat:'none', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null
     };
     const overlay = document.createElement('div');
@@ -1092,6 +1139,16 @@
         </div>
         <div class="field"><label>Event name</label><input id="f_name" value="${escapeAttr(t.name)}" placeholder="e.g. Friday Night Sealed"/></div>
         <div class="row2">
+          <div class="field"><label>Game</label>
+            <input id="f_game" list="gameOptions" value="${escapeAttr(t.game||'')}" placeholder="e.g. One Piece Card Game"/>
+            <datalist id="gameOptions">${GAMES.map(g=>`<option value="${escapeAttr(g)}">`).join('')}</datalist>
+          </div>
+          <div class="field"><label>Format</label>
+            <input id="f_format" list="formatOptions" value="${escapeAttr(t.format||'')}" placeholder="e.g. Standard, Sealed…"/>
+            <datalist id="formatOptions">${FORMATS.map(f=>`<option value="${escapeAttr(f)}">`).join('')}</datalist>
+          </div>
+        </div>
+        <div class="row2">
           <div class="field"><label>Store / venue</label><input id="f_store" value="${escapeAttr(t.store)}" placeholder="e.g. Meeple Mountain Games"/></div>
           <div class="field"><label>City (for near-you matches)</label><input id="f_city" value="${escapeAttr(t.city||'')}" placeholder="e.g. Austin, TX"/></div>
         </div>
@@ -1104,12 +1161,7 @@
           <select id="f_repeat">${REPEATS.map(r=>`<option value="${r.v}" ${t.repeat===r.v?'selected':''}>${escapeHtml(r.l)}</option>`).join('')}</select>
           <div class="hint">A repeating local shows up every week/month automatically — RSVP and results are tracked per date.</div>
         </div>
-        <div class="row2">
-          <div class="field"><label>Format</label>
-            <select id="f_format"><option value="">Select…</option>${FORMATS.map(f=>`<option value="${escapeAttr(f)}" ${t.format===f?'selected':''}>${escapeHtml(f)}</option>`).join('')}</select>
-          </div>
-          <div class="field"><label>Entry fee</label><input id="f_fee" value="${escapeAttr(t.fee)}" placeholder="e.g. $10, or Free"/></div>
-        </div>
+        <div class="field"><label>Entry fee</label><input id="f_fee" value="${escapeAttr(t.fee)}" placeholder="e.g. $10, or Free"/></div>
         <div class="field"><label>Address</label><input id="f_address" value="${escapeAttr(t.address)}" placeholder="Street, city"/></div>
         <div class="field"><label>Event link</label><input id="f_link" value="${escapeAttr(t.link)}" placeholder="https://…"/></div>
         <div class="field"><label>Notes (pricing details, prize support, byes, anything else)</label>
@@ -1144,6 +1196,7 @@
         if(p.address && !overlay.querySelector('#f_address').value) overlay.querySelector('#f_address').value = p.address;
         if(p.format) overlay.querySelector('#f_format').value = p.format;
         if(p.fee && !overlay.querySelector('#f_fee').value) overlay.querySelector('#f_fee').value = p.fee;
+        if(!overlay.querySelector('#f_game').value) overlay.querySelector('#f_game').value = 'Riftbound';
         if(!overlay.querySelector('#f_link').value) overlay.querySelector('#f_link').value = url;
         showToast('Filled what we could find — the event name still needs typing in');
       }catch(e){ showToast('Could not fetch that page'); }
@@ -1158,6 +1211,7 @@
       if(p.store && !overlay.querySelector('#f_store').value) overlay.querySelector('#f_store').value = p.store;
       if(p.date) overlay.querySelector('#f_date').value = p.date;
       if(p.time && !overlay.querySelector('#f_time').value) overlay.querySelector('#f_time').value = p.time;
+      if(p.game && !overlay.querySelector('#f_game').value) overlay.querySelector('#f_game').value = p.game;
       if(p.format) overlay.querySelector('#f_format').value = p.format;
       if(p.fee && !overlay.querySelector('#f_fee').value) overlay.querySelector('#f_fee').value = p.fee;
       if(p.repeat) overlay.querySelector('#f_repeat').value = p.repeat;
@@ -1175,12 +1229,13 @@
       const newAddress = overlay.querySelector('#f_address').value.trim();
       const updated = {
         id: t.id, name,
+        game: overlay.querySelector('#f_game').value.trim(),
         store: overlay.querySelector('#f_store').value.trim(),
         city: newCity,
         date: overlay.querySelector('#f_date').value,
         time: overlay.querySelector('#f_time').value.trim(),
         repeat: overlay.querySelector('#f_repeat').value,
-        format: overlay.querySelector('#f_format').value,
+        format: overlay.querySelector('#f_format').value.trim(),
         fee: overlay.querySelector('#f_fee').value.trim(),
         address: newAddress,
         link: overlay.querySelector('#f_link').value.trim(),
@@ -1258,7 +1313,7 @@
           const p = parsed[idx];
           if(!p.date) return; // need at least a date to be useful
           tournaments.push({
-            id: uid(), name: p.name || 'Untitled event', store: p.store || '', date: p.date, time: p.time || '',
+            id: uid(), name: p.name || 'Untitled event', game: p.game || '', store: p.store || '', date: p.date, time: p.time || '',
             repeat: p.repeat || 'none', format: p.format || '', fee: p.fee || '', address: '', city: '', link: '',
             notes: p.notes || '', rsvp: null, result: null, occurrences: {}, lat: null, lng: null, googleEventId: null
           });
@@ -1277,17 +1332,25 @@
     const t = tournaments.find(x=>x.id===id);
     if(!t) return;
     const occ = getOcc(t, date);
-    const r = occ.result || { placement:'', record:'', notes:'' };
+    const r = occ.result || { placement:'', record:'', notes:'', matches:[] };
+    let matches = (r.matches || []).map(m=>({...m}));
+
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `
-      <div class="modal" style="max-width:440px;">
+      <div class="modal" style="max-width:480px;">
         <h2>Log your result</h2>
         <div class="modal-sub">${escapeHtml(t.name)} · ${fmtFriendly(date, t.time)}</div>
         <div class="row2">
           <div class="field"><label>Placement</label><input id="r_placement" value="${escapeAttr(r.placement)}" placeholder="e.g. 1st, Top 8"/></div>
-          <div class="field"><label>Record</label><input id="r_record" value="${escapeAttr(r.record)}" placeholder="e.g. 3-1"/></div>
+          <div class="field"><label>Overall record</label><input id="r_record" value="${escapeAttr(r.record)}" placeholder="e.g. 3-1"/></div>
         </div>
+        <div class="hint" style="margin:-6px 0 12px;">Fills in automatically from the match log below — you can still edit it by hand.</div>
+
+        <div class="section-label">Match log</div>
+        <div id="matchRows"></div>
+        <button class="mini-btn" id="addMatchBtn" type="button" style="margin-bottom:14px;">+ Add a round</button>
+
         <div class="field"><label>Notes</label><textarea id="r_notes" placeholder="Deck you played, key matchups, what to improve…">${escapeHtml(r.notes)}</textarea></div>
         <div class="modal-actions">
           ${occ.result ? '<button class="btn-danger" id="clearResult" type="button">Clear result</button>' : ''}
@@ -1298,6 +1361,69 @@
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#cancelResult').onclick = ()=>overlay.remove();
+
+    function recomputeRecordFromMatches(){
+      if(matches.length === 0) return;
+      let w=0,l=0,d=0;
+      matches.forEach(m=>{ if(m.outcome==='W') w++; else if(m.outcome==='L') l++; else if(m.outcome==='D') d++; });
+      overlay.querySelector('#r_record').value = d>0 ? `${w}-${l}-${d}` : `${w}-${l}`;
+    }
+
+    const inputStyle = 'background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;';
+
+    function drawMatches(){
+      const rowsEl = overlay.querySelector('#matchRows');
+      if(matches.length === 0){
+        rowsEl.innerHTML = `<div class="modal-sub" style="margin-bottom:10px;">No rounds logged yet — add one below, or just fill in the overall record above.</div>`;
+        return;
+      }
+      rowsEl.innerHTML = matches.map((m,idx)=>`
+        <div class="list-item" style="align-items:flex-start;flex-wrap:wrap;">
+          <div class="info" style="flex:1;min-width:220px;">
+            <div class="n" style="margin-bottom:6px;">Round ${idx+1}</div>
+            <div class="row2" style="margin-bottom:6px;">
+              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="Opponent's deck/leader" style="${inputStyle}"/>
+              <select data-m="${idx}" data-f="outcome" style="${inputStyle}">
+                <option value="">Result…</option>
+                <option value="W" ${m.outcome==='W'?'selected':''}>Win</option>
+                <option value="L" ${m.outcome==='L'?'selected':''}>Loss</option>
+                <option value="D" ${m.outcome==='D'?'selected':''}>Draw</option>
+              </select>
+            </div>
+            <div class="row2">
+              <select data-m="${idx}" data-f="wentFirst" style="${inputStyle}">
+                <option value="">Went first?</option>
+                <option value="yes" ${m.wentFirst==='yes'?'selected':''}>I went first</option>
+                <option value="no" ${m.wentFirst==='no'?'selected':''}>I went second</option>
+              </select>
+              <input data-m="${idx}" data-f="notes" value="${escapeAttr(m.notes||'')}" placeholder="Notes (optional)" style="${inputStyle}"/>
+            </div>
+          </div>
+          <button class="icon-btn" data-remove-match="${idx}" title="Remove round">✕</button>
+        </div>`).join('');
+
+      rowsEl.querySelectorAll('[data-m]').forEach(el=>{
+        el.oninput = el.onchange = ()=>{
+          const idx = parseInt(el.dataset.m,10);
+          matches[idx][el.dataset.f] = el.value;
+          recomputeRecordFromMatches();
+        };
+      });
+      rowsEl.querySelectorAll('[data-remove-match]').forEach(btn=>{
+        btn.onclick = ()=>{
+          matches.splice(parseInt(btn.dataset.removeMatch,10), 1);
+          drawMatches();
+          recomputeRecordFromMatches();
+        };
+      });
+    }
+    drawMatches();
+
+    overlay.querySelector('#addMatchBtn').onclick = ()=>{
+      matches.push({ opponent:'', outcome:'', wentFirst:'', notes:'' });
+      drawMatches();
+    };
+
     if(occ.result){
       overlay.querySelector('#clearResult').onclick = async ()=>{
         setOcc(t, date, { result: null });
@@ -1309,8 +1435,9 @@
       const placement = overlay.querySelector('#r_placement').value.trim();
       const record = overlay.querySelector('#r_record').value.trim();
       const notes = overlay.querySelector('#r_notes').value.trim();
-      if(!placement && !record && !notes){ showToast('Add at least one detail'); return; }
-      setOcc(t, date, { result: { placement, record, notes } });
+      const cleanMatches = matches.filter(m=>m.opponent || m.outcome || m.notes);
+      if(!placement && !record && !notes && cleanMatches.length===0){ showToast('Add at least one detail'); return; }
+      setOcc(t, date, { result: { placement, record, notes, matches: cleanMatches } });
       await saveTournaments(); overlay.remove(); render();
       showToast('Result saved');
     };
@@ -1437,6 +1564,12 @@
       return;
     }
 
+    const gameBars = s.topGames.map(([name,count])=>`
+      <div class="bar-row">
+        <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxGameCount)*100)}%;"></div></div>
+      </div>`).join('');
+
     const formatBars = s.topFormats.map(([name,count])=>`
       <div class="bar-row">
         <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
@@ -1447,6 +1580,15 @@
       <div class="bar-row">
         <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
         <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxStoreCount)*100)}%;"></div></div>
+      </div>`).join('');
+
+    const matchupRows = s.matchups.map(m=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+        </div>
+        <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
 
     const recentRows = s.recentResults.map(r=>`
@@ -1468,7 +1610,9 @@
           <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">Overall record</div></div>
         </div>
 
+        ${s.topGames.length > 1 ? `<div class="section-label">Games you play</div>${gameBars}` : ''}
         ${s.topFormats.length ? `<div class="section-label">Formats you play most</div>${formatBars}` : ''}
+        ${matchupRows ? `<div class="section-label">Matchups (win rate by opponent's deck)</div>${matchupRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">Where you play most</div>${storeBars}` : ''}
         ${recentRows ? `<div class="section-label">Recent results</div>${recentRows}` : ''}
 
@@ -1559,7 +1703,7 @@
     const payload = {
       createdAt: Date.now(),
       events: [{
-        name: t.name, store: t.store, date, time: t.time, format: t.format,
+        name: t.name, game: t.game, store: t.store, date, time: t.time, format: t.format,
         fee: t.fee, address: t.address, link: t.link
       }]
     };
@@ -1598,7 +1742,7 @@
         btn.onclick = async ()=>{
           const e = payload.events[parseInt(btn.dataset.idx,10)];
           tournaments.push({
-            id: uid(), name: e.name, store: e.store||'', date: e.date, time: e.time||'',
+            id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
             repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
             notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
             readOnly: true
@@ -1643,7 +1787,7 @@
         btn.textContent = 'Sending…';
         try{
           const eventSnapshot = {
-            name: t.name, store: t.store, date, time: t.time, format: t.format,
+            name: t.name, game: t.game, store: t.store, date, time: t.time, format: t.format,
             fee: t.fee, address: t.address, link: t.link
           };
           const { error } = await supabaseClient.from('event_invitations').insert({
@@ -1678,7 +1822,7 @@
       if(accept){
         const e = updated.event;
         tournaments.push({
-          id: uid(), name: e.name, store: e.store||'', date: e.date, time: e.time||'',
+          id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
           repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
           notes:'', rsvp:'going', result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
           readOnly: true
@@ -1778,7 +1922,7 @@
           resultArea.querySelectorAll('[data-idx]').forEach(btn=>{
             btn.onclick = async ()=>{
               const e = payload.events[parseInt(btn.dataset.idx,10)];
-              tournaments.push({ id: uid(), name: e.name, store: e.store||'', date: e.date, time: e.time||'',
+              tournaments.push({ id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
                 repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
                 notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
                 readOnly: true });
