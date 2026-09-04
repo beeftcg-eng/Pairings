@@ -295,6 +295,7 @@
   let session = null;
   let profile = null;
   let tournaments = [];
+  let decks = [];
   let friendsAccepted = [];
   let pendingIncoming = [];
   let pendingOutgoing = [];
@@ -329,6 +330,19 @@
   }
 
   function uid(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function deckUid(){ return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  // Resolves a result's deck reference to whatever that deck is CURRENTLY named —
+  // so renaming a deck later automatically updates it everywhere in your stats history.
+  function resolveDeckName(result){
+    if(!result) return null;
+    if(result.deckId){
+      const d = decks.find(x=>x.id===result.deckId);
+      return d ? d.name : 'Deleted deck';
+    }
+    if(result.deck) return result.deck; // legacy free-text entries from before decks existed
+    return null;
+  }
 
   // Used before adding any event that came from somewhere else (a shared link,
   // a share code, an accepted invitation, or bulk import) to avoid silently
@@ -471,9 +485,10 @@
 
   async function loadTournaments(){
     try{
-      const { data } = await supabaseClient.from('user_data').select('tournaments').eq('user_id', session.user.id).maybeSingle();
+      const { data } = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', session.user.id).maybeSingle();
       tournaments = (data && data.tournaments) || [];
-    }catch(e){ tournaments = []; }
+      decks = (data && data.decks) || [];
+    }catch(e){ tournaments = []; decks = []; }
   }
   async function saveTournaments(){
     try{
@@ -482,6 +497,14 @@
         { onConflict: 'user_id' }
       );
     }catch(e){ showToast('Could not save — check your connection'); }
+  }
+  async function saveDecks(){
+    try{
+      await supabaseClient.from('user_data').upsert(
+        { user_id: session.user.id, decks, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+    }catch(e){ showToast('Could not save decks — check your connection'); }
   }
 
   async function syncAttendance(t, date){
@@ -893,7 +916,7 @@
         }
         const rec = parseRecord(occ.result.record);
         if(rec){ totalWins += rec.w; totalLosses += rec.l; totalDraws += rec.d; }
-        const deckKey = (occ.result.deck||'').trim();
+        const deckKey = occ.result.deckId ? ('id:'+occ.result.deckId) : (occ.result.deck ? ('legacy:'+occ.result.deck.trim()) : null);
         if(deckKey && rec){
           deckStats[deckKey] = deckStats[deckKey] || {w:0,l:0,d:0};
           deckStats[deckKey].w += rec.w; deckStats[deckKey].l += rec.l; deckStats[deckKey].d += rec.d;
@@ -932,13 +955,31 @@
       .sort((a,b)=>b.total-a.total)
       .slice(0, 8);
 
-    const deckWinRates = Object.entries(deckStats)
-      .map(([name, rec]) => ({
-        name, ...rec, total: rec.w+rec.l+rec.d,
-        winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null
-      }))
-      .sort((a,b)=>b.total-a.total)
-      .slice(0, 8);
+    function resolveDeckKeyName(key){
+      if(key.startsWith('id:')){
+        const d = decks.find(x=>x.id===key.slice(3));
+        return d ? d.name : 'Deleted deck';
+      }
+      return key.slice('legacy:'.length);
+    }
+    function deckStatusForKey(key){
+      if(key.startsWith('id:')){
+        const d = decks.find(x=>x.id===key.slice(3));
+        if(!d) return 'other';
+        return d.active ? 'current' : 'past';
+      }
+      return 'other'; // legacy free-text entries aren't tracked as current/past decks
+    }
+    const deckEntries = Object.entries(deckStats).map(([key, rec]) => ({
+      name: resolveDeckKeyName(key), status: deckStatusForKey(key), ...rec,
+      total: rec.w+rec.l+rec.d,
+      winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null
+    })).sort((a,b)=>b.total-a.total);
+    const deckWinRates = {
+      current: deckEntries.filter(d=>d.status==='current').slice(0,8),
+      past: deckEntries.filter(d=>d.status==='past').slice(0,8),
+      other: deckEntries.filter(d=>d.status==='other').slice(0,8)
+    };
 
     return {
       attended: attendedSet.size,
@@ -1452,12 +1493,14 @@
     const t = tournaments.find(x=>x.id===id);
     if(!t) return;
     const occ = getOcc(t, date);
-    const r = occ.result || { placement:'', record:'', notes:'', deck:'', matches:[] };
+    const r = occ.result || { placement:'', record:'', notes:'', deckId:'', deck:'', matches:[] };
     let matches = (r.matches || []).map(m=>({...m}));
     const isRiftbound = t.game === 'Riftbound';
     const legendDatalist = isRiftbound
       ? `<datalist id="legendOptions">${RIFTBOUND_LEGENDS.map(l=>`<option value="${escapeAttr(l)}">`).join('')}</datalist>`
       : '';
+    const matchingDecks = decks.filter(d => !t.game || !d.game || d.game === t.game).sort((a,b)=>(b.active?1:0)-(a.active?1:0));
+    const currentDeckId = r.deckId || '';
 
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -1470,8 +1513,17 @@
           <div class="field"><label>Overall record</label><input id="r_record" value="${escapeAttr(r.record)}" placeholder="e.g. 3-1"/></div>
         </div>
         <div class="field">
-          <label>Your deck / legend</label>
-          <input id="r_deck" value="${escapeAttr(r.deck||'')}" placeholder="${isRiftbound?'e.g. Jinx':'What you played'}" ${isRiftbound?'list="legendOptions"':''}/>
+          <label>Your deck</label>
+          <select id="r_deckSelect">
+            <option value="">— No deck selected —</option>
+            ${matchingDecks.map(d=>`<option value="${d.id}" ${currentDeckId===d.id?'selected':''}>${escapeHtml(d.name)}${d.active?'':' (retired)'}</option>`).join('')}
+            <option value="__new__">+ Add a new deck…</option>
+          </select>
+          <div id="newDeckInline" style="display:none;margin-top:8px;">
+            <input id="newDeckNameInline" placeholder="Deck name" ${isRiftbound?'list="legendOptions"':''}/>
+            <button class="mini-btn" id="createDeckInlineBtn" type="button" style="margin-top:6px;">Create &amp; select</button>
+          </div>
+          ${!r.deckId && r.deck ? `<div class="hint">Previously logged as free text: "${escapeHtml(r.deck)}" — pick a deck above to switch this to a trackable one.</div>` : ''}
         </div>
         ${legendDatalist}
         <div class="hint" style="margin:-6px 0 12px;">Record fills in automatically from the match log below — you can still edit it by hand.</div>
@@ -1553,6 +1605,24 @@
       drawMatches();
     };
 
+    const deckSelect = overlay.querySelector('#r_deckSelect');
+    const newDeckInline = overlay.querySelector('#newDeckInline');
+    deckSelect.onchange = ()=>{
+      newDeckInline.style.display = deckSelect.value === '__new__' ? 'block' : 'none';
+    };
+    overlay.querySelector('#createDeckInlineBtn').onclick = async ()=>{
+      const name = overlay.querySelector('#newDeckNameInline').value.trim();
+      if(!name){ showToast('Give the deck a name'); return; }
+      const newDeck = { id: deckUid(), name, game: t.game||'', notes:'', active:true, createdAt: Date.now() };
+      decks.push(newDeck);
+      await saveDecks();
+      const opt = document.createElement('option');
+      opt.value = newDeck.id; opt.textContent = newDeck.name; opt.selected = true;
+      deckSelect.insertBefore(opt, deckSelect.lastElementChild);
+      newDeckInline.style.display = 'none';
+      showToast('Deck created');
+    };
+
     if(occ.result){
       overlay.querySelector('#clearResult').onclick = async ()=>{
         setOcc(t, date, { result: null });
@@ -1565,11 +1635,14 @@
     overlay.querySelector('#saveResult').onclick = async ()=>{
       const placement = overlay.querySelector('#r_placement').value.trim();
       const record = overlay.querySelector('#r_record').value.trim();
-      const deck = overlay.querySelector('#r_deck').value.trim();
+      const deckId = deckSelect.value && deckSelect.value !== '__new__' ? deckSelect.value : '';
       const notes = overlay.querySelector('#r_notes').value.trim();
       const cleanMatches = matches.filter(m=>m.opponent || m.outcome || m.notes);
-      if(!placement && !record && !deck && !notes && cleanMatches.length===0){ showToast('Add at least one detail'); return; }
-      setOcc(t, date, { result: { placement, record, deck, notes, matches: cleanMatches } });
+      if(!placement && !record && !deckId && !r.deck && !notes && cleanMatches.length===0){ showToast('Add at least one detail'); return; }
+      const resultObj = { placement, record, notes, matches: cleanMatches };
+      if(deckId) resultObj.deckId = deckId;
+      else if(r.deck) resultObj.deck = r.deck; // keep old free-text entry if you didn't switch it to a tracked deck
+      setOcc(t, date, { result: resultObj });
       await saveTournaments();
       syncResultLogged(t, date, true);
       overlay.remove(); render();
@@ -1725,14 +1798,17 @@
         <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
 
-    const deckRows = s.deckWinRates.map(m=>`
+    const deckRow = m => `
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
           <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
         </div>
         <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
-      </div>`).join('');
+      </div>`;
+    const currentDeckRows = s.deckWinRates.current.map(deckRow).join('');
+    const pastDeckRows = s.deckWinRates.past.map(deckRow).join('');
+    const otherDeckRows = s.deckWinRates.other.map(deckRow).join('');
 
     const recentRows = s.recentResults.map(r=>`
       <div class="result-row">
@@ -1752,10 +1828,13 @@
           <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">Win rate</div></div>
           <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">Overall record</div></div>
         </div>
+        <div class="modal-actions" style="margin-top:0;"><button class="btn-secondary" id="openDecksFromStats" style="flex:1;">🃏 Manage your decks</button></div>
 
         ${s.topGames.length > 1 ? `<div class="section-label">Games you play</div>${gameBars}` : ''}
         ${s.topFormats.length ? `<div class="section-label">Formats you play most</div>${formatBars}` : ''}
-        ${deckRows ? `<div class="section-label">Win rate by your deck</div>${deckRows}` : ''}
+        ${currentDeckRows ? `<div class="section-label">Win rate — current decks</div>${currentDeckRows}` : ''}
+        ${pastDeckRows ? `<div class="section-label">Win rate — past decks</div>${pastDeckRows}` : ''}
+        ${otherDeckRows ? `<div class="section-label">Win rate — other (not saved as a deck)</div>${otherDeckRows}` : ''}
         ${matchupRows ? `<div class="section-label">Matchups (win rate by opponent's deck)</div>${matchupRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">Where you play most</div>${storeBars}` : ''}
         ${recentRows ? `<div class="section-label">Recent results</div>${recentRows}` : ''}
@@ -1765,6 +1844,99 @@
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeStats').onclick = ()=>overlay.remove();
+    overlay.querySelector('#openDecksFromStats').onclick = ()=>{ overlay.remove(); openDecksModal(); };
+  }
+
+  // ---------- Decks modal ----------
+  function openDecksModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>Your decks</h2><div id="decksBody"></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+
+    function deckRow(d){
+      return `
+        <div class="list-item" id="deckrow-${d.id}">
+          <div class="info">
+            <div class="n" data-view="${d.id}">${escapeHtml(d.name)}</div>
+            <div class="m">${d.game ? escapeHtml(d.game) : 'No game set'}</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="mini-btn" data-rename="${d.id}">Rename</button>
+            <button class="mini-btn" data-toggle="${d.id}">${d.active ? 'Retire' : 'Reactivate'}</button>
+            <button class="mini-btn decline" data-delete="${d.id}">Delete</button>
+          </div>
+        </div>`;
+    }
+
+    function draw(){
+      const body = overlay.querySelector('#decksBody');
+      const current = decks.filter(d=>d.active);
+      const past = decks.filter(d=>!d.active);
+      body.innerHTML = `
+        <div class="field">
+          <label>Add a deck</label>
+          <div class="row2">
+            <input id="newDeckName" placeholder="Deck name" list="legendOptionsGlobal"/>
+            <input id="newDeckGame" list="gameOptions" placeholder="Game (optional)"/>
+          </div>
+          <datalist id="gameOptions">${GAMES.map(g=>`<option value="${escapeAttr(g)}">`).join('')}</datalist>
+          <datalist id="legendOptionsGlobal">${RIFTBOUND_LEGENDS.map(l=>`<option value="${escapeAttr(l)}">`).join('')}</datalist>
+          <button class="mini-btn" id="addDeckBtn" style="margin-top:8px;">+ Add deck</button>
+        </div>
+        <div class="section-label">Current decks (${current.length})</div>
+        ${current.length ? current.map(deckRow).join('') : `<div class="modal-sub">No current decks yet.</div>`}
+        <div class="section-label">Past decks (${past.length})</div>
+        ${past.length ? past.map(deckRow).join('') : `<div class="modal-sub">Nothing retired yet.</div>`}
+        <div class="modal-actions"><button class="btn-secondary" id="closeDecks" style="flex:1;">Close</button></div>
+      `;
+
+      body.querySelector('#addDeckBtn').onclick = async ()=>{
+        const name = body.querySelector('#newDeckName').value.trim();
+        const game = body.querySelector('#newDeckGame').value.trim();
+        if(!name){ showToast('Give the deck a name'); return; }
+        decks.push({ id: deckUid(), name, game, notes:'', active:true, createdAt: Date.now() });
+        await saveDecks();
+        draw();
+        showToast('Deck added');
+      };
+      body.querySelectorAll('[data-rename]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const d = decks.find(x=>x.id===btn.dataset.rename);
+          if(!d) return;
+          const newName = prompt('Rename deck', d.name);
+          if(newName === null) return;
+          const trimmed = newName.trim();
+          if(!trimmed){ showToast('Name cannot be empty'); return; }
+          d.name = trimmed;
+          await saveDecks();
+          draw();
+          showToast('Deck renamed — updates everywhere it was used automatically');
+        };
+      });
+      body.querySelectorAll('[data-toggle]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const d = decks.find(x=>x.id===btn.dataset.toggle);
+          if(!d) return;
+          d.active = !d.active;
+          await saveDecks();
+          draw();
+          showToast(d.active ? 'Deck marked current' : 'Deck retired');
+        };
+      });
+      body.querySelectorAll('[data-delete]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          if(!confirm('Delete this deck? Past results logged with it will show as "Deleted deck" instead of losing their win/loss data.')) return;
+          decks = decks.filter(x=>x.id!==btn.dataset.delete);
+          await saveDecks();
+          draw();
+          showToast('Deck deleted');
+        };
+      });
+      body.querySelector('#closeDecks').onclick = ()=>overlay.remove();
+    }
+    draw();
   }
 
   // ---------- Account modal ----------
