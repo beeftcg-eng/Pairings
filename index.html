@@ -329,6 +329,22 @@
   }
 
   function uid(){ return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  // Used before adding any event that came from somewhere else (a shared link,
+  // a share code, an accepted invitation, or bulk import) to avoid silently
+  // creating a second copy of something you already have.
+  function isDuplicateEvent(candidate){
+    const cName = (candidate.name||'').trim().toLowerCase();
+    const cDate = candidate.date;
+    const cStore = (candidate.store||'').trim().toLowerCase();
+    if(!cName || !cDate) return false;
+    return tournaments.some(t=>{
+      if(t.date !== cDate) return false;
+      if((t.name||'').trim().toLowerCase() !== cName) return false;
+      if(cStore && (t.store||'').trim().toLowerCase() !== cStore) return false;
+      return true;
+    });
+  }
   function shareCode(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
 
   function showToast(msg){
@@ -712,6 +728,43 @@
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
   }
 
+  // Works with Apple Calendar, Outlook, and any other app that accepts .ics files —
+  // the universal fallback for anyone not using Google Calendar sync.
+  function icsEscape(s){
+    return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  }
+  function downloadIcs(t, date){
+    const start = date.replace(/-/g,'');
+    const nd = new Date(date+'T00:00:00'); nd.setDate(nd.getDate()+1);
+    const end = dateToStr(nd).replace(/-/g,'');
+    const stamp = new Date().toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+    const uidStr = (t.id||uid()) + '-' + date + '@pairings';
+    const summary = t.name + (t.time ? ' — ' + t.time : '');
+    const description = [t.fee?('Entry: '+t.fee):'', t.notes, t.link].filter(Boolean).join('\n\n');
+    const location = t.address || t.store || '';
+    const lines = [
+      'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Pairings//EN','CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      'UID:' + uidStr,
+      'DTSTAMP:' + stamp,
+      'DTSTART;VALUE=DATE:' + start,
+      'DTEND;VALUE=DATE:' + end,
+      'SUMMARY:' + icsEscape(summary),
+      'DESCRIPTION:' + icsEscape(description),
+      'LOCATION:' + icsEscape(location),
+      'END:VEVENT','END:VCALENDAR'
+    ];
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (t.name || 'event').replace(/[^a-z0-9]+/gi, '_').slice(0,60) + '.ics';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }
+
   // ---------- Smart paste parser ----------
   function parsePastedText(text){
     const result = {};
@@ -1052,6 +1105,7 @@
               <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">🔗 Share with a friend</a>
               <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">✉ Invite a friend</a>
               <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
+              <a class="card-link" href="#" data-action="downloadics" data-id="${t.id}" data-date="${date}">⬇️ Apple/Outlook (.ics)</a>
               ${profile && profile.google_connected ? `<a class="card-link gold" href="#" data-action="gsync" data-id="${t.id}" data-date="${date}">${inst.googleEventId ? '↻ Re-sync' : '⇪ Auto-sync'} to Calendar</a>` : ''}
             </div>
           </div>
@@ -1116,6 +1170,7 @@
     app.querySelectorAll('[data-action="gsync"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) syncEventToGoogle(t, b.dataset.date); });
     app.querySelectorAll('[data-action="shareevent"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) shareEventLink(t, b.dataset.date); });
     app.querySelectorAll('[data-action="inviteevent"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) openInviteModal(t, b.dataset.date); });
+    app.querySelectorAll('[data-action="downloadics"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) downloadIcs(t, b.dataset.date); });
   }
 
   async function toggleRsvp(id, date, val){
@@ -1370,12 +1425,14 @@
       reviewArea.querySelector('#addBulkBtn').onclick = async ()=>{
         const checked = Array.from(reviewArea.querySelectorAll('[data-bulk-idx]:checked')).map(el=>parseInt(el.dataset.bulkIdx,10));
         if(checked.length === 0){ showToast('Select at least one event'); return; }
-        let added = 0;
+        let added = 0, skippedDupes = 0;
         checked.forEach(idx=>{
           const p = parsed[idx];
           if(!p.date) return; // need at least a date to be useful
+          const candidate = { name: p.name || 'Untitled event', date: p.date, store: p.store || '' };
+          if(isDuplicateEvent(candidate)){ skippedDupes++; return; }
           tournaments.push({
-            id: uid(), name: p.name || 'Untitled event', game: p.game || '', store: p.store || '', date: p.date, time: p.time || '',
+            id: uid(), name: candidate.name, game: p.game || '', store: candidate.store, date: p.date, time: p.time || '',
             repeat: p.repeat || 'none', format: p.format || '', fee: p.fee || '', address: '', city: '', link: '',
             notes: p.notes || '', rsvp: null, result: null, occurrences: {}, lat: null, lng: null, googleEventId: null
           });
@@ -1384,7 +1441,8 @@
         await saveTournaments();
         overlay.remove();
         render();
-        showToast(`Added ${added} event${added===1?'':'s'} — double-check details on each, since this was an automatic guess`);
+        const dupeNote = skippedDupes ? ` (skipped ${skippedDupes} already on your calendar)` : '';
+        showToast(`Added ${added} event${added===1?'':'s'}${dupeNote} — double-check details, since this was an automatic guess`);
       };
     };
   }
@@ -1827,6 +1885,12 @@
       body.querySelectorAll('[data-idx]').forEach(btn=>{
         btn.onclick = async ()=>{
           const e = payload.events[parseInt(btn.dataset.idx,10)];
+          if(isDuplicateEvent(e)){
+            showToast('You already have this event');
+            btn.textContent = 'Already have it';
+            btn.disabled = true;
+            return;
+          }
           tournaments.push({
             id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
             repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
@@ -1907,14 +1971,18 @@
 
       if(accept){
         const e = updated.event;
-        tournaments.push({
-          id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
-          repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
-          notes:'', rsvp:'going', result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
-          readOnly: true
-        });
-        await saveTournaments();
-        showToast('Added to your calendar');
+        if(isDuplicateEvent(e)){
+          showToast('Accepted — but you already had this event on your calendar');
+        } else {
+          tournaments.push({
+            id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
+            repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
+            notes:'', rsvp:'going', result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
+            readOnly: true
+          });
+          await saveTournaments();
+          showToast('Added to your calendar');
+        }
       } else {
         showToast('Invitation declined');
       }
@@ -1931,14 +1999,14 @@
   // ---------- Share modal ----------
   function openShareModal(){
     const today = todayStr();
-    const goingInstances = buildInstances().filter(i=>i.date >= today && i.rsvp === 'going').sort((a,b)=>a.date.localeCompare(b.date));
+    const upcomingInstances = buildInstances().filter(i=>i.date >= today).sort((a,b)=>a.date.localeCompare(b.date));
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `
       <div class="modal">
         <h2>Share with anyone</h2>
         <div class="modal-sub">For people without an account — friends on Pairings already see your going list automatically.</div>
-        <div class="tabs"><button class="active" id="tabMine">My going list</button><button id="tabView">View a shared code</button></div>
+        <div class="tabs"><button class="active" id="tabMine">Share events</button><button id="tabView">View a shared code</button></div>
         <div id="shareBody"></div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1948,29 +2016,46 @@
     function renderMineTab(){
       overlay.querySelector('#tabMine').classList.add('active');
       overlay.querySelector('#tabView').classList.remove('active');
-      if(goingInstances.length === 0){
-        body.innerHTML = `<div class="modal-sub">Mark some upcoming events as "Going" first.</div>
+      if(upcomingInstances.length === 0){
+        body.innerHTML = `<div class="modal-sub">You don't have any upcoming events yet.</div>
           <div class="modal-actions"><button class="btn-secondary" id="closeShare" style="flex:1;">Close</button></div>`;
         overlay.querySelector('#closeShare').onclick = ()=>overlay.remove();
         return;
       }
-      const textBlock = "My upcoming tournaments:\n" + goingInstances.map(i=>
-        `• ${i.t.name} — ${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' @ '+i.t.store : ''}${i.t.link ? '\n  '+i.t.link : ''}`
-      ).join('\n');
       body.innerHTML = `
-        <div class="modal-sub">${goingInstances.length} upcoming event${goingInstances.length>1?'s':''} you're going to.</div>
-        ${goingInstances.map(i=>`<div class="list-item"><div class="info"><div class="n">${escapeHtml(i.t.name)}</div>
-          <div class="m">${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' · '+escapeHtml(i.t.store) : ''}</div></div></div>`).join('')}
+        <div class="modal-sub">Pick which events to share — checked by default if you're going, but you can share anything.</div>
+        ${upcomingInstances.map((i,idx)=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(i.t.name)}</div>
+              <div class="m">${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' · '+escapeHtml(i.t.store) : ''}${i.rsvp==='going' ? ' · Going' : ''}</div></div>
+            <input type="checkbox" data-share-idx="${idx}" ${i.rsvp==='going' ? 'checked' : ''} style="width:20px;height:20px;flex:none;"/>
+          </div>`).join('')}
         <div class="modal-actions">
           <button class="btn-secondary" id="copyTextBtn" style="flex:1;">Copy as text</button>
           <button class="btn-primary" id="makeCodeBtn" style="flex:1;">Create share code</button>
         </div>
         <div id="codeArea"></div>`;
-      body.querySelector('#copyTextBtn').onclick = ()=>{ const ok = copyText(textBlock); showToast(ok?'Copied — paste it anywhere':'Could not copy'); };
+
+      function selectedInstances(){
+        const idxs = Array.from(body.querySelectorAll('[data-share-idx]:checked')).map(el=>parseInt(el.dataset.shareIdx,10));
+        return idxs.map(idx=>upcomingInstances[idx]);
+      }
+
+      body.querySelector('#copyTextBtn').onclick = ()=>{
+        const selected = selectedInstances();
+        if(selected.length === 0){ showToast('Select at least one event'); return; }
+        const textBlock = "My tournaments:\n" + selected.map(i=>
+          `• ${i.t.name} — ${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' @ '+i.t.store : ''}${i.t.link ? '\n  '+i.t.link : ''}`
+        ).join('\n');
+        const ok = copyText(textBlock);
+        showToast(ok?'Copied — paste it anywhere':'Could not copy');
+      };
       body.querySelector('#makeCodeBtn').onclick = async ()=>{
+        const selected = selectedInstances();
+        if(selected.length === 0){ showToast('Select at least one event'); return; }
         const code = shareCode();
-        const payload = { createdAt: Date.now(), events: goingInstances.map(i=>({
-          name: i.t.name, store: i.t.store, date: i.date, time: i.t.time, format: i.t.format, fee: i.t.fee, address: i.t.address, link: i.t.link
+        const payload = { createdAt: Date.now(), events: selected.map(i=>({
+          name: i.t.name, game: i.t.game, store: i.t.store, date: i.date, time: i.t.time, format: i.t.format, fee: i.t.fee, address: i.t.address, link: i.t.link
         })) };
         try{
           await supabaseClient.from('kv_store').upsert({ key: 'share:'+code, value: payload, updated_at: new Date().toISOString() });
@@ -2008,12 +2093,20 @@
           resultArea.querySelectorAll('[data-idx]').forEach(btn=>{
             btn.onclick = async ()=>{
               const e = payload.events[parseInt(btn.dataset.idx,10)];
+              if(isDuplicateEvent(e)){
+                showToast('You already have this event');
+                btn.textContent = 'Already have it';
+                btn.disabled = true;
+                return;
+              }
               tournaments.push({ id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
                 repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
                 notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
                 readOnly: true });
               await saveTournaments();
               showToast('Added to your calendar');
+              btn.textContent = 'Added ✓';
+              btn.disabled = true;
             };
           });
         }catch(e){ resultArea.innerHTML = `<div class="modal-sub">No list found for that code.</div>`; }
@@ -2032,11 +2125,25 @@
     await checkPushEnabled();
     subscribeRealtime();
     render();
+    ensureTimezoneSaved();
     if(pendingShareCode){
       const code = pendingShareCode;
       pendingShareCode = null;
       openSharedEventModal(code);
     }
+  }
+
+  // Silently records the browser's timezone on the profile, used server-side
+  // by the "remind me to log results" scheduled job to know when 2 hours have
+  // actually passed for you specifically, not just in UTC.
+  async function ensureTimezoneSaved(){
+    try{
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if(tz && profile.timezone !== tz){
+        await supabaseClient.from('profiles').update({ timezone: tz }).eq('id', session.user.id);
+        profile.timezone = tz;
+      }
+    }catch(e){ /* non-fatal */ }
   }
 
   (async ()=>{
