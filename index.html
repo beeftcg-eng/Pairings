@@ -103,9 +103,11 @@
     padding:13px;margin-bottom:10px;position:relative;}
   .card.past{opacity:0.6;}
   .date-block{flex:none;width:50px;height:50px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;}
+    display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;position:relative;}
   .date-block .dow{font-size:9.5px;color:var(--teal);text-transform:uppercase;}
   .date-block .dom{font-size:18px;font-weight:600;line-height:1.1;}
+  .date-block .game-icon{position:absolute;top:-7px;left:-7px;font-size:13px;background:var(--panel);border:1px solid var(--line);
+    border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;}
   .card-body{flex:1;min-width:0;}
   .card-top{display:flex;justify-content:space-between;gap:8px;}
   .card-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14.5px;}
@@ -227,17 +229,20 @@
 <!--
   ============================================================
   SETUP REQUIRED — see SETUP.md for the full walkthrough.
+  Your actual Supabase/Google credentials live in config.js, a separate
+  file next to this one — NOT in this file. That way, whenever you get an
+  updated pairings.html, you just drop it in and config.js stays untouched.
   ============================================================
 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config.js"></script>
 <script>
 (function(){
-  // ---------- CONFIG — replace these ----------
-  const SUPABASE_URL = 'https://rkoftnavclopwvewnook.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_k-ZFO2VxVfY89Laxh0Bu1g_ZFxs3X_y';
-  const VAPID_PUBLIC_KEY = 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
-  const GOOGLE_CLIENT_ID = '970616293034-51hq7hkb98v08lfnchmcjddds06hctlr.apps.googleusercontent.com';
-  // ---------------------------------------------
+  const CFG = window.PAIRINGS_CONFIG || {};
+  const SUPABASE_URL = CFG.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+  const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
+  const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -247,7 +252,7 @@
       <div class="auth-wrap" style="max-width:520px;">
         <div class="auth-card">
           <h1>⚙️ One setup step</h1>
-          <p style="color:var(--text-dim);line-height:1.6;">This app needs a free Supabase project. Follow <code>SETUP.md</code>, then paste your Project URL and anon key near the top of this file's script and reload.</p>
+          <p style="color:var(--text-dim);line-height:1.6;">This app needs a free Supabase project. Follow <code>SETUP.md</code>, then edit <code>config.js</code> (a separate file next to this one) with your Project URL and anon key, and reload.</p>
         </div>
       </div>`;
     return;
@@ -257,6 +262,28 @@
   const FUNCTIONS_URL = SUPABASE_URL + '/functions/v1';
 
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
+  // Generic symbols, not official logos/artwork — avoids any IP issues while still giving a quick visual cue per game.
+  const GAME_ICONS = {
+    'Riftbound': '🌀',
+    'One Piece Card Game': '🏴‍☠️',
+    'Magic: The Gathering': '🔮',
+    'Pokémon TCG': '⚡',
+    'Yu-Gi-Oh!': '🌟',
+    'Digimon Card Game': '🦖',
+    'Flesh and Blood': '⚔️',
+    'Disney Lorcana': '✨',
+    'Star Wars: Unlimited': '🚀'
+  };
+  function gameIcon(game){ return GAME_ICONS[game] || (game ? '🎴' : ''); }
+
+  // Curated list of Riftbound Champion Legends, used only as autocomplete suggestions
+  // (for logging match-ups) — not an exhaustive/official list, just a helpful starting point.
+  const RIFTBOUND_LEGENDS = [
+    "Kai'Sa","Volibear","Jinx","Darius","Ahri","Lee Sin","Yasuo","Leona","Teemo","Viktor","Miss Fortune","Sett",
+    "Rumble","Lucian","Draven","Rek'Sai","Ornn","Jax","Irelia","Azir","Ezreal","Renata Glasc","Sivir","Fiora",
+    "Zed","Shen","Akali","Nasus","Renekton","Mel","Ambessa","Jayce","Kennen","Ekko","Dr. Mundo",
+    "Master Yi","Lux","Annie","Garen"
+  ];
   const FORMATS = ['Constructed','Sealed','Draft','Standard','Limited','Modified Champion Deck','Team Trios','2v2','Learn to Play','Other'];
   const REPEATS = [
     {v:'none', l:'Does not repeat'},
@@ -453,12 +480,25 @@
         }
         await supabaseClient.from('attendances').upsert({
           user_id: session.user.id, occurrence_key: key, event_name: t.name, event_date: date,
-          store: t.store||null, address: t.address||null, lat: t.lat||null, lng: t.lng||null
+          store: t.store||null, address: t.address||null, lat: t.lat||null, lng: t.lng||null,
+          time: t.time || null
         }, { onConflict: 'user_id,occurrence_key' });
       } else {
         await supabaseClient.from('attendances').delete().eq('user_id', session.user.id).eq('occurrence_key', key);
       }
     }catch(e){ /* non-fatal */ }
+  }
+
+  // Marks whether a result has been logged for an attended event, so the
+  // "remind me to log results" scheduled job (see SETUP.md) knows to skip it.
+  // Safe no-op if the reminders migration hasn't been run yet — errors are swallowed.
+  async function syncResultLogged(t, date, logged){
+    try{
+      await supabaseClient.from('attendances')
+        .update({ result_logged: logged, reminded: logged ? true : false })
+        .eq('user_id', session.user.id)
+        .eq('occurrence_key', t.id + '::' + date);
+    }catch(e){ /* non-fatal, and expected until the reminders migration is run */ }
   }
 
   async function loadFriendsData(){
@@ -781,6 +821,7 @@
     const gameCounts = {};
     const placementCounts = {};
     const matchupStats = {};
+    const deckStats = {};
     const allResults = [];
     let totalWins = 0, totalLosses = 0, totalDraws = 0;
 
@@ -799,6 +840,11 @@
         }
         const rec = parseRecord(occ.result.record);
         if(rec){ totalWins += rec.w; totalLosses += rec.l; totalDraws += rec.d; }
+        const deckKey = (occ.result.deck||'').trim();
+        if(deckKey && rec){
+          deckStats[deckKey] = deckStats[deckKey] || {w:0,l:0,d:0};
+          deckStats[deckKey].w += rec.w; deckStats[deckKey].l += rec.l; deckStats[deckKey].d += rec.d;
+        }
         (occ.result.matches||[]).forEach(m=>{
           const key = (m.opponent||'').trim();
           if(!key || !m.outcome) return;
@@ -833,6 +879,14 @@
       .sort((a,b)=>b.total-a.total)
       .slice(0, 8);
 
+    const deckWinRates = Object.entries(deckStats)
+      .map(([name, rec]) => ({
+        name, ...rec, total: rec.w+rec.l+rec.d,
+        winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null
+      }))
+      .sort((a,b)=>b.total-a.total)
+      .slice(0, 8);
+
     return {
       attended: attendedSet.size,
       resultsLogged: allResults.length,
@@ -842,6 +896,7 @@
       topGames: topN(gameCounts, 5),
       topPlacements: topN(placementCounts, 5),
       matchups,
+      deckWinRates,
       recentResults: allResults.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10),
       maxFormatCount: Math.max(1, ...Object.values(formatCounts)),
       maxStoreCount: Math.max(1, ...Object.values(storeCounts)),
@@ -964,7 +1019,7 @@
           ? `<span class="badge result">🏆 ${escapeHtml([inst.result.placement, inst.result.record].filter(Boolean).join(' · '))}</span>` : '';
         listHtml += `
         <div class="card ${isPast?'past':''}" data-id="${t.id}" data-date="${date}">
-          <div class="date-block"><div class="dow">${dp.dow}</div><div class="dom">${dp.dom}</div></div>
+          <div class="date-block">${t.game ? `<div class="game-icon">${gameIcon(t.game)}</div>` : ''}<div class="dow">${dp.dow}</div><div class="dom">${dp.dom}</div></div>
           <div class="card-body">
             <div class="card-top">
               <div class="card-name">${escapeHtml(t.name||'Untitled event')}</div>
@@ -976,7 +1031,7 @@
             <div class="card-meta">
               ${t.store ? `<span>${escapeHtml(t.store)}</span>` : ''}
               ${t.time ? `<span>${escapeHtml(t.time)}</span>` : ''}
-              ${t.game ? `<span class="badge game">${escapeHtml(t.game)}</span>` : ''}
+              ${t.game ? `<span class="badge game">${gameIcon(t.game)} ${escapeHtml(t.game)}</span>` : ''}
               ${t.format ? `<span class="badge format">${escapeHtml(t.format)}</span>` : ''}
               ${t.fee ? `<span class="badge fee">${escapeHtml(t.fee)}</span>` : ''}
               ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
@@ -993,6 +1048,7 @@
             ${t.notes ? `<div class="card-notes">${escapeHtml(t.notes.length>140?t.notes.slice(0,140)+'…':t.notes)}</div>` : ''}
             <div class="card-links">
               ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">Event page ↗</a>` : ''}
+              ${t.deckLink ? `<a class="card-link" href="${escapeAttr(t.deckLink)}" target="_blank" rel="noopener">📋 Decklist ↗</a>` : ''}
               <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">🔗 Share with a friend</a>
               <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">✉ Invite a friend</a>
               <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
@@ -1115,7 +1171,7 @@
   // ---------- Add/Edit modal ----------
   function openModal(id){
     const t = id ? tournaments.find(x=>x.id===id) : {
-      id: uid(), name:'', game:'', store:'', date:'', time:'', format:'', fee:'', address:'', city:'', link:'', notes:'',
+      id: uid(), name:'', game:'', store:'', date:'', time:'', format:'', fee:'', address:'', city:'', link:'', deckLink:'', notes:'',
       repeat:'none', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null
     };
     const overlay = document.createElement('div');
@@ -1164,6 +1220,11 @@
         <div class="field"><label>Entry fee</label><input id="f_fee" value="${escapeAttr(t.fee)}" placeholder="e.g. $10, or Free"/></div>
         <div class="field"><label>Address</label><input id="f_address" value="${escapeAttr(t.address)}" placeholder="Street, city"/></div>
         <div class="field"><label>Event link</label><input id="f_link" value="${escapeAttr(t.link)}" placeholder="https://…"/></div>
+        <div class="field">
+          <label>Decklist link (optional)</label>
+          <input id="f_decklink" value="${escapeAttr(t.deckLink||'')}" placeholder="https://piltoverarchive.com/decks/…"/>
+          <div class="hint">Playing Riftbound? <a href="https://piltoverarchive.com/deckbuilder" target="_blank" rel="noopener" style="color:var(--teal);">Build a deck on Piltover Archive ↗</a> then paste the link here.</div>
+        </div>
         <div class="field"><label>Notes (pricing details, prize support, byes, anything else)</label>
           <textarea id="f_notes" placeholder="e.g. $10 entry, +$5 for a bye, cash payouts top 4">${escapeHtml(t.notes)}</textarea>
         </div>
@@ -1239,6 +1300,7 @@
         fee: overlay.querySelector('#f_fee').value.trim(),
         address: newAddress,
         link: overlay.querySelector('#f_link').value.trim(),
+        deckLink: overlay.querySelector('#f_decklink').value.trim(),
         notes: overlay.querySelector('#f_notes').value.trim(),
         rsvp: t.rsvp || null,
         result: t.result || null,
@@ -1332,8 +1394,12 @@
     const t = tournaments.find(x=>x.id===id);
     if(!t) return;
     const occ = getOcc(t, date);
-    const r = occ.result || { placement:'', record:'', notes:'', matches:[] };
+    const r = occ.result || { placement:'', record:'', notes:'', deck:'', matches:[] };
     let matches = (r.matches || []).map(m=>({...m}));
+    const isRiftbound = t.game === 'Riftbound';
+    const legendDatalist = isRiftbound
+      ? `<datalist id="legendOptions">${RIFTBOUND_LEGENDS.map(l=>`<option value="${escapeAttr(l)}">`).join('')}</datalist>`
+      : '';
 
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -1345,13 +1411,18 @@
           <div class="field"><label>Placement</label><input id="r_placement" value="${escapeAttr(r.placement)}" placeholder="e.g. 1st, Top 8"/></div>
           <div class="field"><label>Overall record</label><input id="r_record" value="${escapeAttr(r.record)}" placeholder="e.g. 3-1"/></div>
         </div>
-        <div class="hint" style="margin:-6px 0 12px;">Fills in automatically from the match log below — you can still edit it by hand.</div>
+        <div class="field">
+          <label>Your deck / legend</label>
+          <input id="r_deck" value="${escapeAttr(r.deck||'')}" placeholder="${isRiftbound?'e.g. Jinx':'What you played'}" ${isRiftbound?'list="legendOptions"':''}/>
+        </div>
+        ${legendDatalist}
+        <div class="hint" style="margin:-6px 0 12px;">Record fills in automatically from the match log below — you can still edit it by hand.</div>
 
         <div class="section-label">Match log</div>
         <div id="matchRows"></div>
         <button class="mini-btn" id="addMatchBtn" type="button" style="margin-bottom:14px;">+ Add a round</button>
 
-        <div class="field"><label>Notes</label><textarea id="r_notes" placeholder="Deck you played, key matchups, what to improve…">${escapeHtml(r.notes)}</textarea></div>
+        <div class="field"><label>Notes</label><textarea id="r_notes" placeholder="Key matchups, what to improve…">${escapeHtml(r.notes)}</textarea></div>
         <div class="modal-actions">
           ${occ.result ? '<button class="btn-danger" id="clearResult" type="button">Clear result</button>' : ''}
           <button class="btn-secondary" id="cancelResult" type="button">Cancel</button>
@@ -1382,7 +1453,7 @@
           <div class="info" style="flex:1;min-width:220px;">
             <div class="n" style="margin-bottom:6px;">Round ${idx+1}</div>
             <div class="row2" style="margin-bottom:6px;">
-              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="Opponent's deck/leader" style="${inputStyle}"/>
+              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="Opponent's deck/leader" style="${inputStyle}" ${isRiftbound?'list="legendOptions"':''}/>
               <select data-m="${idx}" data-f="outcome" style="${inputStyle}">
                 <option value="">Result…</option>
                 <option value="W" ${m.outcome==='W'?'selected':''}>Win</option>
@@ -1427,18 +1498,23 @@
     if(occ.result){
       overlay.querySelector('#clearResult').onclick = async ()=>{
         setOcc(t, date, { result: null });
-        await saveTournaments(); overlay.remove(); render();
+        await saveTournaments();
+        syncResultLogged(t, date, false);
+        overlay.remove(); render();
         showToast('Result cleared');
       };
     }
     overlay.querySelector('#saveResult').onclick = async ()=>{
       const placement = overlay.querySelector('#r_placement').value.trim();
       const record = overlay.querySelector('#r_record').value.trim();
+      const deck = overlay.querySelector('#r_deck').value.trim();
       const notes = overlay.querySelector('#r_notes').value.trim();
       const cleanMatches = matches.filter(m=>m.opponent || m.outcome || m.notes);
-      if(!placement && !record && !notes && cleanMatches.length===0){ showToast('Add at least one detail'); return; }
-      setOcc(t, date, { result: { placement, record, notes, matches: cleanMatches } });
-      await saveTournaments(); overlay.remove(); render();
+      if(!placement && !record && !deck && !notes && cleanMatches.length===0){ showToast('Add at least one detail'); return; }
+      setOcc(t, date, { result: { placement, record, deck, notes, matches: cleanMatches } });
+      await saveTournaments();
+      syncResultLogged(t, date, true);
+      overlay.remove(); render();
       showToast('Result saved');
     };
   }
@@ -1591,6 +1667,15 @@
         <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
 
+    const deckRows = s.deckWinRates.map(m=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+        </div>
+        <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
+      </div>`).join('');
+
     const recentRows = s.recentResults.map(r=>`
       <div class="result-row">
         <div>
@@ -1612,6 +1697,7 @@
 
         ${s.topGames.length > 1 ? `<div class="section-label">Games you play</div>${gameBars}` : ''}
         ${s.topFormats.length ? `<div class="section-label">Formats you play most</div>${formatBars}` : ''}
+        ${deckRows ? `<div class="section-label">Win rate by your deck</div>${deckRows}` : ''}
         ${matchupRows ? `<div class="section-label">Matchups (win rate by opponent's deck)</div>${matchupRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">Where you play most</div>${storeBars}` : ''}
         ${recentRows ? `<div class="section-label">Recent results</div>${recentRows}` : ''}
