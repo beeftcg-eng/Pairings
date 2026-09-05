@@ -243,7 +243,6 @@
   const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
-  const DONATION_URL = CFG.DONATION_URL || '';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -480,8 +479,8 @@
   async function loadProfile(){
     try{
       const { data } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-      profile = data || { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null, onboarded:false };
-    }catch(e){ profile = { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null, onboarded:false }; }
+      profile = data || { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null };
+    }catch(e){ profile = { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null }; }
   }
 
   async function loadTournaments(){
@@ -1848,74 +1847,6 @@
     overlay.querySelector('#openDecksFromStats').onclick = ()=>{ overlay.remove(); openDecksModal(); };
   }
 
-  // ---------- Welcome tour ----------
-  const ONBOARDING_STEPS = [
-    {
-      title: 'Welcome to Pairings 👋',
-      body: "Track your local TCG tournaments, share them with friends, and keep tabs on your decks and results. Here's a quick tour of what's here — takes about 30 seconds."
-    },
-    {
-      title: 'Add your first event',
-      body: 'Tap "+ Add" to enter one by hand, or paste text or a link from a store\'s page — Pairings will try to fill in the date, store, and format automatically. There\'s also a bulk import for pasting a whole list at once.'
-    },
-    {
-      title: 'Set a username',
-      body: 'Open Account and set a username — that\'s how friends find and add you, instead of needing your email. Your home city goes there too, so you get notified when a friend is playing something near you.'
-    },
-    {
-      title: 'Add friends',
-      body: 'Tap Friends to send a request by username or email. Once connected, you\'ll be notified if a friend is also going to something you\'re attending, or you can send them a direct invite to a specific event from that event\'s card.'
-    },
-    {
-      title: 'Log results & track decks',
-      body: 'After an event, tap "Log result" on its card to record your placement and round-by-round matches. Manage your decks from Stats → "Manage your decks" — Riftbound players can even import a deck straight from Piltover Archive.'
-    },
-    {
-      title: 'Calendar sync & notifications',
-      body: 'Every event has an "Add to Google Calendar" or Apple/Outlook (.ics) link. Turn on push notifications from the 🔔 bell so you get alerts even when the app is closed.'
-    },
-    {
-      title: "You're all set 🎉",
-      body: 'That\'s the whole tour. You can revisit it anytime from Account → "How this works".'
-    }
-  ];
-
-  function openWelcomeModal(){
-    let step = 0;
-    const overlay = document.createElement('div');
-    overlay.className = 'overlay';
-    document.body.appendChild(overlay);
-
-    async function finish(){
-      overlay.remove();
-      try{
-        await supabaseClient.from('profiles').update({ onboarded: true }).eq('id', session.user.id);
-        profile.onboarded = true;
-      }catch(e){ /* non-fatal — worst case the tour shows again next login */ }
-    }
-
-    function draw(){
-      const s = ONBOARDING_STEPS[step];
-      const isLast = step === ONBOARDING_STEPS.length - 1;
-      overlay.innerHTML = `
-        <div class="modal" style="max-width:420px;text-align:center;">
-          <div style="display:flex;justify-content:center;gap:6px;margin-bottom:18px;">
-            ${ONBOARDING_STEPS.map((_,i)=>`<div style="width:${i===step?18:6}px;height:6px;border-radius:3px;background:${i===step?'var(--rift)':'var(--line)'};transition:width .2s;"></div>`).join('')}
-          </div>
-          <h2 style="margin-bottom:10px;">${escapeHtml(s.title)}</h2>
-          <div class="modal-sub" style="font-size:14px;line-height:1.6;margin-bottom:22px;">${escapeHtml(s.body)}</div>
-          <div class="modal-actions">
-            ${step>0 ? '<button class="btn-secondary" id="wBack" style="flex:1;">Back</button>' : '<button class="btn-secondary" id="wSkip" style="flex:1;">Skip</button>'}
-            <button class="btn-primary" id="wNext" style="flex:1;">${isLast?'Get started':'Next'}</button>
-          </div>
-        </div>`;
-      const backOrSkip = overlay.querySelector('#wBack') || overlay.querySelector('#wSkip');
-      backOrSkip.onclick = ()=>{ if(step>0){ step--; draw(); } else { finish(); } };
-      overlay.querySelector('#wNext').onclick = ()=>{ if(isLast){ finish(); } else { step++; draw(); } };
-    }
-    draw();
-  }
-
   // ---------- Decks modal ----------
   function openDecksModal(){
     const overlay = document.createElement('div');
@@ -2082,18 +2013,13 @@
           <button class="btn-primary" id="connectGoogleBtn" style="flex:1;">${profile.google_connected ? 'Reconnect' : 'Connect Google Calendar'}</button>
         </div>
         <div class="modal-actions">
-          <button class="btn-secondary" id="reopenWelcome" style="flex:1;">How this works</button>
-        </div>
-        <div class="modal-actions">
           <button class="btn-danger" id="logoutBtn" style="flex:1;">Log out</button>
           <button class="btn-secondary" id="closeAccount" style="flex:1;">Close</button>
         </div>
-        ${DONATION_URL ? `<div style="text-align:center;margin-top:16px;"><a href="${escapeAttr(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">💛 Support this project</a></div>` : ''}
       </div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
-    overlay.querySelector('#reopenWelcome').onclick = ()=>{ overlay.remove(); openWelcomeModal(); };
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); overlay.remove(); };
     overlay.querySelector('#useLocationBtn').onclick = ()=>{
@@ -2419,40 +2345,7 @@
       const code = pendingShareCode;
       pendingShareCode = null;
       openSharedEventModal(code);
-    } else if(profile && profile.onboarded === false){
-      openWelcomeModal();
-    } else {
-      checkForAnnouncement();
     }
-  }
-
-  // Shows the latest announcement once per person, if they haven't seen it yet.
-  // Post one anytime by inserting a row into the `announcements` table directly
-  // in the Supabase dashboard — no in-app admin UI needed.
-  async function checkForAnnouncement(){
-    try{
-      const { data } = await supabaseClient.from('announcements').select('*').order('created_at', { ascending:false }).limit(1).maybeSingle();
-      if(!data) return;
-      if(profile.last_seen_announcement_id === data.id) return;
-      const overlay = document.createElement('div');
-      overlay.className = 'overlay';
-      overlay.innerHTML = `
-        <div class="modal" style="max-width:420px;">
-          <h2>📣 ${escapeHtml(data.title)}</h2>
-          <div class="modal-sub" style="font-size:14px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(data.message)}</div>
-          <div class="modal-actions"><button class="btn-primary" id="dismissAnnouncement" style="flex:1;">Got it</button></div>
-        </div>`;
-      document.body.appendChild(overlay);
-      const dismiss = async ()=>{
-        overlay.remove();
-        try{
-          await supabaseClient.from('profiles').update({ last_seen_announcement_id: data.id }).eq('id', session.user.id);
-          profile.last_seen_announcement_id = data.id;
-        }catch(e){ /* non-fatal — worst case it shows again next login */ }
-      };
-      overlay.querySelector('#dismissAnnouncement').onclick = dismiss;
-      overlay.onclick = (e)=>{ if(e.target===overlay) dismiss(); };
-    }catch(e){ /* non-fatal, and expected until this migration is run */ }
   }
 
   // Silently records the browser's timezone on the profile, used server-side
