@@ -8,7 +8,7 @@
 // so you never have to re-enter these values again.
 
 window.PAIRINGS_CONFIG = {
-  SUPABASE_URL: 'https://supabase.com/dashboard/project/rkoftnavclopwvewnook',
+  SUPABASE_URL: 'https://rkoftnavclopwvewnook.supabase.co/rest/v1/',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrb2Z0bmF2Y2xvcHd2ZXdub29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjgwMjksImV4cCI6MjEwMzYwNDAyOX0.oq47ygufpxv7-prk50wQl28VN4D5ilJ6mMRsv7RGNQQ',
   VAPID_PUBLIC_KEY: 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o',
   GOOGLE_CLIENT_ID: '970616293034-51hq7hkb98v08lfnchmcjddds06hctlr.apps.googleusercontent.com,
