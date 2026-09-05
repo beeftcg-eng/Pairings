@@ -1856,11 +1856,18 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
 
     function deckRow(d){
+      const metaBits = [d.game || 'No game set'];
+      if(d.legend) metaBits.push('Legend: '+d.legend);
+      if(d.cardCount) metaBits.push(d.cardCount+' cards');
       return `
         <div class="list-item" id="deckrow-${d.id}">
           <div class="info">
             <div class="n" data-view="${d.id}">${escapeHtml(d.name)}</div>
-            <div class="m">${d.game ? escapeHtml(d.game) : 'No game set'}</div>
+            <div class="m">${escapeHtml(metaBits.join(' · '))}</div>
+            ${(d.viewLink || d.editLink) ? `<div style="margin-top:4px;display:flex;gap:10px;">
+              ${d.viewLink ? `<a href="${escapeAttr(d.viewLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">View on Piltover Archive ↗</a>` : ''}
+              ${d.editLink ? `<a href="${escapeAttr(d.editLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">Edit ↗</a>` : ''}
+            </div>` : ''}
           </div>
           <div style="display:flex;gap:6px;">
             <button class="mini-btn" data-rename="${d.id}">Rename</button>
@@ -1875,8 +1882,16 @@
       const current = decks.filter(d=>d.active);
       const past = decks.filter(d=>!d.active);
       body.innerHTML = `
+        <div class="paste-box">
+          <div class="lbl">🔗 Import from Piltover Archive</div>
+          <div style="display:flex;gap:8px;">
+            <input id="pltDeckLink" placeholder="https://piltoverarchive.com/decks/view/…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
+            <button class="parse-btn" id="pltImportBtn" type="button" style="margin-top:0;white-space:nowrap;">Import</button>
+          </div>
+          <div class="hint">Pulls in the deck's name, legend, and a direct edit link automatically.</div>
+        </div>
         <div class="field">
-          <label>Add a deck</label>
+          <label>Or add one manually</label>
           <div class="row2">
             <input id="newDeckName" placeholder="Deck name" list="legendOptionsGlobal"/>
             <input id="newDeckGame" list="gameOptions" placeholder="Game (optional)"/>
@@ -1891,6 +1906,34 @@
         ${past.length ? past.map(deckRow).join('') : `<div class="modal-sub">Nothing retired yet.</div>`}
         <div class="modal-actions"><button class="btn-secondary" id="closeDecks" style="flex:1;">Close</button></div>
       `;
+
+      body.querySelector('#pltImportBtn').onclick = async ()=>{
+        const url = body.querySelector('#pltDeckLink').value.trim();
+        if(!url){ showToast('Paste a Piltover Archive deck link first'); return; }
+        const btn = body.querySelector('#pltImportBtn');
+        btn.disabled = true;
+        btn.textContent = 'Importing…';
+        try{
+          const res = await fetch(FUNCTIONS_URL + '/fetch-piltover-deck', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
+            body: JSON.stringify({ url })
+          });
+          const p = await res.json();
+          if(p.error){ showToast(p.error); return; }
+          if(!p.foundAnything){ showToast("Couldn't read that deck page — try adding it manually instead"); return; }
+          decks.push({
+            id: deckUid(), name: p.name || 'Imported deck', game: 'Riftbound',
+            legend: p.legend || '', colors: p.colors || [], cardCount: p.cardCount || null,
+            viewLink: p.viewLink || url, editLink: p.editLink || '',
+            notes: '', active: true, createdAt: Date.now()
+          });
+          await saveDecks();
+          draw();
+          showToast('Deck imported from Piltover Archive');
+        }catch(e){ showToast('Could not import that deck'); }
+        finally{ btn.disabled = false; btn.textContent = 'Import'; }
+      };
 
       body.querySelector('#addDeckBtn').onclick = async ()=>{
         const name = body.querySelector('#newDeckName').value.trim();
