@@ -239,11 +239,11 @@
 <script>
 (function(){
   const CFG = window.PAIRINGS_CONFIG || {};
-  const SUPABASE_URL = CFG.SUPABASE_URL || 'https://rkoftnavclopwvewnook.supabase.co';
-  const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrb2Z0bmF2Y2xvcHd2ZXdub29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjgwMjksImV4cCI6MjEwMzYwNDAyOX0.oq47ygufpxv7-prk50wQl28VN4D5ilJ6mMRsv7RGNQQ';
+  const SUPABASE_URL = CFG.SUPABASE_URL || 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = CFG.SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
-  const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || '970616293034-51hq7hkb98v08lfnchmcjddds06hctlr.apps.googleusercontent.com';
-  const DONATION_URL = CFG.DONATION_URL || 'https://paypal.me/beeftcg';
+  const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+  const DONATION_URL = CFG.DONATION_URL || '';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
