@@ -9,7 +9,7 @@
 
 window.PAIRINGS_CONFIG = {
   SUPABASE_URL: 'https://rkoftnavclopwvewnook.supabase.co',
-  SUPABASE_ANON_KEY: 'sb_publishable_k-ZFO2VxVfY89Laxh0Bu1g_ZFxs3X_y',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrb2Z0bmF2Y2xvcHd2ZXdub29rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjgwMjksImV4cCI6MjEwMzYwNDAyOX0.oq47ygufpxv7-prk50wQl28VN4D5ilJ6mMRsv7RGNQQ',
   VAPID_PUBLIC_KEY: 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o',
   GOOGLE_CLIENT_ID: '970616293034-51hq7hkb98v08lfnchmcjddds06hctlr.apps.googleusercontent.com,
   // Optional — a Ko-fi, PayPal.me, Venmo, Buy Me a Coffee, or GitHub Sponsors
