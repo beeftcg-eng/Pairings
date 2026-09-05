@@ -8,8 +8,14 @@
 // so you never have to re-enter these values again.
 
 window.PAIRINGS_CONFIG = {
-  SUPABASE_URL: 'https://rkoftnavclopwvewnook.supabase.co',
-  SUPABASE_ANON_KEY: 'sb_publishable_k-ZFO2VxVfY89Laxh0Bu1g_ZFxs3X_y',
+  SUPABASE_URL: 'YOUR_SUPABASE_URL',
+  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
   VAPID_PUBLIC_KEY: 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o',
-  GOOGLE_CLIENT_ID: '970616293034-51hq7hkb98v08lfnchmcjddds06hctlr.apps.googleusercontent.com'
+  GOOGLE_CLIENT_ID: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+  // Optional — a Ko-fi, PayPal.me, Venmo, Buy Me a Coffee, or GitHub Sponsors
+  // link. Leave as an empty string to hide the "Support this project" link
+  // entirely. Never put actual bank account/routing numbers here or anywhere
+  // in a public-facing file — this file is visible to anyone who views your
+  // site's source.
+  DONATION_URL: 'https://paypal.me/beeftcg'
 };
