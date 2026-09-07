@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html> -->
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -244,6 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || '970616293034-51hq7hkb98v08lfnchmcjddds06hctlr.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || 'https://paypal.me/beeftcg';
+  const DONATION_URL = CFG.DONATION_URL || '';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -891,7 +892,9 @@
     return { w: parseInt(m[1],10), l: parseInt(m[2],10), d: m[3] ? parseInt(m[3],10) : 0 };
   }
 
-  function computeStats(){
+  function computeStats(tournamentsArr, decksArr, gameFilter){
+    tournamentsArr = tournamentsArr || tournaments;
+    decksArr = decksArr || decks;
     const attendedSet = new Set();
     const formatCounts = {};
     const storeCounts = {};
@@ -904,6 +907,7 @@
 
     function accumulate(t, date, occ){
       if(occ.skip) return;
+      if(gameFilter && t.game !== gameFilter) return;
       if(occ.rsvp === 'going' || occ.result){
         attendedSet.add(t.id + '::' + date);
         if(t.format) formatCounts[t.format] = (formatCounts[t.format]||0) + 1;
@@ -933,7 +937,7 @@
       }
     }
 
-    tournaments.forEach(t=>{
+    tournamentsArr.forEach(t=>{
       if(!isRepeating(t)){
         accumulate(t, t.date, { rsvp: t.rsvp||null, result: t.result||null, skip:false });
       } else {
@@ -948,24 +952,28 @@
     const winRate = decidedGames > 0 ? Math.round((totalWins/decidedGames) * 100) : null;
     const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
 
-    const matchups = Object.entries(matchupStats)
+    const matchupEntries = Object.entries(matchupStats)
       .map(([name, rec]) => ({
         name, ...rec, total: rec.w+rec.l+rec.d,
         winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null
-      }))
-      .sort((a,b)=>b.total-a.total)
-      .slice(0, 8);
+      }));
+    const matchups = matchupEntries.slice().sort((a,b)=>b.total-a.total).slice(0, 8);
+    // "What you lose to the most" — ranked by loss count first, then by worst win rate,
+    // and only among matchups with at least 2 games so one fluke loss doesn't top the list.
+    const toughestMatchups = matchupEntries.filter(m=>m.total>=2)
+      .sort((a,b)=> b.l - a.l || (a.winRate||0) - (b.winRate||0))
+      .slice(0, 5);
 
     function resolveDeckKeyName(key){
       if(key.startsWith('id:')){
-        const d = decks.find(x=>x.id===key.slice(3));
+        const d = decksArr.find(x=>x.id===key.slice(3));
         return d ? d.name : 'Deleted deck';
       }
       return key.slice('legacy:'.length);
     }
     function deckStatusForKey(key){
       if(key.startsWith('id:')){
-        const d = decks.find(x=>x.id===key.slice(3));
+        const d = decksArr.find(x=>x.id===key.slice(3));
         if(!d) return 'other';
         return d.active ? 'current' : 'past';
       }
@@ -991,11 +999,12 @@
       topGames: topN(gameCounts, 5),
       topPlacements: topN(placementCounts, 5),
       matchups,
+      toughestMatchups,
       deckWinRates,
       recentResults: allResults.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10),
-      maxFormatCount: Math.max(1, ...Object.values(formatCounts)),
-      maxStoreCount: Math.max(1, ...Object.values(storeCounts)),
-      maxGameCount: Math.max(1, ...Object.values(gameCounts))
+      maxFormatCount: Math.max(1, ...Object.values(formatCounts), 1),
+      maxStoreCount: Math.max(1, ...Object.values(storeCounts), 1),
+      maxGameCount: Math.max(1, ...Object.values(gameCounts), 1)
     };
   }
 
@@ -1686,7 +1695,10 @@
         ${friendsAccepted.length ? friendsAccepted.map(p=>`
           <div class="list-item">
             <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div>${friendSubLabel(p.userId) ? `<div class="m">${escapeHtml(friendSubLabel(p.userId))}</div>` : ''}</div>
-            <button class="mini-btn decline" data-decline="${p.friendshipId}">Remove</button>
+            <div style="display:flex;gap:6px;">
+              <button class="mini-btn" data-friend-stats="${p.userId}">📊 Stats</button>
+              <button class="mini-btn decline" data-decline="${p.friendshipId}">Remove</button>
+            </div>
           </div>`).join('') : `<div class="modal-sub">No friends yet — send a request above.</div>`}
         <div class="modal-actions"><button class="btn-secondary" id="closeFriends" style="flex:1;">Close</button></div>
       `;
@@ -1698,6 +1710,9 @@
       };
       body.querySelectorAll('[data-accept]').forEach(b=>b.onclick = async ()=>{ await acceptFriend(b.dataset.accept); draw(); });
       body.querySelectorAll('[data-decline]').forEach(b=>b.onclick = async ()=>{ await removeFriendship(b.dataset.decline); draw(); });
+      body.querySelectorAll('[data-friend-stats]').forEach(b=>b.onclick = ()=>{
+        openFriendStatsModal(b.dataset.friendStats, friendLabel(b.dataset.friendStats));
+      });
       body.querySelector('#closeFriends').onclick = ()=>overlay.remove();
     }
     draw();
@@ -1752,7 +1767,7 @@
 
   // ---------- Stats modal ----------
   function openStatsModal(){
-    const s = computeStats();
+    const s = computeStats(tournaments, decks, null);
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
 
@@ -1772,16 +1787,10 @@
       return;
     }
 
-    const gameBars = s.topGames.map(([name,count])=>`
-      <div class="bar-row">
-        <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxGameCount)*100)}%;"></div></div>
-      </div>`).join('');
-
-    const formatBars = s.topFormats.map(([name,count])=>`
-      <div class="bar-row">
-        <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxFormatCount)*100)}%;"></div></div>
+    const gameRows = s.topGames.map(([name,count])=>`
+      <div class="list-item">
+        <div class="info"><div class="n">${gameIcon(name)} ${escapeHtml(name)}</div><div class="m">${count} event${count===1?'':'s'} attended</div></div>
+        <button class="mini-btn" data-game-details="${escapeAttr(name)}">Details →</button>
       </div>`).join('');
 
     const storeBars = s.topStores.map(([name,count])=>`
@@ -1790,28 +1799,16 @@
         <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxStoreCount)*100)}%;"></div></div>
       </div>`).join('');
 
-    const matchupRows = s.matchups.map(m=>`
+    const toughRows = s.toughestMatchups.map(m=>`
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
           <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
         </div>
-        <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
+        <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
 
-    const deckRow = m => `
-      <div class="result-row">
-        <div>
-          <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
-        </div>
-        <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
-      </div>`;
-    const currentDeckRows = s.deckWinRates.current.map(deckRow).join('');
-    const pastDeckRows = s.deckWinRates.past.map(deckRow).join('');
-    const otherDeckRows = s.deckWinRates.other.map(deckRow).join('');
-
-    const recentRows = s.recentResults.map(r=>`
+    const recentRows = s.recentResults.slice(0,5).map(r=>`
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(r.name)}</div>
@@ -1831,13 +1828,9 @@
         </div>
         <div class="modal-actions" style="margin-top:0;"><button class="btn-secondary" id="openDecksFromStats" style="flex:1;">🃏 Manage your decks</button></div>
 
-        ${s.topGames.length > 1 ? `<div class="section-label">Games you play</div>${gameBars}` : ''}
-        ${s.topFormats.length ? `<div class="section-label">Formats you play most</div>${formatBars}` : ''}
-        ${currentDeckRows ? `<div class="section-label">Win rate — current decks</div>${currentDeckRows}` : ''}
-        ${pastDeckRows ? `<div class="section-label">Win rate — past decks</div>${pastDeckRows}` : ''}
-        ${otherDeckRows ? `<div class="section-label">Win rate — other (not saved as a deck)</div>${otherDeckRows}` : ''}
-        ${matchupRows ? `<div class="section-label">Matchups (win rate by opponent's deck)</div>${matchupRows}` : ''}
+        ${gameRows ? `<div class="section-label">Games you play — tap for the full breakdown</div>${gameRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">Where you play most</div>${storeBars}` : ''}
+        ${toughRows ? `<div class="section-label">What you lose to the most</div>${toughRows}` : ''}
         ${recentRows ? `<div class="section-label">Recent results</div>${recentRows}` : ''}
 
         <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">Close</button></div>
@@ -1846,6 +1839,150 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeStats').onclick = ()=>overlay.remove();
     overlay.querySelector('#openDecksFromStats').onclick = ()=>{ overlay.remove(); openDecksModal(); };
+    overlay.querySelectorAll('[data-game-details]').forEach(b=>{
+      b.onclick = ()=>{ overlay.remove(); openGameStatsModal(b.dataset.gameDetails, tournaments, decks, 'Your'); };
+    });
+  }
+
+  // ---------- Per-game detailed stats (opened from the general stats page) ----------
+  function openGameStatsModal(game, tournamentsArr, decksArr, ownerLabel){
+    const s = computeStats(tournamentsArr, decksArr, game);
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+
+    const formatBars = s.topFormats.map(([name,count])=>`
+      <div class="bar-row">
+        <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxFormatCount)*100)}%;"></div></div>
+      </div>`).join('');
+
+    const rowOf = m => `
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+        </div>
+        <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
+      </div>`;
+    const currentDeckRows = s.deckWinRates.current.map(rowOf).join('');
+    const pastDeckRows = s.deckWinRates.past.map(rowOf).join('');
+    const otherDeckRows = s.deckWinRates.other.map(rowOf).join('');
+    const matchupRows = s.matchups.map(rowOf).join('');
+    const toughRows = s.toughestMatchups.map(m=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+        </div>
+        <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
+      </div>`).join('');
+    const recentRows = s.recentResults.map(r=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(r.name)}</div>
+          <div class="m">${fmtFriendly(r.date)}${r.store ? ' · '+escapeHtml(r.store) : ''}</div>
+        </div>
+        <div class="p">${escapeHtml([r.result.placement, r.result.record].filter(Boolean).join(' · ') || '—')}</div>
+      </div>`).join('');
+
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>${gameIcon(game)} ${escapeHtml(game)}</h2>
+        <div class="modal-sub">${escapeHtml(ownerLabel)} stats for this game</div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">Events attended</div></div>
+          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">Results logged</div></div>
+          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">Win rate</div></div>
+          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">Overall record</div></div>
+        </div>
+
+        ${s.topFormats.length ? `<div class="section-label">Formats played</div>${formatBars}` : ''}
+        ${currentDeckRows ? `<div class="section-label">Win rate — current decks</div>${currentDeckRows}` : ''}
+        ${pastDeckRows ? `<div class="section-label">Win rate — past decks</div>${pastDeckRows}` : ''}
+        ${otherDeckRows ? `<div class="section-label">Win rate — other (not saved as a deck)</div>${otherDeckRows}` : ''}
+        ${toughRows ? `<div class="section-label">What you lose to the most</div>${toughRows}` : ''}
+        ${matchupRows ? `<div class="section-label">All matchups</div>${matchupRows}` : ''}
+        ${recentRows ? `<div class="section-label">Recent results</div>${recentRows}` : ''}
+
+        <div class="modal-actions"><button class="btn-secondary" id="closeGameStats" style="flex:1;">Close</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeGameStats').onclick = ()=>overlay.remove();
+  }
+
+  // ---------- Friend stats (read-only view of an accepted friend's stats) ----------
+  async function openFriendStatsModal(friendUserId, friendName){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2><div class="modal-sub">Loading…</div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+
+    let friendTournaments = [], friendDecks = [];
+    try{
+      const { data, error } = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', friendUserId).maybeSingle();
+      if(error) throw error;
+      friendTournaments = (data && data.tournaments) || [];
+      friendDecks = (data && data.decks) || [];
+    }catch(e){
+      overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2>
+        <div class="modal-sub">Couldn't load their stats — they may need to be on the latest version of the app for this to work.</div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">Close</button></div></div>`;
+      overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
+      return;
+    }
+
+    const s = computeStats(friendTournaments, friendDecks, null);
+    if(s.attended === 0 && s.resultsLogged === 0){
+      overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2>
+        <div class="empty-state"><div class="big">Nothing to show yet</div><div>${escapeHtml(friendName)} hasn't logged any results.</div></div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">Close</button></div></div>`;
+      overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
+      return;
+    }
+
+    const gameRows = s.topGames.map(([name,count])=>`
+      <div class="list-item">
+        <div class="info"><div class="n">${gameIcon(name)} ${escapeHtml(name)}</div><div class="m">${count} event${count===1?'':'s'} attended</div></div>
+        <button class="mini-btn" data-friend-game-details="${escapeAttr(name)}">Details →</button>
+      </div>`).join('');
+
+    const storeBars = s.topStores.map(([name,count])=>`
+      <div class="bar-row">
+        <div class="bar-top"><span class="bn">${escapeHtml(name)}</span><span class="bc">${count}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxStoreCount)*100)}%;"></div></div>
+      </div>`).join('');
+
+    const toughRows = s.toughestMatchups.map(m=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+        </div>
+        <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
+      </div>`).join('');
+
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>${escapeHtml(friendName)}'s stats</h2>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">Events attended</div></div>
+          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">Results logged</div></div>
+          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">Win rate</div></div>
+          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">Overall record</div></div>
+        </div>
+
+        ${gameRows ? `<div class="section-label">Games they play — tap for the full breakdown</div>${gameRows}` : ''}
+        ${s.topStores.length ? `<div class="section-label">Where they play most</div>${storeBars}` : ''}
+        ${toughRows ? `<div class="section-label">What they lose to the most</div>${toughRows}` : ''}
+
+        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">Close</button></div>
+      </div>`;
+    overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
+    overlay.querySelectorAll('[data-friend-game-details]').forEach(b=>{
+      b.onclick = ()=>{ overlay.remove(); openGameStatsModal(b.dataset.friendGameDetails, friendTournaments, friendDecks, friendName+"'s"); };
+    });
   }
 
   // ---------- Welcome tour ----------
@@ -1946,6 +2083,25 @@
         </div>`;
     }
 
+    function groupByGame(list){
+      const groups = {};
+      list.forEach(d=>{
+        const key = d.game || 'No game set';
+        groups[key] = groups[key] || [];
+        groups[key].push(d);
+      });
+      return Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0]));
+    }
+    function renderGroupedDecks(list){
+      if(!list.length) return '';
+      const groups = groupByGame(list);
+      if(groups.length === 1) return list.map(deckRow).join('');
+      return groups.map(([gameName, ds])=>`
+        <div style="font-size:12px;color:var(--text-dim);font-weight:600;margin:10px 0 6px;">${gameIcon(gameName)} ${escapeHtml(gameName)}</div>
+        ${ds.map(deckRow).join('')}
+      `).join('');
+    }
+
     function draw(){
       const body = overlay.querySelector('#decksBody');
       const current = decks.filter(d=>d.active);
@@ -1970,9 +2126,9 @@
           <button class="mini-btn" id="addDeckBtn" style="margin-top:8px;">+ Add deck</button>
         </div>
         <div class="section-label">Current decks (${current.length})</div>
-        ${current.length ? current.map(deckRow).join('') : `<div class="modal-sub">No current decks yet.</div>`}
+        ${current.length ? renderGroupedDecks(current) : `<div class="modal-sub">No current decks yet.</div>`}
         <div class="section-label">Past decks (${past.length})</div>
-        ${past.length ? past.map(deckRow).join('') : `<div class="modal-sub">Nothing retired yet.</div>`}
+        ${past.length ? renderGroupedDecks(past) : `<div class="modal-sub">Nothing retired yet.</div>`}
         <div class="modal-actions"><button class="btn-secondary" id="closeDecks" style="flex:1;">Close</button></div>
       `;
 
