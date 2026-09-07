@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.3'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -330,6 +330,12 @@
       winRate: 'Win rate', overallRecord: 'Overall record', gamesYouPlay: 'Games you play — tap for the full breakdown',
       whereYouPlay: 'Where you play most', whatYouLose: 'What you lose to the most', whatYouBeat: 'What you beat the most',
       exportData: 'Export my data',
+      formatsPlayed: 'Formats played', winCurrentDecks: 'Win rate — current decks', winPastDecks: 'Win rate — past decks',
+      winOtherDecks: 'Win rate — other (not saved as a deck)', allMatchups: 'All matchups',
+      privacyLabel: 'Privacy', shareStatsLabel: 'Let friends see my stats',
+      shareStatsHint: "Turning this off hides your full event/result history from friends — they'll still see your going list.",
+      statsPrivate: '🔒 Stats are private', statsPrivateBody: 'has turned off stats sharing with friends.',
+      settingsSaved: 'Settings saved', couldNotSave: 'Could not save — try again',
       recentResults: 'Recent results', details: 'Details →', nothingToShow: 'Nothing to show yet',
       rangeWeek: 'Past week', rangeMonth: 'Past month', range3Months: 'Past 3 months', rangeAll: 'All time',
     },
@@ -395,6 +401,12 @@
       winRate: 'Porcentaje de victorias', overallRecord: 'Récord general', gamesYouPlay: 'Juegos que practicas — toca para ver el desglose',
       whereYouPlay: 'Dónde juegas más', whatYouLose: 'A qué pierdes más', whatYouBeat: 'A qué le ganas más',
       exportData: 'Exportar mis datos',
+      formatsPlayed: 'Formatos jugados', winCurrentDecks: 'Porcentaje de victorias — mazos actuales', winPastDecks: 'Porcentaje de victorias — mazos anteriores',
+      winOtherDecks: 'Porcentaje de victorias — otros (sin guardar como mazo)', allMatchups: 'Todos los enfrentamientos',
+      privacyLabel: 'Privacidad', shareStatsLabel: 'Permitir que mis amigos vean mis estadísticas',
+      shareStatsHint: 'Al desactivarlo, ocultas tu historial completo de eventos y resultados de tus amigos — igual verán tu lista de "voy".',
+      statsPrivate: '🔒 Estadísticas privadas', statsPrivateBody: 'ha desactivado compartir estadísticas con amigos.',
+      settingsSaved: 'Ajustes guardados', couldNotSave: 'No se pudo guardar — intenta de nuevo',
       recentResults: 'Resultados recientes', details: 'Detalles →', nothingToShow: 'Todavía no hay nada que mostrar',
       rangeWeek: 'Última semana', rangeMonth: 'Último mes', range3Months: 'Últimos 3 meses', rangeAll: 'Todo el tiempo',
     }
@@ -2166,13 +2178,13 @@
           <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">${tr('overallRecord')}</div></div>
         </div>
 
-        ${s.topFormats.length ? `<div class="section-label">Formats played</div>${formatBars}` : ''}
-        ${currentDeckRows ? `<div class="section-label">Win rate — current decks</div>${currentDeckRows}` : ''}
-        ${pastDeckRows ? `<div class="section-label">Win rate — past decks</div>${pastDeckRows}` : ''}
-        ${otherDeckRows ? `<div class="section-label">Win rate — other (not saved as a deck)</div>${otherDeckRows}` : ''}
+        ${s.topFormats.length ? `<div class="section-label">${tr('formatsPlayed')}</div>${formatBars}` : ''}
+        ${currentDeckRows ? `<div class="section-label">${tr('winCurrentDecks')}</div>${currentDeckRows}` : ''}
+        ${pastDeckRows ? `<div class="section-label">${tr('winPastDecks')}</div>${pastDeckRows}` : ''}
+        ${otherDeckRows ? `<div class="section-label">${tr('winOtherDecks')}</div>${otherDeckRows}` : ''}
         ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
-        ${matchupRows ? `<div class="section-label">All matchups</div>${matchupRows}` : ''}
+        ${matchupRows ? `<div class="section-label">${tr('allMatchups')}</div>${matchupRows}` : ''}
         ${recentRows ? `<div class="section-label">${tr('recentResults')}</div>${recentRows}` : ''}
 
         <div class="modal-actions"><button class="btn-secondary" id="closeGameStats" style="flex:1;">${tr('close')}</button></div>
@@ -2189,6 +2201,17 @@
     overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2><div class="modal-sub">Loading…</div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+
+    try{
+      const { data: friendProfile } = await supabaseClient.from('profiles').select('share_stats_with_friends').eq('id', friendUserId).maybeSingle();
+      if(friendProfile && friendProfile.share_stats_with_friends === false){
+        overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2>
+          <div class="empty-state"><div class="big">${tr('statsPrivate')}</div><div>${escapeHtml(friendName)} ${tr('statsPrivateBody')}</div></div>
+          <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">${tr('close')}</button></div></div>`;
+        overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
+        return;
+      }
+    }catch(e){ /* if this check fails, fall through and let the data fetch below handle it */ }
 
     let friendTournaments = [], friendDecks = [];
     try{
@@ -2266,43 +2289,80 @@
   }
 
   // ---------- Welcome tour ----------
-  const ONBOARDING_STEPS = [
-    {
-      title: 'Welcome to Pairings 👋',
-      body: "Track your local TCG tournaments, share them with friends, and keep tabs on your decks and results. Here's a quick tour of what's here — takes about 30 seconds."
-    },
-    {
-      title: 'Add your first event',
-      body: 'Tap "+ Add" to enter one by hand, or paste text or a link from a store\'s page — Pairings will try to fill in the date, store, and format automatically. There\'s also a "Store\'s page" field, handy for checking if an event got cancelled or postponed.'
-    },
-    {
-      title: 'Set a username',
-      body: 'Open Account and set a username — that\'s how friends find and add you, instead of needing your email. Your home city goes there too, so you get notified when a friend is playing something near you.'
-    },
-    {
-      title: 'Add friends',
-      body: 'Tap Friends to send a request by username or email. Once connected, you\'ll be notified if a friend is also going to something you\'re attending, or you can send them a direct invite to a specific event from that event\'s card.'
-    },
-    {
-      title: 'Log results & track decks',
-      body: 'After an event, tap "Log result" on its card to record your placement and round-by-round matches. Manage your decks from Stats → "Manage your decks" — Riftbound players can even import a deck straight from Piltover Archive.'
-    },
-    {
-      title: 'Dig into your stats',
-      body: 'Stats breaks down by game with a tap, shows what you beat and lose to most, and filters by week/month/3 months. You can also check any friend\'s stats the same way, right from the Friends list.'
-    },
-    {
-      title: 'Calendar sync & notifications',
-      body: 'Every event has an "Add to Google Calendar" or Apple/Outlook (.ics) link. Turn on push notifications from the 🔔 bell so you get alerts even when the app is closed — including a heads-up 2 hours before something you\'re going to starts.'
-    },
-    {
-      title: "You're all set 🎉",
-      body: 'One more thing worth knowing: Account has a language switcher (English/Español), a button to export all your data, and notification settings if you want to mute a specific type. You can revisit this tour anytime from Account → "How this works".'
-    }
-  ];
+  const ONBOARDING_STEPS_BY_LANG = {
+    en: [
+      {
+        title: 'Welcome to Pairings 👋',
+        body: "Track your local TCG tournaments, share them with friends, and keep tabs on your decks and results. Here's a quick tour of what's here — takes about 30 seconds."
+      },
+      {
+        title: 'Add your first event',
+        body: 'Tap "+ Add" to enter one by hand, or paste text or a link from a store\'s page — Pairings will try to fill in the date, store, and format automatically. There\'s also a "Store\'s page" field, handy for checking if an event got cancelled or postponed.'
+      },
+      {
+        title: 'Set a username',
+        body: 'Open Account and set a username — that\'s how friends find and add you, instead of needing your email. Your home city goes there too, so you get notified when a friend is playing something near you.'
+      },
+      {
+        title: 'Add friends',
+        body: 'Tap Friends to send a request by username or email. Once connected, you\'ll be notified if a friend is also going to something you\'re attending, or you can send them a direct invite to a specific event from that event\'s card.'
+      },
+      {
+        title: 'Log results & track decks',
+        body: 'After an event, tap "Log result" on its card to record your placement and round-by-round matches. Manage your decks from Stats → "Manage your decks" — Riftbound players can even import a deck straight from Piltover Archive.'
+      },
+      {
+        title: 'Dig into your stats',
+        body: 'Stats breaks down by game with a tap, shows what you beat and lose to most, and filters by week/month/3 months. You can also check any friend\'s stats the same way, right from the Friends list — unless they\'ve turned that off in Account → Privacy.'
+      },
+      {
+        title: 'Calendar sync & notifications',
+        body: 'Every event has an "Add to Google Calendar" or Apple/Outlook (.ics) link. Turn on push notifications from the 🔔 bell so you get alerts even when the app is closed — including a heads-up 2 hours before something you\'re going to starts. You can turn off any specific type from Account.'
+      },
+      {
+        title: "You're all set 🎉",
+        body: 'One more thing worth knowing: Account has a language switcher (English/Español), a button to export all your data, and privacy/notification settings. You can revisit this tour anytime from Account → "How this works".'
+      }
+    ],
+    es: [
+      {
+        title: '¡Bienvenido a Pairings! 👋',
+        body: 'Organiza tus torneos locales de TCG, compártelos con amigos, y lleva el control de tus mazos y resultados. Aquí va un recorrido rápido — toma unos 30 segundos.'
+      },
+      {
+        title: 'Agrega tu primer evento',
+        body: 'Toca "+ Agregar" para ingresarlo a mano, o pega texto o un enlace de la página de una tienda — Pairings intentará completar la fecha, tienda y formato automáticamente. También hay un campo de "Página de la tienda", útil para revisar si cancelaron o pospusieron un evento.'
+      },
+      {
+        title: 'Configura un nombre de usuario',
+        body: 'Abre Cuenta y elige un nombre de usuario — así es como tus amigos te encuentran y agregan, sin necesitar tu correo. Tu ciudad también va ahí, para que te avisen cuando un amigo esté jugando algo cerca de ti.'
+      },
+      {
+        title: 'Agrega amigos',
+        body: 'Toca Amigos para enviar una solicitud por nombre de usuario o correo. Una vez conectados, te avisarán si un amigo también va a algo a lo que asistes, o puedes invitarlo directamente a un evento específico desde la tarjeta de ese evento.'
+      },
+      {
+        title: 'Registra resultados y mazos',
+        body: 'Después de un evento, toca "Registrar resultado" en su tarjeta para anotar tu posición y los resultados ronda por ronda. Administra tus mazos desde Estadísticas → "Administrar tus mazos" — los jugadores de Riftbound pueden incluso importar un mazo directamente desde Piltover Archive.'
+      },
+      {
+        title: 'Explora tus estadísticas',
+        body: 'Las estadísticas se separan por juego con un toque, muestran a qué le ganas y pierdes más, y se filtran por semana/mes/3 meses. También puedes ver las estadísticas de cualquier amigo de la misma forma, desde la lista de Amigos — a menos que las haya desactivado en Cuenta → Privacidad.'
+      },
+      {
+        title: 'Sincronización de calendario y notificaciones',
+        body: 'Cada evento tiene un enlace para "Agregar a Google Calendar" o Apple/Outlook (.ics). Activa las notificaciones push desde la campana 🔔 para recibir avisos incluso con la app cerrada — incluyendo un aviso 2 horas antes de que empiece algo a lo que vas. Puedes desactivar cualquier tipo específico desde Cuenta.'
+      },
+      {
+        title: '¡Listo! 🎉',
+        body: 'Algo más que vale la pena saber: Cuenta tiene un selector de idioma (English/Español), un botón para exportar todos tus datos, y ajustes de privacidad y notificaciones. Puedes volver a ver este recorrido cuando quieras desde Cuenta → "Cómo funciona".'
+      }
+    ]
+  };
 
   function openWelcomeModal(){
     let step = 0;
+    const ONBOARDING_STEPS = ONBOARDING_STEPS_BY_LANG[currentLang] || ONBOARDING_STEPS_BY_LANG.en;
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     document.body.appendChild(overlay);
@@ -2360,6 +2420,7 @@
             </div>` : ''}
           </div>
           <div style="display:flex;gap:6px;">
+            ${d.viewLink ? `<button class="mini-btn" data-resync="${d.id}">🔄 Re-sync</button>` : ''}
             <button class="mini-btn" data-rename="${d.id}">${tr('rename')}</button>
             <button class="mini-btn" data-toggle="${d.id}">${d.active ? tr('retire') : tr('reactivate')}</button>
             <button class="mini-btn decline" data-delete="${d.id}">${tr('delete')}</button>
@@ -2453,6 +2514,32 @@
         draw();
         showToast('Deck added');
       };
+      body.querySelectorAll('[data-resync]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const d = decks.find(x=>x.id===btn.dataset.resync);
+          if(!d || !d.viewLink) return;
+          btn.disabled = true;
+          btn.textContent = '🔄 …';
+          try{
+            const res = await fetch(FUNCTIONS_URL + '/fetch-piltover-deck', {
+              method: 'POST',
+              headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
+              body: JSON.stringify({ url: d.viewLink })
+            });
+            const p = await res.json();
+            if(p.error){ showToast(p.error); btn.disabled=false; btn.textContent='🔄 Re-sync'; return; }
+            if(!p.foundAnything){ showToast("Couldn't read that deck page right now"); btn.disabled=false; btn.textContent='🔄 Re-sync'; return; }
+            if(p.name) d.name = p.name;
+            d.legend = p.legend || d.legend || '';
+            d.colors = p.colors || d.colors || [];
+            d.cardCount = p.cardCount || d.cardCount || null;
+            if(p.editLink) d.editLink = p.editLink;
+            await saveDecks();
+            draw();
+            showToast('Deck synced from Piltover Archive');
+          }catch(e){ showToast('Could not sync — try again'); btn.disabled=false; btn.textContent='🔄 Re-sync'; }
+        };
+      });
       body.querySelectorAll('[data-rename]').forEach(btn=>{
         btn.onclick = async ()=>{
           const d = decks.find(x=>x.id===btn.dataset.rename);
@@ -2522,6 +2609,11 @@
         </div>
         <div class="modal-actions" style="margin-top:8px;">
           <button class="btn-secondary" id="saveProfileBtn" style="flex:1;">${tr('saveProfile')}</button>
+        </div>
+        <div class="section-label">${tr('privacyLabel')}</div>
+        <div class="list-item" style="padding:8px 0;">
+          <div class="info"><div class="n" style="font-size:13.5px;">${tr('shareStatsLabel')}</div><div class="m">${tr('shareStatsHint')}</div></div>
+          <input type="checkbox" id="acc_sharestats" ${profile.share_stats_with_friends === false ? '' : 'checked'} style="width:20px;height:20px;flex:none;"/>
         </div>
         <div class="section-label">Notifications</div>
         <div class="modal-sub" style="margin-bottom:10px;">Choose which kinds of notifications you want to receive.</div>
@@ -2597,11 +2689,13 @@
       NOTIF_PREF_KEYS.forEach(k=>{
         prefs[k.key] = overlay.querySelector(`[data-pref="${k.key}"]`).checked;
       });
+      const shareStats = overlay.querySelector('#acc_sharestats').checked;
       try{
-        await supabaseClient.from('profiles').update({ notification_prefs: prefs }).eq('id', session.user.id);
+        await supabaseClient.from('profiles').update({ notification_prefs: prefs, share_stats_with_friends: shareStats }).eq('id', session.user.id);
         profile.notification_prefs = prefs;
-        showToast('Notification settings saved');
-      }catch(e){ showToast('Could not save — try again'); }
+        profile.share_stats_with_friends = shareStats;
+        showToast(tr('settingsSaved'));
+      }catch(e){ showToast(tr('couldNotSave')); }
     };
   }
 
