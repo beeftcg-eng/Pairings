@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -328,7 +328,8 @@
       // Stats modal
       yourStats: 'Your stats', eventsAttended: 'Events attended', resultsLogged: 'Results logged',
       winRate: 'Win rate', overallRecord: 'Overall record', gamesYouPlay: 'Games you play — tap for the full breakdown',
-      whereYouPlay: 'Where you play most', whatYouLose: 'What you lose to the most',
+      whereYouPlay: 'Where you play most', whatYouLose: 'What you lose to the most', whatYouBeat: 'What you beat the most',
+      exportData: 'Export my data',
       recentResults: 'Recent results', details: 'Details →', nothingToShow: 'Nothing to show yet',
       rangeWeek: 'Past week', rangeMonth: 'Past month', range3Months: 'Past 3 months', rangeAll: 'All time',
     },
@@ -392,7 +393,8 @@
       // Stats modal
       yourStats: 'Tus estadísticas', eventsAttended: 'Eventos asistidos', resultsLogged: 'Resultados registrados',
       winRate: 'Porcentaje de victorias', overallRecord: 'Récord general', gamesYouPlay: 'Juegos que practicas — toca para ver el desglose',
-      whereYouPlay: 'Dónde juegas más', whatYouLose: 'A qué pierdes más',
+      whereYouPlay: 'Dónde juegas más', whatYouLose: 'A qué pierdes más', whatYouBeat: 'A qué le ganas más',
+      exportData: 'Exportar mis datos',
       recentResults: 'Resultados recientes', details: 'Detalles →', nothingToShow: 'Todavía no hay nada que mostrar',
       rangeWeek: 'Última semana', rangeMonth: 'Último mes', range3Months: 'Últimos 3 meses', rangeAll: 'Todo el tiempo',
     }
@@ -400,6 +402,16 @@
   function tr(key){
     return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS.en[key] || key;
   }
+
+  const NOTIF_PREF_KEYS = [
+    { key: 'friend_request', label: 'Friend requests' },
+    { key: 'friend_accepted', label: 'Friend request accepted' },
+    { key: 'friend_going_same', label: 'A friend is going to the same event as you' },
+    { key: 'friend_going_near', label: 'A friend is going to something near you' },
+    { key: 'event_invite', label: 'Direct event invitations' },
+    { key: 'log_reminder', label: 'Reminder to log a result' },
+    { key: 'event_soon', label: 'Reminder before an event starts' },
+  ];
 
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
   // Generic symbols, not official logos/artwork — avoids any IP issues while still giving a quick visual cue per game.
@@ -643,6 +655,27 @@
     }catch(e){ /* non-fatal — will just re-sync next load */ }
     render();
     if(accountOverlay){ accountOverlay.remove(); openAccountModal(); }
+  }
+
+  function exportMyData(){
+    try{
+      const payload = {
+        exported_at: new Date().toISOString(),
+        profile: { display_name: profile.display_name, username: profile.username, home_city: profile.home_city },
+        tournaments,
+        decks
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pairings-export-' + todayStr() + '.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+      showToast('Download started');
+    }catch(e){ showToast('Could not export — try again'); }
   }
 
   async function loadTournaments(){
@@ -1133,6 +1166,10 @@
     const toughestMatchups = matchupEntries.filter(m=>m.total>=2)
       .sort((a,b)=> b.l - a.l || (a.winRate||0) - (b.winRate||0))
       .slice(0, 5);
+    // "What you beat the most" — the mirror: ranked by win count first, then best win rate.
+    const bestMatchups = matchupEntries.filter(m=>m.total>=2)
+      .sort((a,b)=> b.w - a.w || (b.winRate||0) - (a.winRate||0))
+      .slice(0, 5);
 
     function resolveDeckKeyName(key){
       if(key.startsWith('id:')){
@@ -1170,6 +1207,7 @@
       topPlacements: topN(placementCounts, 5),
       matchups,
       toughestMatchups,
+      bestMatchups,
       deckWinRates,
       recentResults: allResults.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10),
       maxFormatCount: Math.max(1, ...Object.values(formatCounts), 1),
@@ -2021,11 +2059,18 @@
         </div>
         <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
+    const bestRows = s.bestMatchups.map(m=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+        </div>
+        <div class="p" style="color:var(--teal);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
+      </div>`).join('');
 
     const recentRows = s.recentResults.slice(0,5).map(r=>`
       <div class="result-row">
-        <div>
-          <div class="n">${escapeHtml(r.name)}</div>
+        <div>          <div class="n">${escapeHtml(r.name)}</div>
           <div class="m">${fmtFriendly(r.date)}${r.store ? ' · '+escapeHtml(r.store) : ''}</div>
         </div>
         <div class="p">${escapeHtml([r.result.placement, r.result.record].filter(Boolean).join(' · ') || '—')}</div>
@@ -2045,6 +2090,7 @@
 
         ${gameRows ? `<div class="section-label">${tr('gamesYouPlay')}</div>${gameRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">${tr('whereYouPlay')}</div>${storeBars}` : ''}
+        ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
         ${recentRows ? `<div class="section-label">${tr('recentResults')}</div>${recentRows}` : ''}
 
@@ -2092,6 +2138,14 @@
         </div>
         <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
+    const bestRows = s.bestMatchups.map(m=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+        </div>
+        <div class="p" style="color:var(--teal);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
+      </div>`).join('');
     const recentRows = s.recentResults.map(r=>`
       <div class="result-row">
         <div>
@@ -2116,6 +2170,7 @@
         ${currentDeckRows ? `<div class="section-label">Win rate — current decks</div>${currentDeckRows}` : ''}
         ${pastDeckRows ? `<div class="section-label">Win rate — past decks</div>${pastDeckRows}` : ''}
         ${otherDeckRows ? `<div class="section-label">Win rate — other (not saved as a deck)</div>${otherDeckRows}` : ''}
+        ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
         ${matchupRows ? `<div class="section-label">All matchups</div>${matchupRows}` : ''}
         ${recentRows ? `<div class="section-label">${tr('recentResults')}</div>${recentRows}` : ''}
@@ -2178,6 +2233,14 @@
         </div>
         <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
+    const bestRows = s.bestMatchups.map(m=>`
+      <div class="result-row">
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+        </div>
+        <div class="p" style="color:var(--teal);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
+      </div>`).join('');
 
     overlay.innerHTML = `
       <div class="modal">
@@ -2191,6 +2254,7 @@
 
         ${gameRows ? `<div class="section-label">Games they play — tap for the full breakdown</div>${gameRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">Where they play most</div>${storeBars}` : ''}
+        ${bestRows ? `<div class="section-label">What they beat the most</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">What they lose to the most</div>${toughRows}` : ''}
 
         <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">${tr('close')}</button></div>
@@ -2209,7 +2273,7 @@
     },
     {
       title: 'Add your first event',
-      body: 'Tap "+ Add" to enter one by hand, or paste text or a link from a store\'s page — Pairings will try to fill in the date, store, and format automatically. There\'s also a bulk import for pasting a whole list at once.'
+      body: 'Tap "+ Add" to enter one by hand, or paste text or a link from a store\'s page — Pairings will try to fill in the date, store, and format automatically. There\'s also a "Store\'s page" field, handy for checking if an event got cancelled or postponed.'
     },
     {
       title: 'Set a username',
@@ -2224,12 +2288,16 @@
       body: 'After an event, tap "Log result" on its card to record your placement and round-by-round matches. Manage your decks from Stats → "Manage your decks" — Riftbound players can even import a deck straight from Piltover Archive.'
     },
     {
+      title: 'Dig into your stats',
+      body: 'Stats breaks down by game with a tap, shows what you beat and lose to most, and filters by week/month/3 months. You can also check any friend\'s stats the same way, right from the Friends list.'
+    },
+    {
       title: 'Calendar sync & notifications',
-      body: 'Every event has an "Add to Google Calendar" or Apple/Outlook (.ics) link. Turn on push notifications from the 🔔 bell so you get alerts even when the app is closed.'
+      body: 'Every event has an "Add to Google Calendar" or Apple/Outlook (.ics) link. Turn on push notifications from the 🔔 bell so you get alerts even when the app is closed — including a heads-up 2 hours before something you\'re going to starts.'
     },
     {
       title: "You're all set 🎉",
-      body: 'That\'s the whole tour. You can revisit it anytime from Account → "How this works".'
+      body: 'One more thing worth knowing: Account has a language switcher (English/Español), a button to export all your data, and notification settings if you want to mute a specific type. You can revisit this tour anytime from Account → "How this works".'
     }
   ];
 
@@ -2455,6 +2523,16 @@
         <div class="modal-actions" style="margin-top:8px;">
           <button class="btn-secondary" id="saveProfileBtn" style="flex:1;">${tr('saveProfile')}</button>
         </div>
+        <div class="section-label">Notifications</div>
+        <div class="modal-sub" style="margin-bottom:10px;">Choose which kinds of notifications you want to receive.</div>
+        ${NOTIF_PREF_KEYS.map(k=>`
+          <div class="list-item" style="padding:8px 0;">
+            <div class="info"><div class="n" style="font-size:13.5px;">${escapeHtml(k.label)}</div></div>
+            <input type="checkbox" data-pref="${k.key}" ${(profile.notification_prefs && profile.notification_prefs[k.key]===false) ? '' : 'checked'} style="width:20px;height:20px;flex:none;"/>
+          </div>`).join('')}
+        <div class="modal-actions" style="margin-top:4px;">
+          <button class="btn-secondary" id="saveNotifPrefsBtn" style="flex:1;">${tr('saveProfile')}</button>
+        </div>
         <div class="section-label">${tr('googleCalendar')}</div>
         <div class="modal-sub">${profile.google_connected ? 'Connected — use "Auto-sync" on any event to push it to your calendar.' : 'Connect once to auto-sync events without the manual "Add to Calendar" link.'}</div>
         <div class="modal-actions" style="margin-top:8px;">
@@ -2462,6 +2540,9 @@
         </div>
         <div class="modal-actions">
           <button class="btn-secondary" id="reopenWelcome" style="flex:1;">${tr('howThisWorks')}</button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="exportDataBtn" style="flex:1;">⬇️ ${tr('exportData')}</button>
         </div>
         <div class="modal-actions">
           <button class="btn-danger" id="logoutBtn" style="flex:1;">${tr('logOut')}</button>
@@ -2474,6 +2555,7 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
     overlay.querySelector('#reopenWelcome').onclick = ()=>{ overlay.remove(); openWelcomeModal(); };
+    overlay.querySelector('#exportDataBtn').onclick = exportMyData;
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#langEn').onclick = ()=>setLanguage('en', overlay);
     overlay.querySelector('#langEs').onclick = ()=>setLanguage('es', overlay);
@@ -2509,6 +2591,17 @@
         showToast('Profile saved');
         overlay.remove();
       }catch(e){ showToast('Could not save profile'); }
+    };
+    overlay.querySelector('#saveNotifPrefsBtn').onclick = async ()=>{
+      const prefs = {};
+      NOTIF_PREF_KEYS.forEach(k=>{
+        prefs[k.key] = overlay.querySelector(`[data-pref="${k.key}"]`).checked;
+      });
+      try{
+        await supabaseClient.from('profiles').update({ notification_prefs: prefs }).eq('id', session.user.id);
+        profile.notification_prefs = prefs;
+        showToast('Notification settings saved');
+      }catch(e){ showToast('Could not save — try again'); }
     };
   }
 
