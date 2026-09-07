@@ -329,6 +329,7 @@
       winRate: 'Win rate', overallRecord: 'Overall record', gamesYouPlay: 'Games you play — tap for the full breakdown',
       whereYouPlay: 'Where you play most', whatYouLose: 'What you lose to the most',
       recentResults: 'Recent results', details: 'Details →', nothingToShow: 'Nothing to show yet',
+      rangeWeek: 'Past week', rangeMonth: 'Past month', range3Months: 'Past 3 months', rangeAll: 'All time',
     },
     es: {
       tagline: 'Tu organizador de torneos de TCG',
@@ -392,6 +393,7 @@
       winRate: 'Porcentaje de victorias', overallRecord: 'Récord general', gamesYouPlay: 'Juegos que practicas — toca para ver el desglose',
       whereYouPlay: 'Dónde juegas más', whatYouLose: 'A qué pierdes más',
       recentResults: 'Resultados recientes', details: 'Detalles →', nothingToShow: 'Todavía no hay nada que mostrar',
+      rangeWeek: 'Última semana', rangeMonth: 'Último mes', range3Months: 'Últimos 3 meses', rangeAll: 'Todo el tiempo',
     }
   };
   function tr(key){
@@ -432,6 +434,14 @@
   let session = null;
   let profile = null;
   let currentLang = 'en';
+  let statsRangeFilter = 'all'; // 'week' | 'month' | '3months' | 'all'
+  function getStatsRangeCutoff(){
+    if(statsRangeFilter === 'all') return null;
+    const days = { week: 7, month: 30, '3months': 90 }[statsRangeFilter];
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return dateToStr(d);
+  }
   let preLoginLangChoice = null; // set if the user picks a language before logging in, so it can be saved once they're in
   let tournaments = [];
   let decks = [];
@@ -770,6 +780,12 @@
       notifications.forEach(n=>n.read=true);
     }catch(e){}
   }
+  async function deleteNotification(id){
+    notifications = notifications.filter(n=>n.id!==id); // update immediately, don't wait on the network
+    try{
+      await supabaseClient.from('notifications').delete().eq('id', id).eq('user_id', session.user.id);
+    }catch(e){ showToast('Could not delete — try again'); }
+  }
 
   let realtimeSubscribed = false;
   function subscribeRealtime(){
@@ -1044,7 +1060,7 @@
     return { w: parseInt(m[1],10), l: parseInt(m[2],10), d: m[3] ? parseInt(m[3],10) : 0 };
   }
 
-  function computeStats(tournamentsArr, decksArr, gameFilter){
+  function computeStats(tournamentsArr, decksArr, gameFilter, sinceDate){
     tournamentsArr = tournamentsArr || tournaments;
     decksArr = decksArr || decks;
     const attendedSet = new Set();
@@ -1060,6 +1076,7 @@
     function accumulate(t, date, occ){
       if(occ.skip) return;
       if(gameFilter && t.game !== gameFilter) return;
+      if(sinceDate && date < sinceDate) return;
       if(occ.rsvp === 'going' || occ.result){
         attendedSet.add(t.id + '::' + date);
         if(t.format) formatCounts[t.format] = (formatCounts[t.format]||0) + 1;
@@ -1311,6 +1328,7 @@
             <div class="card-links">
               ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">${tr('eventPage')}</a>` : ''}
               ${t.deckLink ? `<a class="card-link" href="${escapeAttr(t.deckLink)}" target="_blank" rel="noopener">📋 Decklist ↗</a>` : ''}
+              ${t.storeLink ? `<a class="card-link" href="${escapeAttr(t.storeLink)}" target="_blank" rel="noopener">🏬 Store page ↗</a>` : ''}
               <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">${tr('shareWithFriend')}</a>
               <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">${tr('inviteFriend')}</a>
               <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">${tr('addToGCal')}</a>
@@ -1445,7 +1463,7 @@
   // ---------- Add/Edit modal ----------
   function openModal(id){
     const t = id ? tournaments.find(x=>x.id===id) : {
-      id: uid(), name:'', game:'', store:'', date:'', time:'', format:'', fee:'', address:'', city:'', link:'', deckLink:'', notes:'',
+      id: uid(), name:'', game:'', store:'', date:'', time:'', format:'', fee:'', address:'', city:'', link:'', storeLink:'', deckLink:'', notes:'',
       repeat:'none', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null
     };
     const overlay = document.createElement('div');
@@ -1481,6 +1499,11 @@
         <div class="row2">
           <div class="field"><label>${tr('storeVenue')}</label><input id="f_store" value="${escapeAttr(t.store)}" placeholder="e.g. Meeple Mountain Games"/></div>
           <div class="field"><label>${tr('cityForNear')}</label><input id="f_city" value="${escapeAttr(t.city||'')}" placeholder="e.g. Austin, TX"/></div>
+        </div>
+        <div class="field">
+          <label>Store's page (optional)</label>
+          <input id="f_storelink" value="${escapeAttr(t.storeLink||'')}" placeholder="https://the store's own website or Facebook page"/>
+          <div class="hint">A quick link to the store itself — handy for checking if an event got cancelled or postponed.</div>
         </div>
         <div class="row2">
           <div class="field"><label>${isRepeating(t) || !id ? tr('firstDate') : tr('date')}</label><input type="date" id="f_date" value="${escapeAttr(t.date)}"/></div>
@@ -1575,6 +1598,7 @@
         address: newAddress,
         link: overlay.querySelector('#f_link').value.trim(),
         deckLink: overlay.querySelector('#f_decklink').value.trim(),
+        storeLink: overlay.querySelector('#f_storelink').value.trim(),
         notes: overlay.querySelector('#f_notes').value.trim(),
         rsvp: t.rsvp || null,
         result: t.result || null,
@@ -1895,7 +1919,10 @@
       const inviteStatus = isInvite ? (invitationStatusById[n.related_invitation_id] || 'pending') : null;
       return `
       <div class="notif-item ${n.read?'':'unread'}">
-        <div>${escapeHtml(n.message)}</div>
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div style="flex:1;">${escapeHtml(n.message)}</div>
+          <button class="icon-btn" data-del-notif="${n.id}" title="Delete" style="flex:none;">✕</button>
+        </div>
         <div class="t">${new Date(n.created_at).toLocaleString()}</div>
         ${isInvite && inviteStatus === 'pending' ? `
           <div class="rsvp-row" style="margin-top:8px;">
@@ -1921,6 +1948,12 @@
     overlay.querySelector('#closeNotif').onclick = ()=>overlay.remove();
     overlay.querySelector('#markAllBtn').onclick = async ()=>{ await markAllRead(); render(); overlay.remove(); };
     overlay.querySelector('#pushBtn').onclick = async ()=>{ await enablePush(); overlay.remove(); openNotificationsModal(); };
+    overlay.querySelectorAll('[data-del-notif]').forEach(b=>b.onclick = async ()=>{
+      await deleteNotification(b.dataset.delNotif);
+      render();
+      overlay.remove();
+      openNotificationsModal();
+    });
     overlay.querySelectorAll('[data-invite-accept]').forEach(b=>b.onclick = async ()=>{
       overlay.remove();
       await respondToInvitation(b.dataset.inviteAccept, true, b.dataset.notif);
@@ -1935,14 +1968,25 @@
 
   // ---------- Stats modal ----------
   function openStatsModal(){
-    const s = computeStats(tournaments, decks, null);
+    const s = computeStats(tournaments, decks, null, getStatsRangeCutoff());
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
+
+    const rangeChipsHtml = `
+      <div class="chip-row" style="margin-bottom:16px;">
+        ${['week','month','3months','all'].map(r=>`<button class="chip ${statsRangeFilter===r?'active':''}" data-range="${r}">${tr('range'+(r==='3months'?'3Months':r.charAt(0).toUpperCase()+r.slice(1)))}</button>`).join('')}
+      </div>`;
+    function wireRangeChips(){
+      overlay.querySelectorAll('[data-range]').forEach(b=>{
+        b.onclick = ()=>{ statsRangeFilter = b.dataset.range; overlay.remove(); openStatsModal(); };
+      });
+    }
 
     if(s.attended === 0 && s.resultsLogged === 0){
       overlay.innerHTML = `
         <div class="modal">
           <h2>${tr('yourStats')}</h2>
+          ${rangeChipsHtml}
           <div class="empty-state">
             <div class="big">${tr('nothingToShow')}</div>
             <div>Mark some events as "Going" and log a result or two, and your stats will show up here.</div>
@@ -1952,6 +1996,7 @@
       document.body.appendChild(overlay);
       overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
       overlay.querySelector('#closeStats').onclick = ()=>overlay.remove();
+      wireRangeChips();
       return;
     }
 
@@ -1988,6 +2033,7 @@
     overlay.innerHTML = `
       <div class="modal">
         <h2>${tr('yourStats')}</h2>
+        ${rangeChipsHtml}
         <div class="stat-grid">
           <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">${tr('eventsAttended')}</div></div>
           <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">${tr('resultsLogged')}</div></div>
@@ -2010,11 +2056,12 @@
     overlay.querySelectorAll('[data-game-details]').forEach(b=>{
       b.onclick = ()=>{ overlay.remove(); openGameStatsModal(b.dataset.gameDetails, tournaments, decks, 'Your'); };
     });
+    wireRangeChips();
   }
 
   // ---------- Per-game detailed stats (opened from the general stats page) ----------
   function openGameStatsModal(game, tournamentsArr, decksArr, ownerLabel){
-    const s = computeStats(tournamentsArr, decksArr, game);
+    const s = computeStats(tournamentsArr, decksArr, game, getStatsRangeCutoff());
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
 
@@ -2101,7 +2148,7 @@
       return;
     }
 
-    const s = computeStats(friendTournaments, friendDecks, null);
+    const s = computeStats(friendTournaments, friendDecks, null, getStatsRangeCutoff());
     if(s.attended === 0 && s.resultsLogged === 0){
       overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2>
         <div class="empty-state"><div class="big">Nothing to show yet</div><div>${escapeHtml(friendName)} hasn't logged any results.</div></div>
