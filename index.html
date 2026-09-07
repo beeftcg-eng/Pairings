@@ -244,6 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
+  const APP_VERSION = '2026-09-07.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -2467,6 +2468,7 @@
           <button class="btn-secondary" id="closeAccount" style="flex:1;">${tr('close')}</button>
         </div>
         ${DONATION_URL ? `<div style="text-align:center;margin-top:16px;"><a href="${escapeAttr(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('supportProject')}</a></div>` : ''}
+        <div style="text-align:center;margin-top:10px;color:var(--text-dim);font-size:11px;">Build: ${escapeHtml(APP_VERSION)}</div>
       </div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
