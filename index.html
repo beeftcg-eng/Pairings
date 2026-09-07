@@ -1368,7 +1368,17 @@
     document.getElementById('openStats').onclick = ()=>openStatsModal();
     document.getElementById('openAccount').onclick = ()=>openAccountModal();
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
-    document.getElementById('searchInput').oninput = (e)=>{ searchTerm = e.target.value; render(); };
+    let searchDebounceTimer = null;
+    document.getElementById('searchInput').oninput = (e)=>{
+      searchTerm = e.target.value;
+      const cursorPos = e.target.selectionStart;
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(()=>{
+        render();
+        const freshInput = document.getElementById('searchInput');
+        if(freshInput){ freshInput.focus(); freshInput.setSelectionRange(cursorPos, cursorPos); }
+      }, 200);
+    };
     app.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{ viewMode=b.dataset.view; render(); });
     app.querySelectorAll('.chip[data-format]').forEach(c=>c.onclick=()=>{ filterFormat=c.dataset.format; render(); });
     app.querySelectorAll('.chip[data-game]').forEach(c=>c.onclick=()=>{ filterGame=c.dataset.game; render(); });
@@ -1387,9 +1397,9 @@
     if(!t) return;
     const cur = getOcc(t, date).rsvp;
     setOcc(t, date, { rsvp: cur === val ? null : val });
+    render(); // reflect the tap immediately — don't make the button wait on the network
     await saveTournaments();
     await syncAttendance(t, date);
-    render();
   }
 
   function handleDelete(id, date){
@@ -2346,9 +2356,9 @@
           const d = decks.find(x=>x.id===btn.dataset.toggle);
           if(!d) return;
           d.active = !d.active;
-          await saveDecks();
           draw();
           showToast(d.active ? 'Deck marked current' : 'Deck retired');
+          await saveDecks();
         };
       });
       body.querySelectorAll('[data-delete]').forEach(btn=>{
