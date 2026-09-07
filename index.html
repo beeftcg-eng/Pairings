@@ -771,7 +771,10 @@
     }catch(e){}
   }
 
+  let realtimeSubscribed = false;
   function subscribeRealtime(){
+    if(realtimeSubscribed) return; // never try to re-subscribe an already-subscribed channel
+    realtimeSubscribed = true;
     supabaseClient.channel('notif-' + session.user.id)
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${session.user.id}` }, payload=>{
         notifications.unshift(payload.new);
@@ -2415,7 +2418,7 @@
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#langEn').onclick = ()=>setLanguage('en', overlay);
     overlay.querySelector('#langEs').onclick = ()=>setLanguage('es', overlay);
-    overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); overlay.remove(); };
+    overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); realtimeSubscribed = false; overlay.remove(); };
     overlay.querySelector('#useLocationBtn').onclick = ()=>{
       if(!navigator.geolocation){ showToast('Geolocation is not available on this device'); return; }
       navigator.geolocation.getCurrentPosition(
@@ -2729,25 +2732,32 @@
   // ============================================================
   // Boot
   // ============================================================
+  let bootstrapping = false;
   async function bootstrapApp(){
-    await Promise.all([loadProfile(), loadTournaments(), loadFriendsData(), loadNotifications()]);
-    if(preLoginLangChoice && preLoginLangChoice !== currentLang){
-      currentLang = preLoginLangChoice;
-      try{ await supabaseClient.from('profiles').update({ language: currentLang }).eq('id', session.user.id); profile.language = currentLang; }catch(e){}
-    }
-    preLoginLangChoice = null;
-    await checkPushEnabled();
-    subscribeRealtime();
-    render();
-    ensureTimezoneSaved();
-    if(pendingShareCode){
-      const code = pendingShareCode;
-      pendingShareCode = null;
-      openSharedEventModal(code);
-    } else if(profile && profile.onboarded === false){
-      openWelcomeModal();
-    } else {
-      checkForAnnouncement();
+    if(bootstrapping) return; // Supabase's auth listener can fire twice for one login — ignore the repeat
+    bootstrapping = true;
+    try{
+      await Promise.all([loadProfile(), loadTournaments(), loadFriendsData(), loadNotifications()]);
+      if(preLoginLangChoice && preLoginLangChoice !== currentLang){
+        currentLang = preLoginLangChoice;
+        try{ await supabaseClient.from('profiles').update({ language: currentLang }).eq('id', session.user.id); profile.language = currentLang; }catch(e){}
+      }
+      preLoginLangChoice = null;
+      await checkPushEnabled();
+      subscribeRealtime();
+      render();
+      ensureTimezoneSaved();
+      if(pendingShareCode){
+        const code = pendingShareCode;
+        pendingShareCode = null;
+        openSharedEventModal(code);
+      } else if(profile && profile.onboarded === false){
+        openWelcomeModal();
+      } else {
+        checkForAnnouncement();
+      }
+    } finally {
+      bootstrapping = false;
     }
   }
 
