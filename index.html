@@ -305,6 +305,30 @@
       useMyLocation: '📍 Use my location', saveProfile: 'Save profile', googleCalendar: 'Google Calendar',
       connectGCal: 'Connect Google Calendar', logOut: 'Log out', close: 'Close', howThisWorks: 'How this works',
       supportProject: '💛 Support this project', language: 'Language',
+      // Friends modal
+      addFriendLabel: 'Add a friend by username or email', send: 'Send',
+      requestsForYou: 'Requests for you', wantsFriend: 'wants to be friends',
+      sentWaiting: 'Sent, waiting', requestPending: 'request pending',
+      yourFriends: 'Your friends', noFriendsYet: 'No friends yet — send a request above.',
+      accept: 'Accept', decline: 'Decline', cancelBtn: 'Cancel',
+      // Notifications modal
+      notifications: 'Notifications', markAllRead: 'Mark all read',
+      pushEnabled: '🔔 Push enabled on this device', enablePush: 'Enable push on this device',
+      noNotifsYet: 'No notifications yet.', accepted: '✓ Accepted', declined: 'Declined',
+      // Share modal
+      shareWithAnyone: 'Share with anyone', shareEvents: 'Share events', viewSharedCode: 'View a shared code',
+      copyAsText: 'Copy as text', createShareCode: 'Create share code', shareThisCode: 'Share this code',
+      enterCode: 'Enter a code someone sent you.', shareCode: 'Share code', viewList: 'View list',
+      // Decks modal
+      yourDecks: 'Your decks', manageDecks: '🃏 Manage your decks', addDeck: 'Add a deck',
+      deckName: 'Deck name', currentDecks: 'Current decks', pastDecks: 'Past decks',
+      noCurrentDecks: 'No current decks yet.', nothingRetired: 'Nothing retired yet.',
+      rename: 'Rename', retire: 'Retire', reactivate: 'Reactivate',
+      // Stats modal
+      yourStats: 'Your stats', eventsAttended: 'Events attended', resultsLogged: 'Results logged',
+      winRate: 'Win rate', overallRecord: 'Overall record', gamesYouPlay: 'Games you play — tap for the full breakdown',
+      whereYouPlay: 'Where you play most', whatYouLose: 'What you lose to the most',
+      recentResults: 'Recent results', details: 'Details →', nothingToShow: 'Nothing to show yet',
     },
     es: {
       tagline: 'Tu organizador de torneos de TCG',
@@ -344,6 +368,30 @@
       useMyLocation: '📍 Usar mi ubicación', saveProfile: 'Guardar perfil', googleCalendar: 'Google Calendar',
       connectGCal: 'Conectar Google Calendar', logOut: 'Cerrar sesión', close: 'Cerrar', howThisWorks: 'Cómo funciona',
       supportProject: '💛 Apoya este proyecto', language: 'Idioma',
+      // Friends modal
+      addFriendLabel: 'Agrega un amigo por usuario o correo', send: 'Enviar',
+      requestsForYou: 'Solicitudes para ti', wantsFriend: 'quiere ser tu amigo',
+      sentWaiting: 'Enviadas, en espera', requestPending: 'solicitud pendiente',
+      yourFriends: 'Tus amigos', noFriendsYet: 'Aún no tienes amigos — envía una solicitud arriba.',
+      accept: 'Aceptar', decline: 'Rechazar', cancelBtn: 'Cancelar',
+      // Notifications modal
+      notifications: 'Notificaciones', markAllRead: 'Marcar todo como leído',
+      pushEnabled: '🔔 Notificaciones activadas en este dispositivo', enablePush: 'Activar notificaciones en este dispositivo',
+      noNotifsYet: 'Todavía no hay notificaciones.', accepted: '✓ Aceptada', declined: 'Rechazada',
+      // Share modal
+      shareWithAnyone: 'Compartir con cualquiera', shareEvents: 'Compartir eventos', viewSharedCode: 'Ver un código compartido',
+      copyAsText: 'Copiar como texto', createShareCode: 'Crear código para compartir', shareThisCode: 'Comparte este código',
+      enterCode: 'Ingresa un código que te hayan enviado.', shareCode: 'Código', viewList: 'Ver lista',
+      // Decks modal
+      yourDecks: 'Tus mazos', manageDecks: '🃏 Administrar tus mazos', addDeck: 'Agregar un mazo',
+      deckName: 'Nombre del mazo', currentDecks: 'Mazos actuales', pastDecks: 'Mazos anteriores',
+      noCurrentDecks: 'Todavía no tienes mazos actuales.', nothingRetired: 'Nada retirado todavía.',
+      rename: 'Renombrar', retire: 'Retirar', reactivate: 'Reactivar',
+      // Stats modal
+      yourStats: 'Tus estadísticas', eventsAttended: 'Eventos asistidos', resultsLogged: 'Resultados registrados',
+      winRate: 'Porcentaje de victorias', overallRecord: 'Récord general', gamesYouPlay: 'Juegos que practicas — toca para ver el desglose',
+      whereYouPlay: 'Dónde juegas más', whatYouLose: 'A qué pierdes más',
+      recentResults: 'Resultados recientes', details: 'Detalles →', nothingToShow: 'Todavía no hay nada que mostrar',
     }
   };
   function tr(key){
@@ -384,6 +432,7 @@
   let session = null;
   let profile = null;
   let currentLang = 'en';
+  let preLoginLangChoice = null; // set if the user picks a language before logging in, so it can be saved once they're in
   let tournaments = [];
   let decks = [];
   let friendsAccepted = [];
@@ -1128,8 +1177,8 @@
           </div>
         </div>
       </div>`;
-    document.getElementById('authLangEn').onclick = ()=>{ currentLang='en'; renderAuth(mode); };
-    document.getElementById('authLangEs').onclick = ()=>{ currentLang='es'; renderAuth(mode); };
+    document.getElementById('authLangEn').onclick = ()=>{ currentLang='en'; preLoginLangChoice='en'; renderAuth(mode); };
+    document.getElementById('authLangEs').onclick = ()=>{ currentLang='es'; preLoginLangChoice='es'; renderAuth(mode); };
     document.getElementById('a_submit').onclick = async ()=>{
       const email = document.getElementById('a_email').value.trim();
       const password = document.getElementById('a_password').value;
@@ -1770,7 +1819,7 @@
   function openFriendsModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    overlay.innerHTML = `<div class="modal"><h2>Friends</h2><div id="friendsBody"></div></div>`;
+    overlay.innerHTML = `<div class="modal"><h2>${tr('friends')}</h2><div id="friendsBody"></div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
 
@@ -1778,35 +1827,35 @@
       const body = overlay.querySelector('#friendsBody');
       body.innerHTML = `
         <div class="field">
-          <label>Add a friend by username or email</label>
+          <label>${tr('addFriendLabel')}</label>
           <div style="display:flex;gap:8px;">
             <input id="friendEmail" placeholder="@username or friend@example.com" style="flex:1;"/>
-            <button class="mini-btn" id="sendReqBtn">Send</button>
+            <button class="mini-btn" id="sendReqBtn">${tr('send')}</button>
           </div>
         </div>
-        ${pendingIncoming.length ? `<div class="section-label">Requests for you</div>` + pendingIncoming.map(p=>`
+        ${pendingIncoming.length ? `<div class="section-label">${tr('requestsForYou')}</div>` + pendingIncoming.map(p=>`
           <div class="list-item">
-            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">${friendSubLabel(p.userId) ? escapeHtml(friendSubLabel(p.userId)) + ' · ' : ''}wants to be friends</div></div>
+            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">${friendSubLabel(p.userId) ? escapeHtml(friendSubLabel(p.userId)) + ' · ' : ''}${tr('wantsFriend')}</div></div>
             <div style="display:flex;gap:6px;">
-              <button class="mini-btn accept" data-accept="${p.friendshipId}">Accept</button>
-              <button class="mini-btn decline" data-decline="${p.friendshipId}">Decline</button>
+              <button class="mini-btn accept" data-accept="${p.friendshipId}">${tr('accept')}</button>
+              <button class="mini-btn decline" data-decline="${p.friendshipId}">${tr('decline')}</button>
             </div>
           </div>`).join('') : ''}
-        ${pendingOutgoing.length ? `<div class="section-label">Sent, waiting</div>` + pendingOutgoing.map(p=>`
+        ${pendingOutgoing.length ? `<div class="section-label">${tr('sentWaiting')}</div>` + pendingOutgoing.map(p=>`
           <div class="list-item">
-            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">${friendSubLabel(p.userId) ? escapeHtml(friendSubLabel(p.userId)) + ' · ' : ''}request pending</div></div>
-            <button class="mini-btn decline" data-decline="${p.friendshipId}">Cancel</button>
+            <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">${friendSubLabel(p.userId) ? escapeHtml(friendSubLabel(p.userId)) + ' · ' : ''}${tr('requestPending')}</div></div>
+            <button class="mini-btn decline" data-decline="${p.friendshipId}">${tr('cancelBtn')}</button>
           </div>`).join('') : ''}
-        <div class="section-label">Your friends (${friendsAccepted.length})</div>
+        <div class="section-label">${tr('yourFriends')} (${friendsAccepted.length})</div>
         ${friendsAccepted.length ? friendsAccepted.map(p=>`
           <div class="list-item">
             <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div>${friendSubLabel(p.userId) ? `<div class="m">${escapeHtml(friendSubLabel(p.userId))}</div>` : ''}</div>
             <div style="display:flex;gap:6px;">
-              <button class="mini-btn" data-friend-stats="${p.userId}">📊 Stats</button>
-              <button class="mini-btn decline" data-decline="${p.friendshipId}">Remove</button>
+              <button class="mini-btn" data-friend-stats="${p.userId}">${tr('stats')}</button>
+              <button class="mini-btn decline" data-decline="${p.friendshipId}">${tr('remove')}</button>
             </div>
-          </div>`).join('') : `<div class="modal-sub">No friends yet — send a request above.</div>`}
-        <div class="modal-actions"><button class="btn-secondary" id="closeFriends" style="flex:1;">Close</button></div>
+          </div>`).join('') : `<div class="modal-sub">${tr('noFriendsYet')}</div>`}
+        <div class="modal-actions"><button class="btn-secondary" id="closeFriends" style="flex:1;">${tr('close')}</button></div>
       `;
       body.querySelector('#sendReqBtn').onclick = async ()=>{
         const identifier = body.querySelector('#friendEmail').value;
@@ -1837,22 +1886,22 @@
         <div class="t">${new Date(n.created_at).toLocaleString()}</div>
         ${isInvite && inviteStatus === 'pending' ? `
           <div class="rsvp-row" style="margin-top:8px;">
-            <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">Accept</button>
-            <button class="rsvp-btn skip" data-invite-decline="${n.related_invitation_id}" data-notif="${n.id}">Decline</button>
+            <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">${tr('accept')}</button>
+            <button class="rsvp-btn skip" data-invite-decline="${n.related_invitation_id}" data-notif="${n.id}">${tr('decline')}</button>
           </div>` : ''}
-        ${isInvite && inviteStatus === 'accepted' ? `<div class="t" style="color:var(--teal);margin-top:4px;">✓ Accepted</div>` : ''}
-        ${isInvite && inviteStatus === 'declined' ? `<div class="t" style="color:var(--rose);margin-top:4px;">Declined</div>` : ''}
+        ${isInvite && inviteStatus === 'accepted' ? `<div class="t" style="color:var(--teal);margin-top:4px;">${tr('accepted')}</div>` : ''}
+        ${isInvite && inviteStatus === 'declined' ? `<div class="t" style="color:var(--rose);margin-top:4px;">${tr('declined')}</div>` : ''}
       </div>`;
-    }).join('') : `<div class="modal-sub">No notifications yet.</div>`;
+    }).join('') : `<div class="modal-sub">${tr('noNotifsYet')}</div>`;
     overlay.innerHTML = `
       <div class="modal">
-        <h2>Notifications</h2>
+        <h2>${tr('notifications')}</h2>
         <div class="modal-actions" style="margin-top:0;margin-bottom:14px;">
-          <button class="btn-secondary" id="markAllBtn" style="flex:1;">Mark all read</button>
-          <button class="btn-primary" id="pushBtn" style="flex:1;">${pushEnabled ? '🔔 Push enabled on this device' : 'Enable push on this device'}</button>
+          <button class="btn-secondary" id="markAllBtn" style="flex:1;">${tr('markAllRead')}</button>
+          <button class="btn-primary" id="pushBtn" style="flex:1;">${pushEnabled ? tr('pushEnabled') : tr('enablePush')}</button>
         </div>
         <div style="max-height:50vh;overflow-y:auto;">${rows}</div>
-        <div class="modal-actions"><button class="btn-secondary" id="closeNotif" style="flex:1;">Close</button></div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeNotif" style="flex:1;">${tr('close')}</button></div>
       </div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
@@ -1880,12 +1929,12 @@
     if(s.attended === 0 && s.resultsLogged === 0){
       overlay.innerHTML = `
         <div class="modal">
-          <h2>Your stats</h2>
+          <h2>${tr('yourStats')}</h2>
           <div class="empty-state">
-            <div class="big">Nothing to show yet</div>
+            <div class="big">${tr('nothingToShow')}</div>
             <div>Mark some events as "Going" and log a result or two, and your stats will show up here.</div>
           </div>
-          <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">Close</button></div>
+          <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">${tr('close')}</button></div>
         </div>`;
       document.body.appendChild(overlay);
       overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
@@ -1896,7 +1945,7 @@
     const gameRows = s.topGames.map(([name,count])=>`
       <div class="list-item">
         <div class="info"><div class="n">${gameIcon(name)} ${escapeHtml(name)}</div><div class="m">${count} event${count===1?'':'s'} attended</div></div>
-        <button class="mini-btn" data-game-details="${escapeAttr(name)}">Details →</button>
+        <button class="mini-btn" data-game-details="${escapeAttr(name)}">${tr('details')}</button>
       </div>`).join('');
 
     const storeBars = s.topStores.map(([name,count])=>`
@@ -1925,21 +1974,21 @@
 
     overlay.innerHTML = `
       <div class="modal">
-        <h2>Your stats</h2>
+        <h2>${tr('yourStats')}</h2>
         <div class="stat-grid">
-          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">Events attended</div></div>
-          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">Results logged</div></div>
-          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">Win rate</div></div>
-          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">Overall record</div></div>
+          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">${tr('eventsAttended')}</div></div>
+          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">${tr('resultsLogged')}</div></div>
+          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">${tr('winRate')}</div></div>
+          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">${tr('overallRecord')}</div></div>
         </div>
-        <div class="modal-actions" style="margin-top:0;"><button class="btn-secondary" id="openDecksFromStats" style="flex:1;">🃏 Manage your decks</button></div>
+        <div class="modal-actions" style="margin-top:0;"><button class="btn-secondary" id="openDecksFromStats" style="flex:1;">${tr('manageDecks')}</button></div>
 
-        ${gameRows ? `<div class="section-label">Games you play — tap for the full breakdown</div>${gameRows}` : ''}
-        ${s.topStores.length ? `<div class="section-label">Where you play most</div>${storeBars}` : ''}
-        ${toughRows ? `<div class="section-label">What you lose to the most</div>${toughRows}` : ''}
-        ${recentRows ? `<div class="section-label">Recent results</div>${recentRows}` : ''}
+        ${gameRows ? `<div class="section-label">${tr('gamesYouPlay')}</div>${gameRows}` : ''}
+        ${s.topStores.length ? `<div class="section-label">${tr('whereYouPlay')}</div>${storeBars}` : ''}
+        ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
+        ${recentRows ? `<div class="section-label">${tr('recentResults')}</div>${recentRows}` : ''}
 
-        <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">Close</button></div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">${tr('close')}</button></div>
       </div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
@@ -1996,21 +2045,21 @@
         <h2>${gameIcon(game)} ${escapeHtml(game)}</h2>
         <div class="modal-sub">${escapeHtml(ownerLabel)} stats for this game</div>
         <div class="stat-grid">
-          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">Events attended</div></div>
-          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">Results logged</div></div>
-          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">Win rate</div></div>
-          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">Overall record</div></div>
+          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">${tr('eventsAttended')}</div></div>
+          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">${tr('resultsLogged')}</div></div>
+          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">${tr('winRate')}</div></div>
+          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">${tr('overallRecord')}</div></div>
         </div>
 
         ${s.topFormats.length ? `<div class="section-label">Formats played</div>${formatBars}` : ''}
         ${currentDeckRows ? `<div class="section-label">Win rate — current decks</div>${currentDeckRows}` : ''}
         ${pastDeckRows ? `<div class="section-label">Win rate — past decks</div>${pastDeckRows}` : ''}
         ${otherDeckRows ? `<div class="section-label">Win rate — other (not saved as a deck)</div>${otherDeckRows}` : ''}
-        ${toughRows ? `<div class="section-label">What you lose to the most</div>${toughRows}` : ''}
+        ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
         ${matchupRows ? `<div class="section-label">All matchups</div>${matchupRows}` : ''}
-        ${recentRows ? `<div class="section-label">Recent results</div>${recentRows}` : ''}
+        ${recentRows ? `<div class="section-label">${tr('recentResults')}</div>${recentRows}` : ''}
 
-        <div class="modal-actions"><button class="btn-secondary" id="closeGameStats" style="flex:1;">Close</button></div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeGameStats" style="flex:1;">${tr('close')}</button></div>
       </div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
@@ -2073,17 +2122,17 @@
       <div class="modal">
         <h2>${escapeHtml(friendName)}'s stats</h2>
         <div class="stat-grid">
-          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">Events attended</div></div>
-          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">Results logged</div></div>
-          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">Win rate</div></div>
-          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">Overall record</div></div>
+          <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">${tr('eventsAttended')}</div></div>
+          <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">${tr('resultsLogged')}</div></div>
+          <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">${tr('winRate')}</div></div>
+          <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">${tr('overallRecord')}</div></div>
         </div>
 
         ${gameRows ? `<div class="section-label">Games they play — tap for the full breakdown</div>${gameRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">Where they play most</div>${storeBars}` : ''}
         ${toughRows ? `<div class="section-label">What they lose to the most</div>${toughRows}` : ''}
 
-        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">Close</button></div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">${tr('close')}</button></div>
       </div>`;
     overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
     overlay.querySelectorAll('[data-friend-game-details]').forEach(b=>{
@@ -2163,7 +2212,7 @@
   function openDecksModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    overlay.innerHTML = `<div class="modal"><h2>Your decks</h2><div id="decksBody"></div></div>`;
+    overlay.innerHTML = `<div class="modal"><h2>${tr('yourDecks')}</h2><div id="decksBody"></div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
 
@@ -2182,9 +2231,9 @@
             </div>` : ''}
           </div>
           <div style="display:flex;gap:6px;">
-            <button class="mini-btn" data-rename="${d.id}">Rename</button>
-            <button class="mini-btn" data-toggle="${d.id}">${d.active ? 'Retire' : 'Reactivate'}</button>
-            <button class="mini-btn decline" data-delete="${d.id}">Delete</button>
+            <button class="mini-btn" data-rename="${d.id}">${tr('rename')}</button>
+            <button class="mini-btn" data-toggle="${d.id}">${d.active ? tr('retire') : tr('reactivate')}</button>
+            <button class="mini-btn decline" data-delete="${d.id}">${tr('delete')}</button>
           </div>
         </div>`;
     }
@@ -2224,18 +2273,18 @@
         <div class="field">
           <label>Or add one manually</label>
           <div class="row2">
-            <input id="newDeckName" placeholder="Deck name" list="legendOptionsGlobal"/>
+            <input id="newDeckName" placeholder="${tr('deckName')}" list="legendOptionsGlobal"/>
             <input id="newDeckGame" list="gameOptions" placeholder="Game (optional)"/>
           </div>
           <datalist id="gameOptions">${GAMES.map(g=>`<option value="${escapeAttr(g)}">`).join('')}</datalist>
           <datalist id="legendOptionsGlobal">${RIFTBOUND_LEGENDS.map(l=>`<option value="${escapeAttr(l)}">`).join('')}</datalist>
-          <button class="mini-btn" id="addDeckBtn" style="margin-top:8px;">+ Add deck</button>
+          <button class="mini-btn" id="addDeckBtn" style="margin-top:8px;">+ ${tr('addDeck')}</button>
         </div>
-        <div class="section-label">Current decks (${current.length})</div>
-        ${current.length ? renderGroupedDecks(current) : `<div class="modal-sub">No current decks yet.</div>`}
-        <div class="section-label">Past decks (${past.length})</div>
-        ${past.length ? renderGroupedDecks(past) : `<div class="modal-sub">Nothing retired yet.</div>`}
-        <div class="modal-actions"><button class="btn-secondary" id="closeDecks" style="flex:1;">Close</button></div>
+        <div class="section-label">${tr('currentDecks')} (${current.length})</div>
+        ${current.length ? renderGroupedDecks(current) : `<div class="modal-sub">${tr('noCurrentDecks')}</div>`}
+        <div class="section-label">${tr('pastDecks')} (${past.length})</div>
+        ${past.length ? renderGroupedDecks(past) : `<div class="modal-sub">${tr('nothingRetired')}</div>`}
+        <div class="modal-actions"><button class="btn-secondary" id="closeDecks" style="flex:1;">${tr('close')}</button></div>
       `;
 
       body.querySelector('#pltImportBtn').onclick = async ()=>{
@@ -2564,9 +2613,9 @@
     overlay.className = 'overlay';
     overlay.innerHTML = `
       <div class="modal">
-        <h2>Share with anyone</h2>
+        <h2>${tr('shareWithAnyone')}</h2>
         <div class="modal-sub">For people without an account — friends on Pairings already see your going list automatically.</div>
-        <div class="tabs"><button class="active" id="tabMine">Share events</button><button id="tabView">View a shared code</button></div>
+        <div class="tabs"><button class="active" id="tabMine">${tr('shareEvents')}</button><button id="tabView">${tr('viewSharedCode')}</button></div>
         <div id="shareBody"></div>
       </div>`;
     document.body.appendChild(overlay);
@@ -2578,7 +2627,7 @@
       overlay.querySelector('#tabView').classList.remove('active');
       if(upcomingInstances.length === 0){
         body.innerHTML = `<div class="modal-sub">You don't have any upcoming events yet.</div>
-          <div class="modal-actions"><button class="btn-secondary" id="closeShare" style="flex:1;">Close</button></div>`;
+          <div class="modal-actions"><button class="btn-secondary" id="closeShare" style="flex:1;">${tr('close')}</button></div>`;
         overlay.querySelector('#closeShare').onclick = ()=>overlay.remove();
         return;
       }
@@ -2587,12 +2636,12 @@
         ${upcomingInstances.map((i,idx)=>`
           <div class="list-item">
             <div class="info"><div class="n">${escapeHtml(i.t.name)}</div>
-              <div class="m">${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' · '+escapeHtml(i.t.store) : ''}${i.rsvp==='going' ? ' · Going' : ''}</div></div>
+              <div class="m">${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' · '+escapeHtml(i.t.store) : ''}${i.rsvp==='going' ? ' · '+tr('going') : ''}</div></div>
             <input type="checkbox" data-share-idx="${idx}" ${i.rsvp==='going' ? 'checked' : ''} style="width:20px;height:20px;flex:none;"/>
           </div>`).join('')}
         <div class="modal-actions">
-          <button class="btn-secondary" id="copyTextBtn" style="flex:1;">Copy as text</button>
-          <button class="btn-primary" id="makeCodeBtn" style="flex:1;">Create share code</button>
+          <button class="btn-secondary" id="copyTextBtn" style="flex:1;">${tr('copyAsText')}</button>
+          <button class="btn-primary" id="makeCodeBtn" style="flex:1;">${tr('createShareCode')}</button>
         </div>
         <div id="codeArea"></div>`;
 
@@ -2620,7 +2669,7 @@
         try{
           await supabaseClient.from('kv_store').upsert({ key: 'share:'+code, value: payload, updated_at: new Date().toISOString() });
           const area = body.querySelector('#codeArea');
-          area.innerHTML = `<div class="share-code-display"><div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">Share this code</div>
+          area.innerHTML = `<div class="share-code-display"><div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">${tr('shareThisCode')}</div>
             <div class="code">${code}</div><button class="mini-btn" id="copyCodeBtn" style="margin-top:10px;">Copy code</button>
             <div class="hint">Anyone with this code can view this list — only share it with people you trust.</div></div>`;
           area.querySelector('#copyCodeBtn').onclick = ()=>{ const ok = copyText(code); showToast(ok?'Code copied':'Could not copy'); };
@@ -2631,9 +2680,9 @@
       overlay.querySelector('#tabMine').classList.remove('active');
       overlay.querySelector('#tabView').classList.add('active');
       body.innerHTML = `
-        <div class="modal-sub">Enter a code someone sent you.</div>
-        <div class="field"><label>Share code</label><input id="codeInput" placeholder="e.g. AB12CD" style="text-transform:uppercase;"/></div>
-        <div class="modal-actions"><button class="btn-primary" id="lookupBtn" style="flex:1;">View list</button></div>
+        <div class="modal-sub">${tr('enterCode')}</div>
+        <div class="field"><label>${tr('shareCode')}</label><input id="codeInput" placeholder="e.g. AB12CD" style="text-transform:uppercase;"/></div>
+        <div class="modal-actions"><button class="btn-primary" id="lookupBtn" style="flex:1;">${tr('viewList')}</button></div>
         <div id="lookupResult"></div>`;
       body.querySelector('#lookupBtn').onclick = async ()=>{
         const code = body.querySelector('#codeInput').value.trim().toUpperCase();
@@ -2682,6 +2731,11 @@
   // ============================================================
   async function bootstrapApp(){
     await Promise.all([loadProfile(), loadTournaments(), loadFriendsData(), loadNotifications()]);
+    if(preLoginLangChoice && preLoginLangChoice !== currentLang){
+      currentLang = preLoginLangChoice;
+      try{ await supabaseClient.from('profiles').update({ language: currentLang }).eq('id', session.user.id); profile.language = currentLang; }catch(e){}
+    }
+    preLoginLangChoice = null;
     await checkPushEnabled();
     subscribeRealtime();
     render();
