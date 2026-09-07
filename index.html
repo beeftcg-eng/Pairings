@@ -262,6 +262,94 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const FUNCTIONS_URL = SUPABASE_URL + '/functions/v1';
 
+  // ---------- Translations ----------
+  // Covers the main screen, event cards, the Add/Edit form, and Account —
+  // the surfaces every user sees constantly. Friends/Notifications/Stats/
+  // Decks modals still show English text for now.
+  const TRANSLATIONS = {
+    en: {
+      tagline: 'Your TCG tournament tracker',
+      authTagline: 'Track your local TCG tournaments — solo, or with friends.',
+      signin: 'Sign in', signup: 'Create an account', email: 'Email', password: 'Password',
+      newHere: 'New here?', alreadyHave: 'Already have an account?',
+      searchPlaceholder: 'Search name, store, notes…',
+      upcoming: 'Upcoming', past: 'Past', all: 'All',
+      friends: 'Friends', stats: '📊 Stats', account: 'Account', share: 'Share', addBtn: '+ Add',
+      bulkImport: '📋 Bulk import from paste',
+      happeningNow: 'Happening now', now: 'Now', hourToGo: 'hour to go', hoursToGo: 'hours to go',
+      noUpcoming: 'No upcoming events', addOneOrPaste: 'Add one, or paste an event from a store or Facebook.',
+      nothingYet: 'Nothing on the calendar yet', noPastEvents: 'No past events logged',
+      tapAddOrPaste: 'Tap "+ Add" or paste an event from a store or Facebook.',
+      eventsMovehere: 'Events move here once their date passes.',
+      going: 'Going', maybe: 'Maybe', skip: 'Skip', logResult: '🏆 Log result', editResult: 'Edit result',
+      eventPage: 'Event page ↗', shareWithFriend: '🔗 Share with a friend', inviteFriend: '✉ Invite a friend',
+      addToGCal: '📅 Add to Google Calendar', appleOutlook: '⬇️ Apple/Outlook (.ics)',
+      autoSync: '⇪ Auto-sync', reSync: '↻ Re-sync', toCalendar: 'to Calendar',
+      sharedWithYou: '👥 Shared with you',
+      editSeries: 'Edit series', remove: 'Remove',
+      // Add/Edit modal
+      addTournament: 'Add tournament', editTournament: 'Edit tournament',
+      changesApplyWhole: 'Changes here apply to the whole series.',
+      pasteRiftboundLink: '🔗 Paste a Riftbound event link',
+      fetchDetails: 'Fetch details',
+      pasteFromStore: "✨ Paste from a store's page or Facebook",
+      parseAndFill: 'Parse & fill fields',
+      eventName: 'Event name', game: 'Game', format: 'Format', storeVenue: 'Store / venue',
+      cityForNear: 'City (for near-you matches)', firstDate: 'First date', date: 'Date', time: 'Time',
+      repeats: 'Repeats', entryFee: 'Entry fee', address: 'Address', eventLink: 'Event link',
+      decklistLink: 'Decklist link (optional)', notesLabel: "Notes (pricing details, prize support, byes, anything else)",
+      cancel: 'Cancel', save: 'Save changes', add: 'Add tournament', delete: 'Delete',
+      pickDate: 'Pick a date', giveEventName: 'Give the event a name',
+      // Account modal
+      displayName: 'Display name', username: 'Username', homeCity: 'Home city (used to match "near you" notifications)',
+      useMyLocation: '📍 Use my location', saveProfile: 'Save profile', googleCalendar: 'Google Calendar',
+      connectGCal: 'Connect Google Calendar', logOut: 'Log out', close: 'Close', howThisWorks: 'How this works',
+      supportProject: '💛 Support this project', language: 'Language',
+    },
+    es: {
+      tagline: 'Tu organizador de torneos de TCG',
+      authTagline: 'Organiza tus torneos locales de TCG — solo, o con amigos.',
+      signin: 'Iniciar sesión', signup: 'Crear una cuenta', email: 'Correo electrónico', password: 'Contraseña',
+      newHere: '¿Nuevo aquí?', alreadyHave: '¿Ya tienes una cuenta?',
+      searchPlaceholder: 'Buscar nombre, tienda, notas…',
+      upcoming: 'Próximos', past: 'Pasados', all: 'Todos',
+      friends: 'Amigos', stats: '📊 Estadísticas', account: 'Cuenta', share: 'Compartir', addBtn: '+ Agregar',
+      bulkImport: '📋 Importar varios a la vez',
+      happeningNow: 'Ocurriendo ahora', now: 'Ahora', hourToGo: 'hora restante', hoursToGo: 'horas restantes',
+      noUpcoming: 'No hay eventos próximos', addOneOrPaste: 'Agrega uno, o pega un evento de una tienda o Facebook.',
+      nothingYet: 'Todavía no hay nada en el calendario', noPastEvents: 'No hay eventos pasados registrados',
+      tapAddOrPaste: 'Toca "+ Agregar" o pega un evento de una tienda o Facebook.',
+      eventsMovehere: 'Los eventos aparecen aquí después de su fecha.',
+      going: 'Voy', maybe: 'Tal vez', skip: 'No voy', logResult: '🏆 Registrar resultado', editResult: 'Editar resultado',
+      eventPage: 'Página del evento ↗', shareWithFriend: '🔗 Compartir con un amigo', inviteFriend: '✉ Invitar a un amigo',
+      addToGCal: '📅 Agregar a Google Calendar', appleOutlook: '⬇️ Apple/Outlook (.ics)',
+      autoSync: '⇪ Auto-sincronizar', reSync: '↻ Re-sincronizar', toCalendar: 'al calendario',
+      sharedWithYou: '👥 Compartido contigo',
+      editSeries: 'Editar serie', remove: 'Eliminar',
+      // Add/Edit modal
+      addTournament: 'Agregar torneo', editTournament: 'Editar torneo',
+      changesApplyWhole: 'Los cambios aquí aplican a toda la serie.',
+      pasteRiftboundLink: '🔗 Pega un enlace de evento de Riftbound',
+      fetchDetails: 'Obtener datos',
+      pasteFromStore: '✨ Pega la página de una tienda o Facebook',
+      parseAndFill: 'Analizar y rellenar campos',
+      eventName: 'Nombre del evento', game: 'Juego', format: 'Formato', storeVenue: 'Tienda / lugar',
+      cityForNear: 'Ciudad (para coincidencias "cerca de ti")', firstDate: 'Primera fecha', date: 'Fecha', time: 'Hora',
+      repeats: 'Se repite', entryFee: 'Costo de entrada', address: 'Dirección', eventLink: 'Enlace del evento',
+      decklistLink: 'Enlace del mazo (opcional)', notesLabel: 'Notas (precios, premios, byes, lo que sea)',
+      cancel: 'Cancelar', save: 'Guardar cambios', add: 'Agregar torneo', delete: 'Eliminar',
+      pickDate: 'Elige una fecha', giveEventName: 'Ponle un nombre al evento',
+      // Account modal
+      displayName: 'Nombre para mostrar', username: 'Nombre de usuario', homeCity: 'Ciudad (para notificaciones "cerca de ti")',
+      useMyLocation: '📍 Usar mi ubicación', saveProfile: 'Guardar perfil', googleCalendar: 'Google Calendar',
+      connectGCal: 'Conectar Google Calendar', logOut: 'Cerrar sesión', close: 'Cerrar', howThisWorks: 'Cómo funciona',
+      supportProject: '💛 Apoya este proyecto', language: 'Idioma',
+    }
+  };
+  function tr(key){
+    return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS.en[key] || key;
+  }
+
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
   // Generic symbols, not official logos/artwork — avoids any IP issues while still giving a quick visual cue per game.
   const GAME_ICONS = {
@@ -295,6 +383,7 @@
 
   let session = null;
   let profile = null;
+  let currentLang = 'en';
   let tournaments = [];
   let decks = [];
   let friendsAccepted = [];
@@ -482,6 +571,18 @@
       const { data } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
       profile = data || { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null, onboarded:false };
     }catch(e){ profile = { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null, onboarded:false }; }
+    currentLang = (profile.language === 'es') ? 'es' : 'en';
+  }
+
+  async function setLanguage(lang, accountOverlay){
+    if(currentLang === lang) return;
+    currentLang = lang;
+    try{
+      await supabaseClient.from('profiles').update({ language: lang }).eq('id', session.user.id);
+      profile.language = lang;
+    }catch(e){ /* non-fatal — will just re-sync next load */ }
+    render();
+    if(accountOverlay){ accountOverlay.remove(); openAccountModal(); }
   }
 
   async function loadTournaments(){
@@ -1016,13 +1117,19 @@
       <div class="auth-wrap">
         <div class="auth-card">
           <h1>Pairings</h1>
-          <div class="auth-sub">Track your local TCG tournaments — solo, or with friends.</div>
-          <div class="field"><label>Email</label><input id="a_email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
-          <div class="field"><label>Password</label><input id="a_password" type="password" placeholder="••••••••" autocomplete="${mode==='signin'?'current-password':'new-password'}"/></div>
-          <button class="btn-primary" id="a_submit" style="width:100%;">${mode==='signin'?'Sign in':'Create account'}</button>
-          <div class="auth-toggle">${mode==='signin' ? `New here? <a id="toSignup">Create an account</a>` : `Already have an account? <a id="toSignin">Sign in</a>`}</div>
+          <div class="auth-sub">${tr('authTagline')}</div>
+          <div class="field"><label>${tr('email')}</label><input id="a_email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
+          <div class="field"><label>${tr('password')}</label><input id="a_password" type="password" placeholder="••••••••" autocomplete="${mode==='signin'?'current-password':'new-password'}"/></div>
+          <button class="btn-primary" id="a_submit" style="width:100%;">${mode==='signin'?tr('signin'):tr('signup')}</button>
+          <div class="auth-toggle">${mode==='signin' ? `${tr('newHere')} <a id="toSignup">${tr('signup')}</a>` : `${tr('alreadyHave')} <a id="toSignin">${tr('signin')}</a>`}</div>
+          <div style="text-align:center;margin-top:16px;">
+            <button class="chip ${currentLang==='en'?'active':''}" id="authLangEn" type="button" style="margin-right:6px;">English</button>
+            <button class="chip ${currentLang==='es'?'active':''}" id="authLangEs" type="button">Español</button>
+          </div>
         </div>
       </div>`;
+    document.getElementById('authLangEn').onclick = ()=>{ currentLang='en'; renderAuth(mode); };
+    document.getElementById('authLangEs').onclick = ()=>{ currentLang='es'; renderAuth(mode); };
     document.getElementById('a_submit').onclick = async ()=>{
       const email = document.getElementById('a_email').value.trim();
       const password = document.getElementById('a_password').value;
@@ -1071,9 +1178,9 @@
       const pct = Math.max(0, Math.min(1, 1 - wholeHours/720)); // 720h = 30 days, for the ring's visual fill
       const r = 30, c = 2*Math.PI*r;
       const offset = c * (1-pct);
-      const numDisplay = happening ? 'Now' : (wholeHours > 999 ? '999+' : wholeHours);
+      const numDisplay = happening ? tr('now') : (wholeHours > 999 ? '999+' : wholeHours);
       const numFontSize = String(numDisplay).length >= 3 ? '14px' : '18px';
-      const label = happening ? 'Happening now' : (wholeHours + (wholeHours===1 ? ' hour to go' : ' hours to go'));
+      const label = happening ? tr('happeningNow') : (wholeHours + ' ' + (wholeHours===1 ? tr('hourToGo') : tr('hoursToGo')));
       ringHtml = `
         <div class="ring">
           <svg width="70" height="70" viewBox="0 0 70 70">
@@ -1094,20 +1201,20 @@
       ringHtml = `<div class="ring"><svg width="70" height="70" viewBox="0 0 70 70">
           <circle class="bg" cx="35" cy="35" r="30" fill="none" stroke-width="5"/></svg>
           <div class="num" style="font-size:24px;color:var(--text-dim);">–</div></div>
-        <div class="hero-info"><div class="hero-label">No upcoming events</div>
-        <div class="hero-empty">Add one, or paste from a store's events page.</div></div>`;
+        <div class="hero-info"><div class="hero-label">${tr('noUpcoming')}</div>
+        <div class="hero-empty">${tr('addOneOrPaste')}</div></div>`;
     }
 
     const usedGames = [...new Set(tournaments.map(t=>t.game||'Unspecified'))].sort();
-    const gameChips = usedGames.length > 1 ? ['All',...usedGames].map(g=>`<button class="chip ${filterGame===g?'active':''}" data-game="${escapeAttr(g)}">${escapeHtml(g)}</button>`).join('') : '';
+    const gameChips = usedGames.length > 1 ? ['All',...usedGames].map(g=>`<button class="chip ${filterGame===g?'active':''}" data-game="${escapeAttr(g)}">${g==='All'?tr('all'):escapeHtml(g)}</button>`).join('') : '';
     const usedFormats = [...new Set(tournaments.map(t=>t.format).filter(Boolean))].sort();
-    const chips = usedFormats.length ? ['All',...usedFormats].map(f=>`<button class="chip ${filterFormat===f?'active':''}" data-format="${escapeAttr(f)}">${escapeHtml(f)}</button>`).join('') : '';
+    const chips = usedFormats.length ? ['All',...usedFormats].map(f=>`<button class="chip ${filterFormat===f?'active':''}" data-format="${escapeAttr(f)}">${f==='All'?tr('all'):escapeHtml(f)}</button>`).join('') : '';
 
     let listHtml = '';
     if(list.length === 0){
       listHtml = `<div class="empty-state">
-        <div class="big">${viewMode==='upcoming' ? 'Nothing on the calendar yet' : 'No past events logged'}</div>
-        <div>${viewMode==='upcoming' ? 'Tap “+ Add” or paste an event from a store or Facebook.' : 'Events move here once their date passes.'}</div>
+        <div class="big">${viewMode==='upcoming' ? tr('nothingYet') : tr('noPastEvents')}</div>
+        <div>${viewMode==='upcoming' ? tr('tapAddOrPaste') : tr('eventsMovehere')}</div>
       </div>`;
     } else {
       let lastMonth = '';
@@ -1127,8 +1234,8 @@
             <div class="card-top">
               <div class="card-name">${escapeHtml(t.name||'Untitled event')}</div>
               <div class="card-actions">
-                ${t.readOnly ? '' : `<button class="icon-btn edit-btn" data-id="${t.id}" title="Edit series">✎</button>`}
-                <button class="icon-btn del-btn" data-id="${t.id}" data-date="${date}" title="Remove">✕</button>
+                ${t.readOnly ? '' : `<button class="icon-btn edit-btn" data-id="${t.id}" title="${tr('editSeries')}">✎</button>`}
+                <button class="icon-btn del-btn" data-id="${t.id}" data-date="${date}" title="${tr('remove')}">✕</button>
               </div>
             </div>
             <div class="card-meta">
@@ -1138,25 +1245,25 @@
               ${t.format ? `<span class="badge format">${escapeHtml(t.format)}</span>` : ''}
               ${t.fee ? `<span class="badge fee">${escapeHtml(t.fee)}</span>` : ''}
               ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
-              ${t.readOnly ? `<span class="badge repeat">👥 Shared with you</span>` : ''}
+              ${t.readOnly ? `<span class="badge repeat">${tr('sharedWithYou')}</span>` : ''}
               ${resultBadge}
             </div>
             <div class="rsvp-row">
-              <button class="rsvp-btn going ${inst.rsvp==='going'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="going">Going</button>
-              <button class="rsvp-btn maybe ${inst.rsvp==='maybe'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="maybe">Maybe</button>
-              <button class="rsvp-btn skip ${inst.rsvp==='skip'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="skip">Skip</button>
-              <button class="result-btn" data-id="${t.id}" data-date="${date}" data-action="logresult">${inst.result ? 'Edit result' : '🏆 Log result'}</button>
+              <button class="rsvp-btn going ${inst.rsvp==='going'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="going">${tr('going')}</button>
+              <button class="rsvp-btn maybe ${inst.rsvp==='maybe'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="maybe">${tr('maybe')}</button>
+              <button class="rsvp-btn skip ${inst.rsvp==='skip'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="skip">${tr('skip')}</button>
+              <button class="result-btn" data-id="${t.id}" data-date="${date}" data-action="logresult">${inst.result ? tr('editResult') : tr('logResult')}</button>
             </div>
             ${inst.result && inst.result.notes ? `<div class="card-notes">Result notes: ${escapeHtml(inst.result.notes)}</div>` : ''}
             ${t.notes ? `<div class="card-notes">${escapeHtml(t.notes.length>140?t.notes.slice(0,140)+'…':t.notes)}</div>` : ''}
             <div class="card-links">
-              ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">Event page ↗</a>` : ''}
+              ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">${tr('eventPage')}</a>` : ''}
               ${t.deckLink ? `<a class="card-link" href="${escapeAttr(t.deckLink)}" target="_blank" rel="noopener">📋 Decklist ↗</a>` : ''}
-              <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">🔗 Share with a friend</a>
-              <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">✉ Invite a friend</a>
-              <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
-              <a class="card-link" href="#" data-action="downloadics" data-id="${t.id}" data-date="${date}">⬇️ Apple/Outlook (.ics)</a>
-              ${profile && profile.google_connected ? `<a class="card-link gold" href="#" data-action="gsync" data-id="${t.id}" data-date="${date}">${inst.googleEventId ? '↻ Re-sync' : '⇪ Auto-sync'} to Calendar</a>` : ''}
+              <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">${tr('shareWithFriend')}</a>
+              <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">${tr('inviteFriend')}</a>
+              <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">${tr('addToGCal')}</a>
+              <a class="card-link" href="#" data-action="downloadics" data-id="${t.id}" data-date="${date}">${tr('appleOutlook')}</a>
+              ${profile && profile.google_connected ? `<a class="card-link gold" href="#" data-action="gsync" data-id="${t.id}" data-date="${date}">${inst.googleEventId ? tr('reSync') : tr('autoSync')} ${tr('toCalendar')}</a>` : ''}
             </div>
           </div>
         </div>`;
@@ -1167,15 +1274,15 @@
       <div class="head">
         <div class="brand">
           <div class="mark">Pairings</div>
-          <div class="sub">Your TCG tournament tracker</div>
+          <div class="sub">${tr('tagline')}</div>
         </div>
         <div class="head-actions">
           <button class="btn icon-pill" id="openNotif" title="Notifications">🔔${unread>0?` <span class="bell-badge">${unread}</span>`:''}</button>
-          <button class="btn icon-pill" id="openFriends">Friends</button>
-          <button class="btn icon-pill" id="openStats">📊 Stats</button>
-          <button class="btn icon-pill" id="openAccount">Account</button>
-          <button class="btn icon-pill" id="openShare">Share</button>
-          <button class="btn add-btn" id="openAdd">+ Add</button>
+          <button class="btn icon-pill" id="openFriends">${tr('friends')}</button>
+          <button class="btn icon-pill" id="openStats">${tr('stats')}</button>
+          <button class="btn icon-pill" id="openAccount">${tr('account')}</button>
+          <button class="btn icon-pill" id="openShare">${tr('share')}</button>
+          <button class="btn add-btn" id="openAdd">${tr('addBtn')}</button>
         </div>
       </div>
 
@@ -1186,14 +1293,14 @@
         <a class="qlink" href="https://en.onepiece-cardgame.com/events/" target="_blank" rel="noopener">🔗 One Piece TCG events</a>
         <a class="qlink" href="https://www.facebook.com/events/" target="_blank" rel="noopener">🔗 Facebook Events</a>
         <a class="qlink" href="https://www.google.com/maps/search/game+store+near+me" target="_blank" rel="noopener">🔗 Find local game stores</a>
-        <button class="qlink" id="openBulkImport" style="cursor:pointer;font-family:inherit;">📋 Bulk import from paste</button>
+        <button class="qlink" id="openBulkImport" style="cursor:pointer;font-family:inherit;">${tr('bulkImport')}</button>
       </div>
 
       <div class="toolbar">
-        <input class="search" id="searchInput" placeholder="Search name, store, notes…" value="${escapeAttr(searchTerm)}"/>
+        <input class="search" id="searchInput" placeholder="${tr('searchPlaceholder')}" value="${escapeAttr(searchTerm)}"/>
         <div class="seg">
-          <button data-view="upcoming" class="${viewMode==='upcoming'?'active':''}">Upcoming</button>
-          <button data-view="past" class="${viewMode==='past'?'active':''}">Past</button>
+          <button data-view="upcoming" class="${viewMode==='upcoming'?'active':''}">${tr('upcoming')}</button>
+          <button data-view="past" class="${viewMode==='past'?'active':''}">${tr('past')}</button>
         </div>
       </div>
       ${gameChips ? `<div class="toolbar" style="margin-top:-6px;">${gameChips}</div>` : ''}
@@ -1283,60 +1390,60 @@
     overlay.className = 'overlay';
     overlay.innerHTML = `
       <div class="modal">
-        <h2>${id ? 'Edit tournament' : 'Add tournament'}</h2>
-        ${id && isRepeating(t) ? '<div class="modal-sub">Changes here apply to the whole series.</div>' : ''}
+        <h2>${id ? tr('editTournament') : tr('addTournament')}</h2>
+        ${id && isRepeating(t) ? `<div class="modal-sub">${tr('changesApplyWhole')}</div>` : ''}
         <div class="paste-box">
-          <div class="lbl">🔗 Paste a Riftbound event link</div>
+          <div class="lbl">${tr('pasteRiftboundLink')}</div>
           <div style="display:flex;gap:8px;">
             <input id="linkFetchInput" placeholder="https://locator.riftbound.uvsgames.com/events/…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
-            <button class="parse-btn" id="linkFetchBtn" type="button" style="margin-top:0;white-space:nowrap;">Fetch details</button>
+            <button class="parse-btn" id="linkFetchBtn" type="button" style="margin-top:0;white-space:nowrap;">${tr('fetchDetails')}</button>
           </div>
           <div class="hint">Fills in date, time, store, and address automatically. The event name isn't available this way — you'll still type that in yourself.</div>
         </div>
         <div class="paste-box">
-          <div class="lbl">✨ Paste from a store's page or Facebook</div>
+          <div class="lbl">${tr('pasteFromStore')}</div>
           <textarea id="pasteArea" placeholder="Paste the event text here — name, store, date, time, price…"></textarea>
-          <button class="parse-btn" id="parseBtn" type="button">Parse &amp; fill fields</button>
+          <button class="parse-btn" id="parseBtn" type="button">${tr('parseAndFill')}</button>
         </div>
-        <div class="field"><label>Event name</label><input id="f_name" value="${escapeAttr(t.name)}" placeholder="e.g. Friday Night Sealed"/></div>
+        <div class="field"><label>${tr('eventName')}</label><input id="f_name" value="${escapeAttr(t.name)}" placeholder="e.g. Friday Night Sealed"/></div>
         <div class="row2">
-          <div class="field"><label>Game</label>
+          <div class="field"><label>${tr('game')}</label>
             <input id="f_game" list="gameOptions" value="${escapeAttr(t.game||'')}" placeholder="e.g. One Piece Card Game"/>
             <datalist id="gameOptions">${GAMES.map(g=>`<option value="${escapeAttr(g)}">`).join('')}</datalist>
           </div>
-          <div class="field"><label>Format</label>
+          <div class="field"><label>${tr('format')}</label>
             <input id="f_format" list="formatOptions" value="${escapeAttr(t.format||'')}" placeholder="e.g. Standard, Sealed…"/>
             <datalist id="formatOptions">${FORMATS.map(f=>`<option value="${escapeAttr(f)}">`).join('')}</datalist>
           </div>
         </div>
         <div class="row2">
-          <div class="field"><label>Store / venue</label><input id="f_store" value="${escapeAttr(t.store)}" placeholder="e.g. Meeple Mountain Games"/></div>
-          <div class="field"><label>City (for near-you matches)</label><input id="f_city" value="${escapeAttr(t.city||'')}" placeholder="e.g. Austin, TX"/></div>
+          <div class="field"><label>${tr('storeVenue')}</label><input id="f_store" value="${escapeAttr(t.store)}" placeholder="e.g. Meeple Mountain Games"/></div>
+          <div class="field"><label>${tr('cityForNear')}</label><input id="f_city" value="${escapeAttr(t.city||'')}" placeholder="e.g. Austin, TX"/></div>
         </div>
         <div class="row2">
-          <div class="field"><label>${isRepeating(t) || !id ? 'First date' : 'Date'}</label><input type="date" id="f_date" value="${escapeAttr(t.date)}"/></div>
-          <div class="field"><label>Time</label><input id="f_time" value="${escapeAttr(t.time)}" placeholder="e.g. 6:30 PM"/></div>
+          <div class="field"><label>${isRepeating(t) || !id ? tr('firstDate') : tr('date')}</label><input type="date" id="f_date" value="${escapeAttr(t.date)}"/></div>
+          <div class="field"><label>${tr('time')}</label><input id="f_time" value="${escapeAttr(t.time)}" placeholder="e.g. 6:30 PM"/></div>
         </div>
         <div class="field">
-          <label>Repeats</label>
+          <label>${tr('repeats')}</label>
           <select id="f_repeat">${REPEATS.map(r=>`<option value="${r.v}" ${t.repeat===r.v?'selected':''}>${escapeHtml(r.l)}</option>`).join('')}</select>
           <div class="hint">A repeating local shows up every week/month automatically — RSVP and results are tracked per date.</div>
         </div>
-        <div class="field"><label>Entry fee</label><input id="f_fee" value="${escapeAttr(t.fee)}" placeholder="e.g. $10, or Free"/></div>
-        <div class="field"><label>Address</label><input id="f_address" value="${escapeAttr(t.address)}" placeholder="Street, city"/></div>
-        <div class="field"><label>Event link</label><input id="f_link" value="${escapeAttr(t.link)}" placeholder="https://…"/></div>
+        <div class="field"><label>${tr('entryFee')}</label><input id="f_fee" value="${escapeAttr(t.fee)}" placeholder="e.g. $10, or Free"/></div>
+        <div class="field"><label>${tr('address')}</label><input id="f_address" value="${escapeAttr(t.address)}" placeholder="Street, city"/></div>
+        <div class="field"><label>${tr('eventLink')}</label><input id="f_link" value="${escapeAttr(t.link)}" placeholder="https://…"/></div>
         <div class="field">
-          <label>Decklist link (optional)</label>
+          <label>${tr('decklistLink')}</label>
           <input id="f_decklink" value="${escapeAttr(t.deckLink||'')}" placeholder="https://piltoverarchive.com/decks/…"/>
           <div class="hint">Playing Riftbound? <a href="https://piltoverarchive.com/deckbuilder" target="_blank" rel="noopener" style="color:var(--teal);">Build a deck on Piltover Archive ↗</a> then paste the link here.</div>
         </div>
-        <div class="field"><label>Notes (pricing details, prize support, byes, anything else)</label>
+        <div class="field"><label>${tr('notesLabel')}</label>
           <textarea id="f_notes" placeholder="e.g. $10 entry, +$5 for a bye, cash payouts top 4">${escapeHtml(t.notes)}</textarea>
         </div>
         <div class="modal-actions">
-          ${id ? '<button class="btn-danger" id="deleteBtn" type="button">Delete</button>' : ''}
-          <button class="btn-secondary" id="cancelBtn" type="button">Cancel</button>
-          <button class="btn-primary" id="saveBtn" type="button">${id?'Save changes':'Add tournament'}</button>
+          ${id ? `<button class="btn-danger" id="deleteBtn" type="button">${tr('delete')}</button>` : ''}
+          <button class="btn-secondary" id="cancelBtn" type="button">${tr('cancel')}</button>
+          <button class="btn-primary" id="saveBtn" type="button">${id?tr('save'):tr('add')}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1390,7 +1497,7 @@
 
     overlay.querySelector('#saveBtn').onclick = async ()=>{
       const name = overlay.querySelector('#f_name').value.trim();
-      if(!name){ showToast('Give the event a name'); return; }
+      if(!name){ showToast(tr('giveEventName')); return; }
       const newCity = overlay.querySelector('#f_city').value.trim();
       const newAddress = overlay.querySelector('#f_address').value.trim();
       const updated = {
@@ -1414,7 +1521,7 @@
         lng: (newAddress !== t.address || newCity !== t.city) ? null : (t.lng || null),
         googleEventId: t.googleEventId || null
       };
-      if(!updated.date){ showToast('Pick a date'); return; }
+      if(!updated.date){ showToast(tr('pickDate')); return; }
       if(id){
         const idx = tournaments.findIndex(x=>x.id===id);
         tournaments[idx] = updated;
@@ -2212,44 +2319,53 @@
     overlay.className = 'overlay';
     overlay.innerHTML = `
       <div class="modal">
-        <h2>Account</h2>
+        <h2>${tr('account')}</h2>
         <div class="modal-sub">${escapeHtml(profile.email)}</div>
         <div class="field">
-          <label>Username</label>
+          <label>${tr('language')}</label>
+          <div class="chip-row" style="display:flex;gap:8px;">
+            <button class="chip ${currentLang==='en'?'active':''}" id="langEn" type="button">English</button>
+            <button class="chip ${currentLang==='es'?'active':''}" id="langEs" type="button">Español</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>${tr('username')}</label>
           <input id="acc_username" value="${escapeAttr(profile.username||'')}" placeholder="e.g. mtg_mike" maxlength="24"/>
           <div class="hint">Friends can add you with this instead of your email. Letters, numbers, and underscores only.</div>
         </div>
-        <div class="field"><label>Display name</label><input id="acc_name" value="${escapeAttr(profile.display_name||'')}" placeholder="What friends will see"/></div>
+        <div class="field"><label>${tr('displayName')}</label><input id="acc_name" value="${escapeAttr(profile.display_name||'')}" placeholder="What friends will see"/></div>
         <div class="field">
-          <label>Home city (used to match "near you" notifications)</label>
+          <label>${tr('homeCity')}</label>
           <div style="display:flex;gap:8px;">
             <input id="acc_city" value="${escapeAttr(profile.home_city||'')}" placeholder="e.g. Austin, TX" style="flex:1;"/>
-            <button class="mini-btn" id="useLocationBtn">📍 Use my location</button>
+            <button class="mini-btn" id="useLocationBtn">${tr('useMyLocation')}</button>
           </div>
           <div class="hint">"Near you" matches within about 50 miles, based on this location or your device's GPS.</div>
         </div>
         <div class="modal-actions" style="margin-top:8px;">
-          <button class="btn-secondary" id="saveProfileBtn" style="flex:1;">Save profile</button>
+          <button class="btn-secondary" id="saveProfileBtn" style="flex:1;">${tr('saveProfile')}</button>
         </div>
-        <div class="section-label">Google Calendar</div>
+        <div class="section-label">${tr('googleCalendar')}</div>
         <div class="modal-sub">${profile.google_connected ? 'Connected — use "Auto-sync" on any event to push it to your calendar.' : 'Connect once to auto-sync events without the manual "Add to Calendar" link.'}</div>
         <div class="modal-actions" style="margin-top:8px;">
-          <button class="btn-primary" id="connectGoogleBtn" style="flex:1;">${profile.google_connected ? 'Reconnect' : 'Connect Google Calendar'}</button>
+          <button class="btn-primary" id="connectGoogleBtn" style="flex:1;">${profile.google_connected ? 'Reconnect' : tr('connectGCal')}</button>
         </div>
         <div class="modal-actions">
-          <button class="btn-secondary" id="reopenWelcome" style="flex:1;">How this works</button>
+          <button class="btn-secondary" id="reopenWelcome" style="flex:1;">${tr('howThisWorks')}</button>
         </div>
         <div class="modal-actions">
-          <button class="btn-danger" id="logoutBtn" style="flex:1;">Log out</button>
-          <button class="btn-secondary" id="closeAccount" style="flex:1;">Close</button>
+          <button class="btn-danger" id="logoutBtn" style="flex:1;">${tr('logOut')}</button>
+          <button class="btn-secondary" id="closeAccount" style="flex:1;">${tr('close')}</button>
         </div>
-        ${DONATION_URL ? `<div style="text-align:center;margin-top:16px;"><a href="${escapeAttr(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">💛 Support this project</a></div>` : ''}
+        ${DONATION_URL ? `<div style="text-align:center;margin-top:16px;"><a href="${escapeAttr(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('supportProject')}</a></div>` : ''}
       </div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
     overlay.querySelector('#reopenWelcome').onclick = ()=>{ overlay.remove(); openWelcomeModal(); };
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
+    overlay.querySelector('#langEn').onclick = ()=>setLanguage('en', overlay);
+    overlay.querySelector('#langEs').onclick = ()=>setLanguage('es', overlay);
     overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); overlay.remove(); };
     overlay.querySelector('#useLocationBtn').onclick = ()=>{
       if(!navigator.geolocation){ showToast('Geolocation is not available on this device'); return; }
@@ -2625,6 +2741,7 @@
 
   (async ()=>{
     registerServiceWorker();
+    try{ if((navigator.language||'').toLowerCase().startsWith('es')) currentLang = 'es'; }catch(e){}
     const { data: { session: s } } = await supabaseClient.auth.getSession();
     session = s;
     if(session) await bootstrapApp(); else renderAuth('signin');
