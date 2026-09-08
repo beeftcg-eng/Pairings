@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.13'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.14'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -429,18 +429,31 @@
 
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
   // Generic symbols, not official logos/artwork — avoids any IP issues while still giving a quick visual cue per game.
-  const GAME_ICONS = {
-    'Riftbound': '🌀',
-    'One Piece Card Game': '🏴‍☠️',
-    'Magic: The Gathering': '🔮',
-    'Pokémon TCG': '⚡',
-    'Yu-Gi-Oh!': '🌟',
-    'Digimon Card Game': '🦖',
-    'Flesh and Blood': '⚔️',
-    'Disney Lorcana': '✨',
-    'Star Wars: Unlimited': '🚀'
-  };
-  function gameIcon(game){ return GAME_ICONS[game] || (game ? '🎴' : ''); }
+  // Matched against normalized text (accents stripped, lowercased, punctuation removed) with common aliases, since the
+  // "game" field is free text everywhere it's entered (including store owners' event form, which has no suggestions at
+  // all) — an exact-string match alone missed anything typed slightly differently ("Pokemon" vs "Pokémon TCG", "MTG", etc).
+  const GAME_ICON_ALIASES = [
+    { icon: '🌀', keys: ['riftbound'] },
+    { icon: '🏴‍☠️', keys: ['one piece', 'onepiece', 'opcg', 'op tcg'] },
+    { icon: '🪄', keys: ['magic the gathering', 'magic', 'mtg'] },
+    { icon: '⚡', keys: ['pokemon', 'pokemon tcg', 'ptcg'] },
+    { icon: '🌟', keys: ['yu gi oh', 'yugioh', 'ygo'] },
+    { icon: '🦖', keys: ['digimon'] },
+    { icon: '⚔️', keys: ['flesh and blood', 'fab'] },
+    { icon: '✨', keys: ['lorcana', 'disney lorcana'] },
+    { icon: '🚀', keys: ['star wars', 'swu', 'star wars unlimited'] }
+  ];
+  function normalizeGameKey(s){
+    return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  }
+  function gameIcon(game){
+    if(!game) return '';
+    const norm = normalizeGameKey(game);
+    for(const entry of GAME_ICON_ALIASES){
+      if(entry.keys.some(k => norm.includes(k))) return entry.icon;
+    }
+    return '🎴';
+  }
 
   // Curated list of Riftbound Champion Legends, used only as autocomplete suggestions
   // (for logging match-ups) — not an exhaustive/official list, just a helpful starting point.
