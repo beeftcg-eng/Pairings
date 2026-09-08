@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.8'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.9'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -2466,7 +2466,13 @@
       const followedIds = await getMyFollowedIds();
       body.innerHTML = `
         <div class="field"><input id="storeSearch" placeholder="Search by store name or city…"/></div>
-        <div id="storeResults"><div class="modal-sub">Type to search, or browse below.</div></div>
+        <div class="field">
+          <select id="gameFilter">
+            <option value="">All games</option>
+            ${GAMES.map(g=>`<option value="${escapeAttr(g)}">${escapeHtml(g)}</option>`).join('')}
+          </select>
+        </div>
+        <div id="storeResults"><div class="modal-sub">Loading stores…</div></div>
         <div class="section-label">Follow by code</div>
         <div style="display:flex;gap:8px;">
           <input id="followCodeInput" placeholder="e.g. AB12CD" style="flex:1;text-transform:uppercase;"/>
@@ -2476,19 +2482,38 @@
       `;
       overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
 
-      async function runSearch(term){
+      async function runSearch(term, game){
         const resultsEl = body.querySelector('#storeResults');
         resultsEl.innerHTML = `<div class="modal-sub">Searching…</div>`;
         try{
-          let q = supabaseClient.from('stores').select('*').eq('approved', true).order('name');
+          let allowedIds = null;
+          if(game){
+            const { data: matches } = await supabaseClient.from('store_events').select('store_id').ilike('game', game);
+            allowedIds = [...new Set((matches||[]).map(m=>m.store_id))];
+            if(allowedIds.length === 0){ resultsEl.innerHTML = `<div class="modal-sub">No stores currently running ${escapeHtml(game)} events.</div>`; return; }
+          }
+          let q = supabaseClient.from('stores').select('*').eq('approved', true);
           if(term && term.trim()) q = q.or(`name.ilike.%${term.trim()}%,city.ilike.%${term.trim()}%`);
-          const { data, error } = await q.limit(30);
+          if(allowedIds) q = q.in('id', allowedIds);
+          const { data, error } = await q.limit(50);
           if(error) throw error;
           if(!data || data.length===0){ resultsEl.innerHTML = `<div class="modal-sub">No stores found.</div>`; return; }
-          resultsEl.innerHTML = data.map(s=>`
+
+          let countByStore = {};
+          try{
+            const { data: counts } = await supabaseClient.from('store_follower_counts').select('*').in('store_id', data.map(s=>s.id));
+            (counts||[]).forEach(c=>{ countByStore[c.store_id] = c.follower_count; });
+          }catch(e){}
+
+          const sorted = data.slice().sort((a,b)=>{
+            if(term && term.trim()) return a.name.localeCompare(b.name); // relevance-ish: alphabetical among matches
+            return (countByStore[b.id]||0) - (countByStore[a.id]||0); // default: most-followed first
+          });
+
+          resultsEl.innerHTML = sorted.map(s=>`
             <div class="list-item">
-              <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${escapeHtml(s.city||'')}</div></div>
-              <button class="mini-btn ${followedIds.includes(s.id)?'':''}" data-follow="${s.id}" ${followedIds.includes(s.id)?'disabled':''}>${followedIds.includes(s.id)?'Following ✓':'Follow'}</button>
+              <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${escapeHtml(s.city||'')}${countByStore[s.id] ? ' · '+countByStore[s.id]+' follower'+(countByStore[s.id]===1?'':'s') : ''}</div></div>
+              <button class="mini-btn" data-follow="${s.id}" ${followedIds.includes(s.id)?'disabled':''}>${followedIds.includes(s.id)?'Following ✓':'Follow'}</button>
             </div>`).join('');
           resultsEl.querySelectorAll('[data-follow]').forEach(btn=>{
             btn.onclick = async ()=>{
@@ -2500,11 +2525,15 @@
         }catch(e){ resultsEl.innerHTML = `<div class="modal-sub">Search failed — try again.</div>`; }
       }
       let searchDebounce = null;
+      function currentGame(){ return body.querySelector('#gameFilter').value; }
       body.querySelector('#storeSearch').oninput = (e)=>{
         clearTimeout(searchDebounce);
-        searchDebounce = setTimeout(()=>runSearch(e.target.value), 250);
+        searchDebounce = setTimeout(()=>runSearch(e.target.value, currentGame()), 250);
       };
-      runSearch('');
+      body.querySelector('#gameFilter').onchange = ()=>{
+        runSearch(body.querySelector('#storeSearch').value, currentGame());
+      };
+      runSearch('', '');
 
       body.querySelector('#followCodeBtn').onclick = async ()=>{
         const code = body.querySelector('#followCodeInput').value.trim().toUpperCase();
@@ -2516,30 +2545,30 @@
           showToast('Now following ' + s.name);
           await syncFollowedStoreEvents();
           render();
-          runSearch(body.querySelector('#storeSearch').value);
+          runSearch(body.querySelector('#storeSearch').value, currentGame());
         }catch(e){ showToast('Could not follow — you may already follow this store'); }
       };
     }
 
     async function renderMyStoreTab(){
       body.innerHTML = `<div class="modal-sub">Loading…</div>`;
-      let myStore = null;
+      let myStores = [];
       try{
-        const { data } = await supabaseClient.from('stores').select('*').eq('owner_id', session.user.id).maybeSingle();
-        myStore = data;
+        const { data } = await supabaseClient.from('stores').select('*').eq('owner_id', session.user.id).order('created_at');
+        myStores = data || [];
       }catch(e){}
 
-      if(!myStore){
-        body.innerHTML = `
-          <div class="modal-sub">Run a store? Request a store profile — once approved, you can publish events that your followers see automatically.</div>
+      function requestFormHtml(hasExisting){
+        return `
+          <div class="modal-sub">${hasExisting ? 'Add another store profile.' : "Run a store? Request a store profile — once approved, you can publish events that your followers see automatically."}</div>
           <div class="field"><label>Store name</label><input id="req_name" placeholder="e.g. Meeple Mountain Games"/></div>
           <div class="field"><label>City</label><input id="req_city" placeholder="e.g. Austin, TX"/></div>
           <div class="field"><label>Description (optional)</label><textarea id="req_desc" placeholder="A short description of your store"></textarea></div>
           <div class="field"><label>Website / Facebook page (optional)</label><input id="req_contact" placeholder="https://…"/></div>
           <div class="modal-actions"><button class="btn-primary" id="reqStoreBtn" style="flex:1;">Request store profile</button></div>
-          <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
         `;
-        overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+      }
+      function wireRequestForm(){
         body.querySelector('#reqStoreBtn').onclick = async ()=>{
           const name = body.querySelector('#req_name').value.trim();
           if(!name){ showToast('Enter a store name'); return; }
@@ -2555,27 +2584,49 @@
             renderMyStoreTab();
           }catch(e){ showToast('Could not submit request'); }
         };
+      }
+
+      if(myStores.length === 0){
+        body.innerHTML = requestFormHtml(false) + `<div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>`;
+        overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+        wireRequestForm();
         return;
       }
 
-      if(!myStore.approved){
+      function drawStoreList(){
         body.innerHTML = `
-          <div class="modal-sub"><strong>${escapeHtml(myStore.name)}</strong> — request pending approval. Check back soon!</div>
+          <div class="section-label">Your stores</div>
+          ${myStores.map(s=>`
+            <div class="list-item">
+              <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${s.approved ? '✅ Approved' : '⏳ Pending approval'}</div></div>
+              ${s.approved ? `<button class="mini-btn" data-manage-store="${s.id}">Manage</button>` : ''}
+            </div>`).join('')}
+          <div class="section-label">Add another store</div>
+          ${requestFormHtml(true)}
           <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
         `;
         overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
-        return;
+        wireRequestForm();
+        body.querySelectorAll('[data-manage-store]').forEach(btn=>{
+          btn.onclick = ()=>drawManageStore(myStores.find(s=>s.id===btn.dataset.manageStore));
+        });
       }
 
-      // Approved — show event management
-      let myEvents = [];
-      try{
-        const { data } = await supabaseClient.from('store_events').select('*').eq('store_id', myStore.id).order('date');
-        myEvents = data || [];
-      }catch(e){}
+      async function drawManageStore(myStore){
+        body.innerHTML = `<div class="modal-sub">Loading…</div>`;
+        let myEvents = [], rsvpCounts = {};
+        try{
+          const { data } = await supabaseClient.from('store_events').select('*').eq('store_id', myStore.id).order('date');
+          myEvents = data || [];
+          const ids = myEvents.map(e=>e.id);
+          if(ids.length){
+            const { data: counts } = await supabaseClient.from('store_event_rsvp_counts').select('*').in('store_event_id', ids);
+            (counts||[]).forEach(c=>{ rsvpCounts[c.store_event_id] = c.going_count; });
+          }
+        }catch(e){}
 
-      function drawMyStore(){
         body.innerHTML = `
+          <button class="mini-btn" id="backToStoreList" style="margin-bottom:10px;">← All your stores</button>
           <div class="modal-sub">✅ ${escapeHtml(myStore.name)} — approved. Follow code: <strong>${myStore.follow_code}</strong></div>
           <div class="share-link" style="margin-bottom:14px;">${baseAppUrl()}?storepage=${myStore.follow_code}</div>
           <button class="mini-btn" id="copyPublicLinkBtn" style="margin-bottom:14px;">Copy public page link</button>
@@ -2597,7 +2648,7 @@
           ${myEvents.length ? myEvents.map(e=>`
             <div class="list-item">
               <div class="info"><div class="n">${e.cancelled?'<span style="color:var(--rose);">[CANCELLED] </span>':''}${escapeHtml(e.name)}</div>
-                <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · repeats':''}</div></div>
+                <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · repeats':''} · ${rsvpCounts[e.id]||0} going</div></div>
               <div style="display:flex;gap:6px;">
                 <button class="mini-btn" data-cancel-se="${e.id}">${e.cancelled?'Un-cancel':'Cancel'}</button>
                 <button class="mini-btn decline" data-del-se="${e.id}">Delete</button>
@@ -2606,6 +2657,7 @@
           <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
         `;
         overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+        body.querySelector('#backToStoreList').onclick = ()=>drawStoreList();
         body.querySelector('#copyPublicLinkBtn').onclick = ()=>{
           const ok = copyText(`${baseAppUrl()}?storepage=${myStore.follow_code}`);
           showToast(ok?'Link copied':'Could not copy');
@@ -2623,25 +2675,32 @@
               repeat: body.querySelector('#se_repeat').value
             });
             showToast('Event published — your followers will see it');
-            renderMyStoreTab();
+            drawManageStore(myStore);
           }catch(e){ showToast('Could not publish event'); }
         };
         body.querySelectorAll('[data-cancel-se]').forEach(btn=>{
           btn.onclick = async ()=>{
             const ev = myEvents.find(x=>x.id===btn.dataset.cancelSe);
-            try{ await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); renderMyStoreTab(); }
+            try{ await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); drawManageStore(myStore); }
             catch(e){ showToast('Could not update'); }
           };
         });
         body.querySelectorAll('[data-del-se]').forEach(btn=>{
           btn.onclick = async ()=>{
             if(!confirm('Delete this event? Followers will no longer see it.')) return;
-            try{ await supabaseClient.from('store_events').delete().eq('id', btn.dataset.delSe); renderMyStoreTab(); }
+            try{ await supabaseClient.from('store_events').delete().eq('id', btn.dataset.delSe); drawManageStore(myStore); }
             catch(e){ showToast('Could not delete'); }
           };
         });
       }
-      drawMyStore();
+
+      // If exactly one approved store and nothing pending, skip straight to managing it.
+      const approvedStores = myStores.filter(s=>s.approved);
+      if(approvedStores.length === 1 && myStores.length === 1){
+        drawManageStore(approvedStores[0]);
+      } else {
+        drawStoreList();
+      }
     }
 
     async function renderFollowingTab(){
