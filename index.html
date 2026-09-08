@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.5'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.6'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -1365,7 +1365,8 @@
               ${t.format ? `<span class="badge format">${escapeHtml(t.format)}</span>` : ''}
               ${t.fee ? `<span class="badge fee">${escapeHtml(t.fee)}</span>` : ''}
               ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
-              ${t.readOnly ? `<span class="badge repeat">${tr('sharedWithYou')}</span>` : ''}
+              ${t.storeEventId ? `<span class="badge repeat">🏪 From a store you follow</span>` : (t.readOnly ? `<span class="badge repeat">${tr('sharedWithYou')}</span>` : '')}
+              ${t.cancelled ? `<span class="badge fee" style="background:var(--rose);color:#fff;">⚠️ CANCELLED</span>` : ''}
               ${resultBadge}
             </div>
             <div class="rsvp-row">
@@ -1478,6 +1479,18 @@
   function handleDelete(id, date){
     const t = tournaments.find(x=>x.id===id);
     if(!t) return;
+    if(t.storeEventId){
+      if(!confirm(`This event comes from a store you follow — it'll come back next time you open the app unless you unfollow that store. Unfollow "${t.store}" now?`)) return;
+      (async ()=>{
+        try{
+          await supabaseClient.from('store_follows').delete().eq('user_id', session.user.id).eq('store_id', t.storeId);
+          await syncFollowedStoreEvents();
+          render();
+          showToast('Unfollowed ' + t.store);
+        }catch(e){ showToast('Could not unfollow'); }
+      })();
+      return;
+    }
     if(!isRepeating(t)){
       if(!confirm('Delete this tournament?')) return;
       tournaments = tournaments.filter(x=>x.id!==id);
@@ -2473,7 +2486,7 @@
           resultsEl.querySelectorAll('[data-follow]').forEach(btn=>{
             btn.onclick = async ()=>{
               btn.disabled = true; btn.textContent = 'Following ✓';
-              try{ await supabaseClient.from('store_follows').insert({ user_id: session.user.id, store_id: btn.dataset.follow }); showToast('Following!'); }
+              try{ await supabaseClient.from('store_follows').insert({ user_id: session.user.id, store_id: btn.dataset.follow }); showToast('Following!'); await syncFollowedStoreEvents(); render(); }
               catch(e){ showToast('Could not follow'); btn.disabled=false; btn.textContent='Follow'; }
             };
           });
@@ -2494,6 +2507,8 @@
           if(error || !s){ showToast('No store found with that code'); return; }
           await supabaseClient.from('store_follows').insert({ user_id: session.user.id, store_id: s.id });
           showToast('Now following ' + s.name);
+          await syncFollowedStoreEvents();
+          render();
           runSearch(body.querySelector('#storeSearch').value);
         }catch(e){ showToast('Could not follow — you may already follow this store'); }
       };
@@ -2648,7 +2663,7 @@
         overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
         body.querySelectorAll('[data-unfollow]').forEach(btn=>{
           btn.onclick = async ()=>{
-            try{ await supabaseClient.from('store_follows').delete().eq('user_id', session.user.id).eq('store_id', btn.dataset.unfollow); renderFollowingTab(); }
+            try{ await supabaseClient.from('store_follows').delete().eq('user_id', session.user.id).eq('store_id', btn.dataset.unfollow); await syncFollowedStoreEvents(); render(); renderFollowingTab(); }
             catch(e){ showToast('Could not unfollow'); }
           };
         });
@@ -3303,11 +3318,63 @@
   // Boot
   // ============================================================
   let bootstrapping = false;
+  // Merges every event from every store you follow into your own tournaments
+  // list, as read-only entries that stay live-linked — if a store edits,
+  // cancels, or deletes an event, your copy updates or disappears to match.
+  // Once merged in, they're ordinary tournament entries: shareable,
+  // invitable, calendar-syncable, everything the rest of the app already
+  // does for a normal event.
+  async function syncFollowedStoreEvents(){
+    try{
+      const { data: follows } = await supabaseClient.from('store_follows').select('store_id, stores(name)').eq('user_id', session.user.id);
+      const followedStoreIds = (follows||[]).map(f=>f.store_id);
+      const storeNameById = {};
+      (follows||[]).forEach(f=>{ if(f.stores) storeNameById[f.store_id] = f.stores.name; });
+
+      let liveEvents = [];
+      if(followedStoreIds.length){
+        const { data } = await supabaseClient.from('store_events').select('*').in('store_id', followedStoreIds);
+        liveEvents = data || [];
+      }
+      const liveIds = new Set(liveEvents.map(e=>e.id));
+      let changed = false;
+
+      // Drop local copies for events that were deleted, or whose store you no longer follow.
+      const before = tournaments.length;
+      tournaments = tournaments.filter(t=>{
+        if(!t.storeEventId) return true;
+        return liveIds.has(t.storeEventId) && followedStoreIds.includes(t.storeId);
+      });
+      if(tournaments.length !== before) changed = true;
+
+      // Add new ones, and refresh fields on ones you already have.
+      liveEvents.forEach(e=>{
+        let t = tournaments.find(x=>x.storeEventId===e.id);
+        if(!t){
+          t = {
+            id: uid(), storeEventId: e.id, storeId: e.store_id,
+            rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null, readOnly:true
+          };
+          tournaments.push(t);
+          changed = true;
+        }
+        const storeName = storeNameById[e.store_id] || 'Store';
+        const fresh = { name: e.name, game: e.game||'', format: e.format||'', date: e.date, time: e.time||'',
+          fee: e.fee||'', address: e.address||'', link: e.link||'', storeLink: e.store_link||'',
+          notes: e.notes||'', repeat: e.repeat||'none', cancelled: !!e.cancelled, store: storeName };
+        Object.keys(fresh).forEach(k=>{ if(t[k] !== fresh[k]){ t[k] = fresh[k]; changed = true; } });
+      });
+
+      if(changed) await saveTournaments();
+    }catch(e){ /* non-fatal — worst case, followed events just don't refresh this load */ }
+  }
+
   async function bootstrapApp(){
     if(bootstrapping) return; // Supabase's auth listener can fire twice for one login — ignore the repeat
     bootstrapping = true;
     try{
       await Promise.all([loadProfile(), loadTournaments(), loadFriendsData(), loadNotifications()]);
+      await syncFollowedStoreEvents();
       if(preLoginLangChoice && preLoginLangChoice !== currentLang){
         currentLang = preLoginLangChoice;
         try{ await supabaseClient.from('profiles').update({ language: currentLang }).eq('id', session.user.id); profile.language = currentLang; }catch(e){}
