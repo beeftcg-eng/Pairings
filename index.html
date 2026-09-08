@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.6'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.7'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -423,6 +423,7 @@
     { key: 'event_invite', label: 'Direct event invitations' },
     { key: 'log_reminder', label: 'Reminder to log a result' },
     { key: 'event_soon', label: 'Reminder before an event starts' },
+    { key: 'store_new_event', label: 'A store you follow posts a new event' },
   ];
 
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
@@ -716,7 +717,12 @@
 
   async function syncAttendance(t, date){
     const occ = getOcc(t, date);
-    const key = t.id + '::' + date;
+    // Store-synced events use a stable key based on the store event's own ID,
+    // shared across everyone who follows that store — otherwise two friends
+    // both attending the same store event would never be detected as
+    // "going to the same event," since their local copies have different
+    // randomly-generated ids.
+    const key = t.storeEventId ? ('store:' + t.storeEventId + '::' + date) : (t.id + '::' + date);
     try{
       if(occ.rsvp === 'going'){
         if(t.lat == null || t.lng == null){
@@ -740,10 +746,11 @@
   // Safe no-op if the reminders migration hasn't been run yet — errors are swallowed.
   async function syncResultLogged(t, date, logged){
     try{
+      const key = t.storeEventId ? ('store:' + t.storeEventId + '::' + date) : (t.id + '::' + date);
       await supabaseClient.from('attendances')
         .update({ result_logged: logged, reminded: logged ? true : false })
         .eq('user_id', session.user.id)
-        .eq('occurrence_key', t.id + '::' + date);
+        .eq('occurrence_key', key);
     }catch(e){ /* non-fatal, and expected until the reminders migration is run */ }
   }
 
@@ -2570,6 +2577,8 @@
       function drawMyStore(){
         body.innerHTML = `
           <div class="modal-sub">✅ ${escapeHtml(myStore.name)} — approved. Follow code: <strong>${myStore.follow_code}</strong></div>
+          <div class="share-link" style="margin-bottom:14px;">${baseAppUrl()}?storepage=${myStore.follow_code}</div>
+          <button class="mini-btn" id="copyPublicLinkBtn" style="margin-bottom:14px;">Copy public page link</button>
           <div class="field" style="margin-top:10px;">
             <label>Add an event</label>
             <input id="se_name" placeholder="Event name" style="margin-bottom:6px;"/>
@@ -2597,6 +2606,10 @@
           <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
         `;
         overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+        body.querySelector('#copyPublicLinkBtn').onclick = ()=>{
+          const ok = copyText(`${baseAppUrl()}?storepage=${myStore.follow_code}`);
+          showToast(ok?'Link copied':'Could not copy');
+        };
         body.querySelector('#addStoreEventBtn').onclick = async ()=>{
           const name = body.querySelector('#se_name').value.trim();
           const date = body.querySelector('#se_date').value;
@@ -3134,7 +3147,8 @@
         try{
           const eventSnapshot = {
             name: t.name, game: t.game, store: t.store, date, time: t.time, format: t.format,
-            fee: t.fee, address: t.address, link: t.link
+            fee: t.fee, address: t.address, link: t.link, storeLink: t.storeLink,
+            repeat: isRepeating(t) ? t.repeat : 'none'
           };
           const { error } = await supabaseClient.from('event_invitations').insert({
             from_user_id: session.user.id, to_user_id: btn.dataset.friend, event: eventSnapshot
@@ -3165,30 +3179,54 @@
         return;
       }
 
-      if(accept){
-        const e = updated.event;
+      async function finish(){
+        invitationStatusById[invitationId] = accept ? 'accepted' : 'declined';
+        if(notifId){
+          await supabaseClient.from('notifications').update({ read:true }).eq('id', notifId);
+          const n = notifications.find(x=>x.id===notifId);
+          if(n) n.read = true;
+        }
+        render();
+      }
+
+      async function addAsTournament(e, repeatValue){
         if(isDuplicateEvent(e)){
           showToast('Accepted — but you already had this event on your calendar');
-        } else {
-          tournaments.push({
-            id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
-            repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
-            notes:'', rsvp:'going', result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
-            readOnly: true
+          await finish();
+          return;
+        }
+        tournaments.push({
+          id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
+          repeat: repeatValue, format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'', storeLink: e.storeLink||'',
+          notes:'', rsvp:'going', result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
+          readOnly: true
+        });
+        await saveTournaments();
+        showToast(repeatValue !== 'none' ? 'Added as a repeating series' : 'Added to your calendar');
+        await finish();
+      }
+
+      if(accept){
+        const e = updated.event;
+        if(e.repeat && e.repeat !== 'none'){
+          const repLabel = (REPEATS.find(r=>r.v===e.repeat)||{}).l || 'Repeating';
+          openChoiceDialog({
+            title: 'This event repeats',
+            message: `"${e.name}" repeats ${repLabel.toLowerCase()}. How would you like to add it?`,
+            choices: [
+              { label: `Just this one date`, action: ()=>addAsTournament(e, 'none') },
+              { label: `As a repeating series`, action: ()=>addAsTournament(e, e.repeat) }
+            ]
           });
-          await saveTournaments();
-          showToast('Added to your calendar');
+          return; // finish() runs inside whichever choice they pick
+        } else {
+          await addAsTournament(e, 'none');
+          return;
         }
       } else {
         showToast('Invitation declined');
       }
-      invitationStatusById[invitationId] = accept ? 'accepted' : 'declined';
-      if(notifId){
-        await supabaseClient.from('notifications').update({ read:true }).eq('id', notifId);
-        const n = notifications.find(x=>x.id===notifId);
-        if(n) n.read = true;
-      }
-      render();
+      await finish();
     }catch(e){ showToast('Could not respond to invitation'); }
   }
 
@@ -3440,8 +3478,69 @@
     }catch(e){ /* non-fatal */ }
   }
 
+  async function renderPublicStorePage(idOrCode){
+    app.innerHTML = `<div class="wrap"><div class="modal-sub" style="text-align:center;margin-top:60px;">Loading…</div></div>`;
+    try{
+      let { data: store } = await supabaseClient.from('stores').select('*').eq('id', idOrCode).eq('approved', true).maybeSingle();
+      if(!store){
+        const res = await supabaseClient.from('stores').select('*').eq('follow_code', idOrCode.toUpperCase()).eq('approved', true).maybeSingle();
+        store = res.data;
+      }
+      if(!store){
+        app.innerHTML = `<div class="wrap"><div class="empty-state" style="margin-top:60px;"><div class="big">Store not found</div><div>This link may be wrong, or the store isn't approved yet.</div></div></div>`;
+        return;
+      }
+      const today = todayStr();
+      const { data: events } = await supabaseClient.from('store_events').select('*').eq('store_id', store.id).gte('date', today).order('date').limit(30);
+
+      const rows = (events||[]).map(e=>`
+        <div class="card">
+          <div class="date-block"><div class="dow">${fmtDateParts(e.date).dow}</div><div class="dom">${fmtDateParts(e.date).dom}</div></div>
+          <div class="card-body">
+            <div class="card-top"><div class="card-name">${e.cancelled?'<span style="color:var(--rose);">[CANCELLED] </span>':''}${escapeHtml(e.name)}</div></div>
+            <div class="card-meta">
+              ${e.time ? `<span>${escapeHtml(e.time)}</span>` : ''}
+              ${e.game ? `<span class="badge game">${gameIcon(e.game)} ${escapeHtml(e.game)}</span>` : ''}
+              ${e.format ? `<span class="badge format">${escapeHtml(e.format)}</span>` : ''}
+              ${e.fee ? `<span class="badge fee">${escapeHtml(e.fee)}</span>` : ''}
+            </div>
+            <div class="card-links">
+              ${e.link ? `<a class="card-link" href="${escapeAttr(e.link)}" target="_blank" rel="noopener">Event page ↗</a>` : ''}
+              <a class="card-link gold" href="${gcalQuickLink({name:e.name, time:e.time, fee:e.fee, notes:e.notes, link:e.link}, e.date)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
+            </div>
+          </div>
+        </div>`).join('');
+
+      app.innerHTML = `
+        <div class="wrap">
+          <div class="home-hero" style="text-align:center;padding:30px 0 10px;">
+            <div class="brand">Pairings</div>
+          </div>
+          <div class="empty-state" style="margin-bottom:0;">
+            <div class="big">🏪 ${escapeHtml(store.name)}</div>
+            <div>${escapeHtml(store.city||'')}${store.description ? ' · '+escapeHtml(store.description) : ''}</div>
+            ${store.contact_link ? `<div style="margin-top:8px;"><a href="${escapeAttr(store.contact_link)}" target="_blank" rel="noopener" style="color:var(--teal);">${escapeHtml(store.contact_link)} ↗</a></div>` : ''}
+          </div>
+          <div class="section-label" style="text-align:center;">Upcoming events</div>
+          ${rows || `<div class="modal-sub" style="text-align:center;">No upcoming events posted right now.</div>`}
+          <div class="empty-state" style="margin-top:24px;">
+            <div>Want these events to show up in your own calendar automatically, and get notified when new ones are posted?</div>
+            <div style="margin-top:12px;"><a href="${baseAppUrl()}" class="btn-primary" style="display:inline-block;text-decoration:none;padding:12px 22px;border-radius:10px;">Get Pairings — follow code: ${escapeHtml(store.follow_code)}</a></div>
+          </div>
+        </div>`;
+    }catch(e){
+      app.innerHTML = `<div class="wrap"><div class="empty-state" style="margin-top:60px;"><div class="big">Something went wrong</div></div></div>`;
+    }
+  }
+  function baseAppUrl(){ return window.location.origin + window.location.pathname; }
+
   (async ()=>{
     registerServiceWorker();
+    const publicParams = new URLSearchParams(window.location.search);
+    if(publicParams.has('storepage')){
+      await renderPublicStorePage(publicParams.get('storepage'));
+      return;
+    }
     try{ if((navigator.language||'').toLowerCase().startsWith('es')) currentLang = 'es'; }catch(e){}
     const { data: { session: s } } = await supabaseClient.auth.getSession();
     session = s;
