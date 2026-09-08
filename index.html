@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.9'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.10'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -841,10 +841,11 @@
   }
 
   let realtimeSubscribed = false;
+  let realtimeChannel = null;
   function subscribeRealtime(){
     if(realtimeSubscribed) return; // never try to re-subscribe an already-subscribed channel
     realtimeSubscribed = true;
-    supabaseClient.channel('notif-' + session.user.id)
+    realtimeChannel = supabaseClient.channel('notif-' + session.user.id)
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${session.user.id}` }, payload=>{
         notifications.unshift(payload.new);
         showToast('🔔 ' + payload.new.message);
@@ -852,6 +853,33 @@
       })
       .subscribe();
   }
+
+  // iOS aggressively suspends background network connections (including the
+  // realtime websocket) for installed home-screen web apps, and doesn't
+  // reliably signal that it happened — so the app has no way to know its
+  // live connection died. This forces a full refresh and a clean reconnect
+  // every time the app becomes visible again (reopened from background,
+  // switched back to from another app, etc.), which is the only reliable
+  // way to recover on iOS specifically.
+  async function refreshOnResume(){
+    if(!session) return;
+    try{
+      await Promise.all([loadTournaments(), loadFriendsData(), loadNotifications()]);
+      await syncFollowedStoreEvents();
+      render();
+    }catch(e){ /* non-fatal */ }
+    try{
+      if(realtimeChannel){ await supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
+    }catch(e){}
+    realtimeSubscribed = false;
+    subscribeRealtime();
+  }
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible') refreshOnResume();
+  });
+  window.addEventListener('pageshow', (e)=>{
+    if(e.persisted) refreshOnResume(); // page restored from iOS's back-forward cache
+  });
 
   // ---------- Push notifications ----------
   function urlBase64ToUint8Array(base64String){
@@ -3062,7 +3090,7 @@
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#langEn').onclick = ()=>setLanguage('en', overlay);
     overlay.querySelector('#langEs').onclick = ()=>setLanguage('es', overlay);
-    overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); realtimeSubscribed = false; overlay.remove(); };
+    overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); realtimeSubscribed = false; realtimeChannel = null; overlay.remove(); };
     overlay.querySelector('#useLocationBtn').onclick = ()=>{
       if(!navigator.geolocation){ showToast('Geolocation is not available on this device'); return; }
       navigator.geolocation.getCurrentPosition(
