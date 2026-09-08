@@ -2751,13 +2751,13 @@
           }
           tournaments.push({
             id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
-            repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
+            repeat: e.repeat||'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'', storeLink: e.storeLink||'',
             notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
             readOnly: true
           });
           await saveTournaments();
           render();
-          showToast('Added to your calendar');
+          showToast(e.repeat && e.repeat!=='none' ? 'Added as a repeating series' : 'Added to your calendar');
           btn.textContent = 'Added ✓';
           btn.disabled = true;
         };
@@ -2884,7 +2884,7 @@
         <div class="modal-sub">Pick which events to share — checked by default if you're going, but you can share anything.</div>
         ${upcomingInstances.map((i,idx)=>`
           <div class="list-item">
-            <div class="info"><div class="n">${escapeHtml(i.t.name)}</div>
+            <div class="info"><div class="n">${escapeHtml(i.t.name)}${isRepeating(i.t) ? ' <span class="badge repeat" style="font-size:10px;">↻ series</span>' : ''}</div>
               <div class="m">${fmtFriendly(i.date, i.t.time)}${i.t.store ? ' · '+escapeHtml(i.t.store) : ''}${i.rsvp==='going' ? ' · '+tr('going') : ''}</div></div>
             <input type="checkbox" data-share-idx="${idx}" ${i.rsvp==='going' ? 'checked' : ''} style="width:20px;height:20px;flex:none;"/>
           </div>`).join('')}
@@ -2913,7 +2913,8 @@
         if(selected.length === 0){ showToast('Select at least one event'); return; }
         const code = shareCode();
         const payload = { createdAt: Date.now(), events: selected.map(i=>({
-          name: i.t.name, game: i.t.game, store: i.t.store, date: i.date, time: i.t.time, format: i.t.format, fee: i.t.fee, address: i.t.address, link: i.t.link
+          name: i.t.name, game: i.t.game, store: i.t.store, date: i.date, time: i.t.time, format: i.t.format, fee: i.t.fee,
+          address: i.t.address, link: i.t.link, storeLink: i.t.storeLink, repeat: isRepeating(i.t) ? i.t.repeat : 'none'
         })) };
         try{
           await supabaseClient.from('kv_store').upsert({ key: 'share:'+code, value: payload, updated_at: new Date().toISOString() });
@@ -2958,11 +2959,11 @@
                 return;
               }
               tournaments.push({ id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
-                repeat:'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'',
+                repeat: e.repeat||'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'', storeLink: e.storeLink||'',
                 notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
                 readOnly: true });
               await saveTournaments();
-              showToast('Added to your calendar');
+              showToast(e.repeat && e.repeat!=='none' ? 'Added as a repeating series' : 'Added to your calendar');
               btn.textContent = 'Added ✓';
               btn.disabled = true;
             };
