@@ -235,6 +235,7 @@
   ============================================================
 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/config.js"></script>
 <script>
 (function(){
@@ -244,7 +245,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.14'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.15'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -1434,6 +1435,7 @@
               ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
               ${t.storeEventId ? `<span class="badge repeat">🏪 From a store you follow</span>` : (t.readOnly ? `<span class="badge repeat">${tr('sharedWithYou')}</span>` : '')}
               ${t.cancelled ? `<span class="badge fee" style="background:var(--rose);color:#fff;">⚠️ CANCELLED</span>` : ''}
+              ${(!t.cancelled && t.isFull) ? `<span class="badge fee" style="background:var(--extra,#f5b942);color:#1a1a1a;">🈵 FULL</span>` : ''}
               ${resultBadge}
             </div>
             <div class="rsvp-row">
@@ -2686,9 +2688,14 @@
         try{
           let allowedIds = null;
           if(game){
-            const { data: matches } = await supabaseClient.from('store_events').select('store_id').ilike('game', game);
-            allowedIds = [...new Set((matches||[]).map(m=>m.store_id))];
-            if(allowedIds.length === 0){ resultsEl.innerHTML = `<div class="modal-sub">No stores currently running ${escapeHtml(game)} events.</div>`; return; }
+            const [eventMatches, tagMatches] = await Promise.all([
+              supabaseClient.from('store_events').select('store_id').ilike('game', game),
+              supabaseClient.from('stores').select('id').contains('games', [game]).eq('approved', true)
+            ]);
+            const fromEvents = ((eventMatches.data)||[]).map(m=>m.store_id);
+            const fromTags = ((tagMatches.data)||[]).map(m=>m.id);
+            allowedIds = [...new Set([...fromEvents, ...fromTags])];
+            if(allowedIds.length === 0){ resultsEl.innerHTML = `<div class="modal-sub">No stores currently running or tagged for ${escapeHtml(game)}.</div>`; return; }
           }
           let q = supabaseClient.from('stores').select('*').eq('approved', true);
           if(term && term.trim()) q = q.or(`name.ilike.%${term.trim()}%,city.ilike.%${term.trim()}%`);
@@ -2710,7 +2717,7 @@
 
           resultsEl.innerHTML = sorted.map(s=>`
             <div class="list-item">
-              <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${escapeHtml(s.city||'')}${countByStore[s.id] ? ' · '+countByStore[s.id]+' follower'+(countByStore[s.id]===1?'':'s') : ''}</div></div>
+              <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${escapeHtml(s.city||'')}${countByStore[s.id] ? ' · '+countByStore[s.id]+' follower'+(countByStore[s.id]===1?'':'s') : ''}${(s.games&&s.games.length) ? ' · '+s.games.map(g=>gameIcon(g)).join(' ') : ''}</div></div>
               <button class="mini-btn" data-follow="${s.id}" ${followedIds.includes(s.id)?'disabled':''}>${followedIds.includes(s.id)?'Following ✓':'Follow'}</button>
             </div>`).join('');
           resultsEl.querySelectorAll('[data-follow]').forEach(btn=>{
@@ -2812,7 +2819,7 @@
 
       async function drawManageStore(myStore){
         body.innerHTML = `<div class="modal-sub">Loading…</div>`;
-        let myEvents = [], rsvpCounts = {};
+        let myEvents = [], rsvpCounts = {}, announcements = [];
         try{
           const { data } = await supabaseClient.from('store_events').select('*').eq('store_id', myStore.id).order('date');
           myEvents = data || [];
@@ -2821,85 +2828,175 @@
             const { data: counts } = await supabaseClient.from('store_event_rsvp_counts').select('*').in('store_event_id', ids);
             (counts||[]).forEach(c=>{ rsvpCounts[c.store_event_id] = c.going_count; });
           }
+          const { data: anns } = await supabaseClient.from('store_announcements').select('*').eq('store_id', myStore.id).order('created_at', {ascending:false}).limit(10);
+          announcements = anns || [];
         }catch(e){}
 
-        body.innerHTML = `
-          <button class="mini-btn" id="backToStoreList" style="margin-bottom:10px;">← All your stores</button>
-          <div class="modal-sub">✅ ${escapeHtml(myStore.name)} — approved. Follow code: <strong>${myStore.follow_code}</strong></div>
-          <div class="share-link" style="margin-bottom:14px;">${baseAppUrl()}?storepage=${myStore.follow_code}</div>
-          <button class="mini-btn" id="copyPublicLinkBtn" style="margin-bottom:14px;">Copy public page link</button>
-          <a class="mini-btn" href="${TURNZERO_URL}" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:14px;margin-left:6px;text-decoration:none;">⏱ Open TurnZero to start a round timer ↗</a>
-          <div class="field" style="margin-top:10px;">
-            <label>Add an event</label>
-            <input id="se_name" placeholder="Event name" style="margin-bottom:6px;"/>
-            <div class="row2">
-              <input id="se_date" type="date"/>
-              <input id="se_time" placeholder="Time, e.g. 6:30 PM"/>
-            </div>
-            <div class="row2">
-              <input id="se_game" placeholder="Game (optional)"/>
-              <input id="se_format" placeholder="Format (optional)"/>
-            </div>
-            <select id="se_repeat">${REPEATS.map(r=>`<option value="${r.v}">${escapeHtml(r.l)}</option>`).join('')}</select>
-            <button class="mini-btn" id="addStoreEventBtn" style="margin-top:8px;">+ Add event</button>
-          </div>
-          <div class="section-label">Your published events</div>
-          ${myEvents.length ? myEvents.map(e=>`
+        let prefillEvent = null; // set by the Duplicate button
+
+        function eventFormHtml(){
+          const pf = prefillEvent || {};
+          return `
+            <div class="field" style="margin-top:10px;">
+              <label>${prefillEvent ? 'Duplicate event (edit and save as new)' : 'Add an event'}</label>
+              <input id="se_name" placeholder="Event name" value="${escapeAttr(pf.name||'')}" style="margin-bottom:6px;"/>
+              <div class="row2">
+                <input id="se_date" type="date" value=""/>
+                <input id="se_time" placeholder="Time, e.g. 6:30 PM" value="${escapeAttr(pf.time||'')}"/>
+              </div>
+              <div class="row2">
+                <input id="se_game" placeholder="Game (optional)" value="${escapeAttr(pf.game||'')}"/>
+                <input id="se_format" placeholder="Format (optional)" value="${escapeAttr(pf.format||'')}"/>
+              </div>
+              <div class="row2">
+                <input id="se_capacity" type="number" min="1" placeholder="Capacity (optional)" value="${pf.capacity||''}"/>
+                <select id="se_repeat">${REPEATS.map(r=>`<option value="${r.v}" ${pf.repeat===r.v?'selected':''}>${escapeHtml(r.l)}</option>`).join('')}</select>
+              </div>
+              <button class="mini-btn" id="addStoreEventBtn" style="margin-top:8px;">${prefillEvent ? '+ Publish duplicate' : '+ Add event'}</button>
+              ${prefillEvent ? `<button class="mini-btn" id="cancelDuplicateBtn" style="margin-top:8px;margin-left:6px;">Cancel</button>` : ''}
+            </div>`;
+        }
+
+        function eventRowHtml(e){
+          const going = rsvpCounts[e.id] || 0;
+          const isFull = e.capacity && going >= e.capacity;
+          return `
             <div class="list-item">
-              <div class="info"><div class="n">${e.cancelled?'<span style="color:var(--rose);">[CANCELLED] </span>':''}${escapeHtml(e.name)}</div>
-                <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · repeats':''} · ${rsvpCounts[e.id]||0} going</div></div>
+              <div class="info"><div class="n">${e.cancelled?'<span style="color:var(--rose);">[CANCELLED] </span>':''}${isFull?'<span style="color:var(--extra,#f5b942);">[FULL] </span>':''}${escapeHtml(e.name)}</div>
+                <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · repeats':''} · ${going}${e.capacity?'/'+e.capacity:''} going</div></div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-                ${rsvpCounts[e.id] ? `<button class="mini-btn" data-view-attendees="${e.id}" data-event-name="${escapeAttr(e.name)}">👥 Attendees</button>` : ''}
+                ${going ? `<button class="mini-btn" data-view-attendees="${e.id}" data-event-name="${escapeAttr(e.name)}">👥 Attendees</button>` : ''}
+                <button class="mini-btn" data-dup-se="${e.id}">📋 Duplicate</button>
                 <button class="mini-btn" data-cancel-se="${e.id}">${e.cancelled?'Un-cancel':'Cancel'}</button>
                 <button class="mini-btn decline" data-del-se="${e.id}">Delete</button>
               </div>
-            </div>`).join('') : `<div class="modal-sub">No events published yet.</div>`}
-          <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
-        `;
-        overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
-        body.querySelector('#backToStoreList').onclick = ()=>drawStoreList();
-        body.querySelector('#copyPublicLinkBtn').onclick = ()=>{
-          const ok = copyText(`${baseAppUrl()}?storepage=${myStore.follow_code}`);
-          showToast(ok?'Link copied':'Could not copy');
-        };
-        body.querySelector('#addStoreEventBtn').onclick = async ()=>{
-          const name = body.querySelector('#se_name').value.trim();
-          const date = body.querySelector('#se_date').value;
-          if(!name || !date){ showToast('Name and date are required'); return; }
-          const isDupe = myEvents.some(e => e.date === date && (e.name||'').trim().toLowerCase() === name.toLowerCase());
-          if(isDupe){
-            showToast('You already have an event with this name on this date');
-            return;
-          }
-          try{
-            await supabaseClient.from('store_events').insert({
-              store_id: myStore.id, name, date,
-              time: body.querySelector('#se_time').value.trim(),
-              game: body.querySelector('#se_game').value.trim(),
-              format: body.querySelector('#se_format').value.trim(),
-              repeat: body.querySelector('#se_repeat').value
-            });
-            showToast('Event published — your followers will see it');
-            drawManageStore(myStore);
-          }catch(e){ showToast('Could not publish event'); }
-        };
-        body.querySelectorAll('[data-view-attendees]').forEach(btn=>{
-          btn.onclick = ()=>openAttendeesModal(btn.dataset.viewAttendees, btn.dataset.eventName);
-        });
-        body.querySelectorAll('[data-cancel-se]').forEach(btn=>{
-          btn.onclick = async ()=>{
-            const ev = myEvents.find(x=>x.id===btn.dataset.cancelSe);
-            try{ await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); drawManageStore(myStore); }
-            catch(e){ showToast('Could not update'); }
+            </div>`;
+        }
+
+        function render(){
+          body.innerHTML = `
+            <button class="mini-btn" id="backToStoreList" style="margin-bottom:10px;">← All your stores</button>
+            <div class="modal-sub">✅ ${escapeHtml(myStore.name)} — approved. Follow code: <strong>${myStore.follow_code}</strong></div>
+            <div class="share-link" style="margin-bottom:14px;">${baseAppUrl()}?storepage=${myStore.follow_code}</div>
+            <div id="storeQrHolder" style="display:flex;justify-content:center;margin-bottom:14px;background:#fff;padding:10px;border-radius:12px;width:fit-content;"></div>
+            <button class="mini-btn" id="copyPublicLinkBtn" style="margin-bottom:14px;">Copy public page link</button>
+            <a class="mini-btn" href="${TURNZERO_URL}" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:14px;margin-left:6px;text-decoration:none;">⏱ Open TurnZero to start a round timer ↗</a>
+
+            <div class="section-label">Games you regularly run</div>
+            <div class="modal-sub" style="margin-bottom:8px;">Helps people find you in Browse even during a quiet week with nothing posted.</div>
+            <div class="chip-row" style="margin-bottom:16px;">
+              ${GAMES.map(g=>`<button type="button" class="chip ${(myStore.games||[]).includes(g)?'active':''}" data-store-game="${escapeAttr(g)}">${escapeHtml(g)}</button>`).join('')}
+            </div>
+            <button class="mini-btn" id="saveStoreGamesBtn" style="margin-bottom:20px;">Save games</button>
+
+            ${eventFormHtml()}
+
+            <div class="section-label">Your published events</div>
+            ${myEvents.length ? myEvents.map(eventRowHtml).join('') : `<div class="modal-sub">No events published yet.</div>`}
+
+            <div class="section-label">Message your followers</div>
+            <div class="modal-sub" style="margin-bottom:8px;">Separate from events — for closures, restocks, anything else. Sends a notification to everyone following you.</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+              <input id="annMessage" placeholder="e.g. Closed this Friday for a holiday" style="flex:1;"/>
+              <button class="mini-btn" id="postAnnouncementBtn">Post</button>
+            </div>
+            ${announcements.length ? announcements.map(a=>`
+              <div class="list-item">
+                <div class="info"><div class="n" style="font-size:13px;">${escapeHtml(a.message)}</div><div class="m">${new Date(a.created_at).toLocaleString()}</div></div>
+                <button class="mini-btn decline" data-del-ann="${a.id}">Delete</button>
+              </div>`).join('') : ''}
+
+            <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
+          `;
+          try{ new QRCode(document.getElementById('storeQrHolder'), { text: `${baseAppUrl()}?storepage=${myStore.follow_code}`, width:150, height:150 }); }catch(e){}
+
+          overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+          body.querySelector('#backToStoreList').onclick = ()=>drawStoreList();
+          body.querySelector('#copyPublicLinkBtn').onclick = ()=>{
+            const ok = copyText(`${baseAppUrl()}?storepage=${myStore.follow_code}`);
+            showToast(ok?'Link copied':'Could not copy');
           };
-        });
-        body.querySelectorAll('[data-del-se]').forEach(btn=>{
-          btn.onclick = async ()=>{
-            if(!confirm('Delete this event? Followers will no longer see it.')) return;
-            try{ await supabaseClient.from('store_events').delete().eq('id', btn.dataset.delSe); drawManageStore(myStore); }
-            catch(e){ showToast('Could not delete'); }
+
+          body.querySelectorAll('[data-store-game]').forEach(chip=>{
+            chip.onclick = ()=>chip.classList.toggle('active');
+          });
+          body.querySelector('#saveStoreGamesBtn').onclick = async ()=>{
+            const games = Array.from(body.querySelectorAll('[data-store-game].active')).map(el=>el.dataset.storeGame);
+            try{
+              await supabaseClient.from('stores').update({ games }).eq('id', myStore.id);
+              myStore.games = games;
+              showToast('Saved');
+            }catch(e){ showToast('Could not save'); }
           };
-        });
+
+          body.querySelector('#addStoreEventBtn').onclick = async ()=>{
+            const name = body.querySelector('#se_name').value.trim();
+            const date = body.querySelector('#se_date').value;
+            if(!name || !date){ showToast('Name and date are required'); return; }
+            const isDupe = myEvents.some(e => e.date === date && (e.name||'').trim().toLowerCase() === name.toLowerCase());
+            if(isDupe){ showToast('You already have an event with this name on this date'); return; }
+            const capVal = body.querySelector('#se_capacity').value;
+            try{
+              await supabaseClient.from('store_events').insert({
+                store_id: myStore.id, name, date,
+                time: body.querySelector('#se_time').value.trim(),
+                game: body.querySelector('#se_game').value.trim(),
+                format: body.querySelector('#se_format').value.trim(),
+                repeat: body.querySelector('#se_repeat').value,
+                capacity: capVal ? parseInt(capVal,10) : null
+              });
+              showToast('Event published — your followers will see it');
+              prefillEvent = null;
+              drawManageStore(myStore);
+            }catch(e){ showToast('Could not publish event'); }
+          };
+          const cancelDupBtn = body.querySelector('#cancelDuplicateBtn');
+          if(cancelDupBtn) cancelDupBtn.onclick = ()=>{ prefillEvent = null; render(); };
+
+          body.querySelectorAll('[data-dup-se]').forEach(btn=>{
+            btn.onclick = ()=>{
+              const ev = myEvents.find(x=>x.id===btn.dataset.dupSe);
+              if(!ev) return;
+              prefillEvent = ev;
+              render();
+              const nameField = body.querySelector('#se_name');
+              if(nameField) nameField.scrollIntoView({behavior:'smooth', block:'center'});
+            };
+          });
+          body.querySelectorAll('[data-view-attendees]').forEach(btn=>{
+            btn.onclick = ()=>openAttendeesModal(btn.dataset.viewAttendees, btn.dataset.eventName);
+          });
+          body.querySelectorAll('[data-cancel-se]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              const ev = myEvents.find(x=>x.id===btn.dataset.cancelSe);
+              try{ await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); drawManageStore(myStore); }
+              catch(e){ showToast('Could not update'); }
+            };
+          });
+          body.querySelectorAll('[data-del-se]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              if(!confirm('Delete this event? Followers will no longer see it.')) return;
+              try{ await supabaseClient.from('store_events').delete().eq('id', btn.dataset.delSe); drawManageStore(myStore); }
+              catch(e){ showToast('Could not delete'); }
+            };
+          });
+          body.querySelector('#postAnnouncementBtn').onclick = async ()=>{
+            const message = body.querySelector('#annMessage').value.trim();
+            if(!message){ showToast('Write a message first'); return; }
+            try{
+              await supabaseClient.from('store_announcements').insert({ store_id: myStore.id, message });
+              showToast('Sent to your followers');
+              drawManageStore(myStore);
+            }catch(e){ showToast('Could not post'); }
+          };
+          body.querySelectorAll('[data-del-ann]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              try{ await supabaseClient.from('store_announcements').delete().eq('id', btn.dataset.delAnn); drawManageStore(myStore); }
+              catch(e){ showToast('Could not delete'); }
+            };
+          });
+        }
+        render();
       }
 
       // If exactly one approved store and nothing pending, skip straight to managing it.
@@ -3708,6 +3805,13 @@
         liveEvents = liveEvents.filter(e => !e.game || interests.includes(e.game));
       }
       const liveIds = new Set(liveEvents.map(e=>e.id));
+      let goingCountById = {};
+      if(liveEvents.length){
+        try{
+          const { data: counts } = await supabaseClient.from('store_event_rsvp_counts').select('*').in('store_event_id', [...liveIds]);
+          (counts||[]).forEach(c=>{ goingCountById[c.store_event_id] = c.going_count; });
+        }catch(e){}
+      }
       let changed = false;
 
       // Drop local copies for events that were deleted, or whose store you no longer follow.
@@ -3732,7 +3836,8 @@
         const storeName = storeNameById[e.store_id] || 'Store';
         const fresh = { name: e.name, game: e.game||'', format: e.format||'', date: e.date, time: e.time||'',
           fee: e.fee||'', address: e.address||'', link: e.link||'', storeLink: e.store_link||'',
-          notes: e.notes||'', repeat: e.repeat||'none', cancelled: !!e.cancelled, store: storeName };
+          notes: e.notes||'', repeat: e.repeat||'none', cancelled: !!e.cancelled, store: storeName,
+          capacity: e.capacity||null, isFull: !!(e.capacity && (goingCountById[e.id]||0) >= e.capacity) };
         Object.keys(fresh).forEach(k=>{ if(t[k] !== fresh[k]){ t[k] = fresh[k]; changed = true; } });
       });
 
