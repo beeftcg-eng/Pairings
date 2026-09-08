@@ -244,7 +244,8 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.11'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.13'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -460,6 +461,24 @@
   let session = null;
   let profile = null;
   let currentLang = 'en';
+
+  // ---------- Install prompt ----------
+  let deferredInstallPrompt = null;
+  const isStandaloneApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  window.addEventListener('beforeinstallprompt', (e)=>{
+    e.preventDefault();
+    deferredInstallPrompt = e;
+  });
+  async function handleInstallClick(){
+    if(deferredInstallPrompt){
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      if(choice && choice.outcome === 'accepted') showToast('Installed!');
+    } else {
+      openInstallGuideModal(); // existing manual guide — the fallback for iOS/Safari, which never fires beforeinstallprompt
+    }
+  }
   let statsRangeFilter = 'all'; // 'week' | 'month' | '3months' | 'all'
   function getStatsRangeCutoff(){
     if(statsRangeFilter === 'all') return null;
@@ -1416,6 +1435,7 @@
               ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">${tr('eventPage')}</a>` : ''}
               ${t.deckLink ? `<a class="card-link" href="${escapeAttr(t.deckLink)}" target="_blank" rel="noopener">📋 Decklist ↗</a>` : ''}
               ${t.storeLink ? `<a class="card-link" href="${escapeAttr(t.storeLink)}" target="_blank" rel="noopener">🏬 Store page ↗</a>` : ''}
+              <a class="card-link" href="${TURNZERO_URL}" target="_blank" rel="noopener">⏱ Start a round timer ↗</a>
               <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">${tr('shareWithFriend')}</a>
               <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">${tr('inviteFriend')}</a>
               <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">${tr('addToGCal')}</a>
@@ -1453,6 +1473,7 @@
         <a class="qlink" href="https://www.facebook.com/events/" target="_blank" rel="noopener">🔗 Facebook Events</a>
         <a class="qlink" href="https://www.google.com/maps/search/game+store+near+me" target="_blank" rel="noopener">🔗 Find local game stores</a>
         <button class="qlink" id="openBulkImport" style="cursor:pointer;font-family:inherit;">${tr('bulkImport')}</button>
+        ${!isStandaloneApp ? `<button class="qlink" id="installAppBtn" style="cursor:pointer;font-family:inherit;">📲 Install this app on your device</button>` : ''}
       </div>
 
       <div class="toolbar">
@@ -1470,6 +1491,7 @@
 
     document.getElementById('openAdd').onclick = ()=>openModal(null);
     document.getElementById('openBulkImport').onclick = ()=>openBulkImportModal();
+    const installBtn = document.getElementById('installAppBtn'); if(installBtn) installBtn.onclick = handleInstallClick;
     document.getElementById('openShare').onclick = ()=>openShareModal();
     document.getElementById('openFriends').onclick = ()=>openFriendsModal();
     document.getElementById('openStats').onclick = ()=>openStatsModal();
@@ -2561,6 +2583,37 @@
     return s;
   }
 
+  // Lets a store owner see who's actually RSVP'd "going" to their own
+  // event — usernames, not just a count. Only works for events belonging
+  // to a store the viewer owns (enforced by the "attendances select store
+  // owner" RLS policy — this isn't just a UI-level restriction).
+  async function openAttendeesModal(storeEventId, eventName){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>👥 Attendees</h2><div class="modal-sub">${escapeHtml(eventName)}</div><div id="attendeesBody"><div class="modal-sub">Loading…</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#attendeesBody');
+    try{
+      const { data: rows, error } = await supabaseClient.from('attendances').select('user_id').like('occurrence_key', `store:${storeEventId}::%`);
+      if(error) throw error;
+      const userIds = [...new Set((rows||[]).map(r=>r.user_id))];
+      if(userIds.length === 0){
+        body.innerHTML = `<div class="modal-sub">No one has RSVP'd yet.</div><div class="modal-actions"><button class="btn-secondary" id="closeAttendees" style="flex:1;">${tr('close')}</button></div>`;
+      } else {
+        const { data: profiles } = await supabaseClient.from('profiles').select('id, username, display_name').in('id', userIds);
+        const rowsHtml = (profiles||[]).map(p=>`
+          <div class="list-item"><div class="info"><div class="n">${escapeHtml(p.display_name || p.username || 'Player')}</div>${p.username ? `<div class="m">@${escapeHtml(p.username)}</div>` : ''}</div></div>
+        `).join('');
+        body.innerHTML = `<div class="modal-sub" style="margin-bottom:8px;">${userIds.length} going</div>${rowsHtml}
+          <div class="modal-actions"><button class="btn-secondary" id="closeAttendees" style="flex:1;">${tr('close')}</button></div>`;
+      }
+    }catch(e){
+      body.innerHTML = `<div class="modal-sub">Could not load attendees.</div><div class="modal-actions"><button class="btn-secondary" id="closeAttendees" style="flex:1;">${tr('close')}</button></div>`;
+    }
+    overlay.querySelector('#closeAttendees').onclick = ()=>overlay.remove();
+  }
+
   async function openStoresModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -2762,6 +2815,7 @@
           <div class="modal-sub">✅ ${escapeHtml(myStore.name)} — approved. Follow code: <strong>${myStore.follow_code}</strong></div>
           <div class="share-link" style="margin-bottom:14px;">${baseAppUrl()}?storepage=${myStore.follow_code}</div>
           <button class="mini-btn" id="copyPublicLinkBtn" style="margin-bottom:14px;">Copy public page link</button>
+          <a class="mini-btn" href="${TURNZERO_URL}" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:14px;margin-left:6px;text-decoration:none;">⏱ Open TurnZero to start a round timer ↗</a>
           <div class="field" style="margin-top:10px;">
             <label>Add an event</label>
             <input id="se_name" placeholder="Event name" style="margin-bottom:6px;"/>
@@ -2781,7 +2835,8 @@
             <div class="list-item">
               <div class="info"><div class="n">${e.cancelled?'<span style="color:var(--rose);">[CANCELLED] </span>':''}${escapeHtml(e.name)}</div>
                 <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · repeats':''} · ${rsvpCounts[e.id]||0} going</div></div>
-              <div style="display:flex;gap:6px;">
+              <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                ${rsvpCounts[e.id] ? `<button class="mini-btn" data-view-attendees="${e.id}" data-event-name="${escapeAttr(e.name)}">👥 Attendees</button>` : ''}
                 <button class="mini-btn" data-cancel-se="${e.id}">${e.cancelled?'Un-cancel':'Cancel'}</button>
                 <button class="mini-btn decline" data-del-se="${e.id}">Delete</button>
               </div>
@@ -2798,6 +2853,11 @@
           const name = body.querySelector('#se_name').value.trim();
           const date = body.querySelector('#se_date').value;
           if(!name || !date){ showToast('Name and date are required'); return; }
+          const isDupe = myEvents.some(e => e.date === date && (e.name||'').trim().toLowerCase() === name.toLowerCase());
+          if(isDupe){
+            showToast('You already have an event with this name on this date');
+            return;
+          }
           try{
             await supabaseClient.from('store_events').insert({
               store_id: myStore.id, name, date,
@@ -2810,6 +2870,9 @@
             drawManageStore(myStore);
           }catch(e){ showToast('Could not publish event'); }
         };
+        body.querySelectorAll('[data-view-attendees]').forEach(btn=>{
+          btn.onclick = ()=>openAttendeesModal(btn.dataset.viewAttendees, btn.dataset.eventName);
+        });
         body.querySelectorAll('[data-cancel-se]').forEach(btn=>{
           btn.onclick = async ()=>{
             const ev = myEvents.find(x=>x.id===btn.dataset.cancelSe);
@@ -2914,8 +2977,16 @@
       overlay.querySelector('#closeAdmin').onclick = ()=>overlay.remove();
       body.querySelectorAll('[data-approve-store]').forEach(btn=>{
         btn.onclick = async ()=>{
-          try{ await supabaseClient.from('stores').update({ approved: true }).eq('id', btn.dataset.approveStore); showToast('Store approved'); draw(); }
-          catch(e){ showToast('Could not approve'); }
+          try{
+            const { data, error } = await supabaseClient.from('stores').update({ approved: true }).eq('id', btn.dataset.approveStore).select().maybeSingle();
+            if(error) throw error;
+            if(!data || data.approved !== true){
+              showToast('Approval did not take effect — check that add-admin-role-migration.sql has been run');
+              return;
+            }
+            showToast('Store approved');
+            draw();
+          }catch(e){ showToast('Could not approve'); }
         };
       });
       body.querySelectorAll('[data-reject-store]').forEach(btn=>{
@@ -3153,6 +3224,11 @@
         <div class="modal-actions" style="margin-top:8px;">
           <button class="btn-secondary" id="saveProfileBtn" style="flex:1;">${tr('saveProfile')}</button>
         </div>
+        <div class="section-label">Games you're interested in</div>
+        <div class="modal-sub" style="margin-bottom:10px;">Store events for other games get filtered out of your main feed. Leave nothing checked to see everything.</div>
+        <div class="chip-row" style="margin-bottom:16px;">
+          ${GAMES.map(g=>`<button type="button" class="chip ${(profile.interested_games||[]).includes(g)?'active':''}" data-interested-game="${escapeAttr(g)}">${escapeHtml(g)}</button>`).join('')}
+        </div>
         <div class="section-label">${tr('privacyLabel')}</div>
         <div class="list-item" style="padding:8px 0;">
           <div class="info"><div class="n" style="font-size:13.5px;">${tr('shareStatsLabel')}</div><div class="m">${tr('shareStatsHint')}</div></div>
@@ -3264,17 +3340,24 @@
         overlay.remove();
       }catch(e){ showToast('Could not save profile'); }
     };
+    overlay.querySelectorAll('[data-interested-game]').forEach(chip=>{
+      chip.onclick = ()=>chip.classList.toggle('active');
+    });
     overlay.querySelector('#saveNotifPrefsBtn').onclick = async ()=>{
       const prefs = {};
       NOTIF_PREF_KEYS.forEach(k=>{
         prefs[k.key] = overlay.querySelector(`[data-pref="${k.key}"]`).checked;
       });
       const shareStats = overlay.querySelector('#acc_sharestats').checked;
+      const interestedGames = Array.from(overlay.querySelectorAll('[data-interested-game].active')).map(el=>el.dataset.interestedGame);
       try{
-        await supabaseClient.from('profiles').update({ notification_prefs: prefs, share_stats_with_friends: shareStats }).eq('id', session.user.id);
+        await supabaseClient.from('profiles').update({ notification_prefs: prefs, share_stats_with_friends: shareStats, interested_games: interestedGames }).eq('id', session.user.id);
         profile.notification_prefs = prefs;
         profile.share_stats_with_friends = shareStats;
+        profile.interested_games = interestedGames;
         showToast(tr('settingsSaved'));
+        await syncFollowedStoreEvents();
+        render();
       }catch(e){ showToast(tr('couldNotSave')); }
     };
   }
@@ -3602,6 +3685,14 @@
       if(followedStoreIds.length){
         const { data } = await supabaseClient.from('store_events').select('*').in('store_id', followedStoreIds);
         liveEvents = data || [];
+      }
+      // If the user has narrowed down which games they care about, filter
+      // out events for other games entirely — this is what actually
+      // declutters the main feed. Events with no game set are left in,
+      // since we can't confidently say they're irrelevant.
+      const interests = profile.interested_games || [];
+      if(interests.length){
+        liveEvents = liveEvents.filter(e => !e.game || interests.includes(e.game));
       }
       const liveIds = new Set(liveEvents.map(e=>e.id));
       let changed = false;
