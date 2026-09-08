@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.4'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.5'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -1401,6 +1401,8 @@
           <button class="btn icon-pill" id="openNotif" title="Notifications">🔔${unread>0?` <span class="bell-badge">${unread}</span>`:''}</button>
           <button class="btn icon-pill" id="openFriends">${tr('friends')}</button>
           <button class="btn icon-pill" id="openStats">${tr('stats')}</button>
+          <button class="btn icon-pill" id="openStores">🏪 Stores</button>
+          ${profile && profile.is_admin ? `<button class="btn icon-pill" id="openAdmin">🛠 Admin</button>` : ''}
           <button class="btn icon-pill" id="openAccount">${tr('account')}</button>
           <button class="btn icon-pill" id="openShare">${tr('share')}</button>
           <button class="btn add-btn" id="openAdd">${tr('addBtn')}</button>
@@ -1435,6 +1437,8 @@
     document.getElementById('openShare').onclick = ()=>openShareModal();
     document.getElementById('openFriends').onclick = ()=>openFriendsModal();
     document.getElementById('openStats').onclick = ()=>openStatsModal();
+    document.getElementById('openStores').onclick = ()=>openStoresModal();
+    const adminBtn = document.getElementById('openAdmin'); if(adminBtn) adminBtn.onclick = ()=>openAdminModal();
     document.getElementById('openAccount').onclick = ()=>openAccountModal();
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
     let searchDebounceTimer = null;
@@ -2398,6 +2402,325 @@
   }
 
   // ---------- Decks modal ----------
+  // ---------- Stores: browse/follow, and manage your own store ----------
+  function storeShareCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = ''; for(let i=0;i<6;i++) s += chars[Math.floor(Math.random()*chars.length)];
+    return s;
+  }
+
+  async function openStoresModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>🏪 Stores</h2>
+        <div class="tabs">
+          <button class="active" id="tabBrowse">Browse</button>
+          <button id="tabMyStore">My Store</button>
+          <button id="tabFollowing">Following</button>
+        </div>
+        <div id="storesBody"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#storesBody');
+    function setTab(name){
+      overlay.querySelector('#tabBrowse').classList.toggle('active', name==='browse');
+      overlay.querySelector('#tabMyStore').classList.toggle('active', name==='mystore');
+      overlay.querySelector('#tabFollowing').classList.toggle('active', name==='following');
+    }
+    overlay.querySelector('#tabBrowse').onclick = ()=>{ setTab('browse'); renderBrowseTab(); };
+    overlay.querySelector('#tabMyStore').onclick = ()=>{ setTab('mystore'); renderMyStoreTab(); };
+    overlay.querySelector('#tabFollowing').onclick = ()=>{ setTab('following'); renderFollowingTab(); };
+
+    async function getMyFollowedIds(){
+      try{
+        const { data } = await supabaseClient.from('store_follows').select('store_id').eq('user_id', session.user.id);
+        return (data||[]).map(r=>r.store_id);
+      }catch(e){ return []; }
+    }
+
+    async function renderBrowseTab(){
+      body.innerHTML = `<div class="modal-sub">Loading…</div>`;
+      const followedIds = await getMyFollowedIds();
+      body.innerHTML = `
+        <div class="field"><input id="storeSearch" placeholder="Search by store name or city…"/></div>
+        <div id="storeResults"><div class="modal-sub">Type to search, or browse below.</div></div>
+        <div class="section-label">Follow by code</div>
+        <div style="display:flex;gap:8px;">
+          <input id="followCodeInput" placeholder="e.g. AB12CD" style="flex:1;text-transform:uppercase;"/>
+          <button class="mini-btn" id="followCodeBtn">Follow</button>
+        </div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
+      `;
+      overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+
+      async function runSearch(term){
+        const resultsEl = body.querySelector('#storeResults');
+        resultsEl.innerHTML = `<div class="modal-sub">Searching…</div>`;
+        try{
+          let q = supabaseClient.from('stores').select('*').eq('approved', true).order('name');
+          if(term && term.trim()) q = q.or(`name.ilike.%${term.trim()}%,city.ilike.%${term.trim()}%`);
+          const { data, error } = await q.limit(30);
+          if(error) throw error;
+          if(!data || data.length===0){ resultsEl.innerHTML = `<div class="modal-sub">No stores found.</div>`; return; }
+          resultsEl.innerHTML = data.map(s=>`
+            <div class="list-item">
+              <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${escapeHtml(s.city||'')}</div></div>
+              <button class="mini-btn ${followedIds.includes(s.id)?'':''}" data-follow="${s.id}" ${followedIds.includes(s.id)?'disabled':''}>${followedIds.includes(s.id)?'Following ✓':'Follow'}</button>
+            </div>`).join('');
+          resultsEl.querySelectorAll('[data-follow]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              btn.disabled = true; btn.textContent = 'Following ✓';
+              try{ await supabaseClient.from('store_follows').insert({ user_id: session.user.id, store_id: btn.dataset.follow }); showToast('Following!'); }
+              catch(e){ showToast('Could not follow'); btn.disabled=false; btn.textContent='Follow'; }
+            };
+          });
+        }catch(e){ resultsEl.innerHTML = `<div class="modal-sub">Search failed — try again.</div>`; }
+      }
+      let searchDebounce = null;
+      body.querySelector('#storeSearch').oninput = (e)=>{
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(()=>runSearch(e.target.value), 250);
+      };
+      runSearch('');
+
+      body.querySelector('#followCodeBtn').onclick = async ()=>{
+        const code = body.querySelector('#followCodeInput').value.trim().toUpperCase();
+        if(!code){ showToast('Enter a code'); return; }
+        try{
+          const { data: s, error } = await supabaseClient.from('stores').select('*').eq('follow_code', code).eq('approved', true).maybeSingle();
+          if(error || !s){ showToast('No store found with that code'); return; }
+          await supabaseClient.from('store_follows').insert({ user_id: session.user.id, store_id: s.id });
+          showToast('Now following ' + s.name);
+          runSearch(body.querySelector('#storeSearch').value);
+        }catch(e){ showToast('Could not follow — you may already follow this store'); }
+      };
+    }
+
+    async function renderMyStoreTab(){
+      body.innerHTML = `<div class="modal-sub">Loading…</div>`;
+      let myStore = null;
+      try{
+        const { data } = await supabaseClient.from('stores').select('*').eq('owner_id', session.user.id).maybeSingle();
+        myStore = data;
+      }catch(e){}
+
+      if(!myStore){
+        body.innerHTML = `
+          <div class="modal-sub">Run a store? Request a store profile — once approved, you can publish events that your followers see automatically.</div>
+          <div class="field"><label>Store name</label><input id="req_name" placeholder="e.g. Meeple Mountain Games"/></div>
+          <div class="field"><label>City</label><input id="req_city" placeholder="e.g. Austin, TX"/></div>
+          <div class="field"><label>Description (optional)</label><textarea id="req_desc" placeholder="A short description of your store"></textarea></div>
+          <div class="field"><label>Website / Facebook page (optional)</label><input id="req_contact" placeholder="https://…"/></div>
+          <div class="modal-actions"><button class="btn-primary" id="reqStoreBtn" style="flex:1;">Request store profile</button></div>
+          <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
+        `;
+        overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+        body.querySelector('#reqStoreBtn').onclick = async ()=>{
+          const name = body.querySelector('#req_name').value.trim();
+          if(!name){ showToast('Enter a store name'); return; }
+          try{
+            await supabaseClient.from('stores').insert({
+              owner_id: session.user.id, name,
+              city: body.querySelector('#req_city').value.trim(),
+              description: body.querySelector('#req_desc').value.trim(),
+              contact_link: body.querySelector('#req_contact').value.trim(),
+              follow_code: storeShareCode()
+            });
+            showToast('Requested! You\'ll be able to publish events once approved.');
+            renderMyStoreTab();
+          }catch(e){ showToast('Could not submit request'); }
+        };
+        return;
+      }
+
+      if(!myStore.approved){
+        body.innerHTML = `
+          <div class="modal-sub"><strong>${escapeHtml(myStore.name)}</strong> — request pending approval. Check back soon!</div>
+          <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
+        `;
+        overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+        return;
+      }
+
+      // Approved — show event management
+      let myEvents = [];
+      try{
+        const { data } = await supabaseClient.from('store_events').select('*').eq('store_id', myStore.id).order('date');
+        myEvents = data || [];
+      }catch(e){}
+
+      function drawMyStore(){
+        body.innerHTML = `
+          <div class="modal-sub">✅ ${escapeHtml(myStore.name)} — approved. Follow code: <strong>${myStore.follow_code}</strong></div>
+          <div class="field" style="margin-top:10px;">
+            <label>Add an event</label>
+            <input id="se_name" placeholder="Event name" style="margin-bottom:6px;"/>
+            <div class="row2">
+              <input id="se_date" type="date"/>
+              <input id="se_time" placeholder="Time, e.g. 6:30 PM"/>
+            </div>
+            <div class="row2">
+              <input id="se_game" placeholder="Game (optional)"/>
+              <input id="se_format" placeholder="Format (optional)"/>
+            </div>
+            <select id="se_repeat">${REPEATS.map(r=>`<option value="${r.v}">${escapeHtml(r.l)}</option>`).join('')}</select>
+            <button class="mini-btn" id="addStoreEventBtn" style="margin-top:8px;">+ Add event</button>
+          </div>
+          <div class="section-label">Your published events</div>
+          ${myEvents.length ? myEvents.map(e=>`
+            <div class="list-item">
+              <div class="info"><div class="n">${e.cancelled?'<span style="color:var(--rose);">[CANCELLED] </span>':''}${escapeHtml(e.name)}</div>
+                <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · repeats':''}</div></div>
+              <div style="display:flex;gap:6px;">
+                <button class="mini-btn" data-cancel-se="${e.id}">${e.cancelled?'Un-cancel':'Cancel'}</button>
+                <button class="mini-btn decline" data-del-se="${e.id}">Delete</button>
+              </div>
+            </div>`).join('') : `<div class="modal-sub">No events published yet.</div>`}
+          <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
+        `;
+        overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+        body.querySelector('#addStoreEventBtn').onclick = async ()=>{
+          const name = body.querySelector('#se_name').value.trim();
+          const date = body.querySelector('#se_date').value;
+          if(!name || !date){ showToast('Name and date are required'); return; }
+          try{
+            await supabaseClient.from('store_events').insert({
+              store_id: myStore.id, name, date,
+              time: body.querySelector('#se_time').value.trim(),
+              game: body.querySelector('#se_game').value.trim(),
+              format: body.querySelector('#se_format').value.trim(),
+              repeat: body.querySelector('#se_repeat').value
+            });
+            showToast('Event published — your followers will see it');
+            renderMyStoreTab();
+          }catch(e){ showToast('Could not publish event'); }
+        };
+        body.querySelectorAll('[data-cancel-se]').forEach(btn=>{
+          btn.onclick = async ()=>{
+            const ev = myEvents.find(x=>x.id===btn.dataset.cancelSe);
+            try{ await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); renderMyStoreTab(); }
+            catch(e){ showToast('Could not update'); }
+          };
+        });
+        body.querySelectorAll('[data-del-se]').forEach(btn=>{
+          btn.onclick = async ()=>{
+            if(!confirm('Delete this event? Followers will no longer see it.')) return;
+            try{ await supabaseClient.from('store_events').delete().eq('id', btn.dataset.delSe); renderMyStoreTab(); }
+            catch(e){ showToast('Could not delete'); }
+          };
+        });
+      }
+      drawMyStore();
+    }
+
+    async function renderFollowingTab(){
+      body.innerHTML = `<div class="modal-sub">Loading…</div>`;
+      try{
+        const { data: follows } = await supabaseClient.from('store_follows').select('store_id, stores(*)').eq('user_id', session.user.id);
+        const stores = (follows||[]).map(f=>f.stores).filter(Boolean);
+        if(stores.length === 0){
+          body.innerHTML = `<div class="modal-sub">You're not following any stores yet — check the Browse tab.</div>
+            <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>`;
+          overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+          return;
+        }
+        const today = todayStr();
+        const sections = await Promise.all(stores.map(async s=>{
+          const { data: events } = await supabaseClient.from('store_events').select('*').eq('store_id', s.id).gte('date', today).order('date').limit(5);
+          const rows = (events||[]).map(e=>`
+            <div class="list-item">
+              <div class="info"><div class="n">${e.cancelled?'<span style="color:var(--rose);">[CANCELLED] </span>':''}${escapeHtml(e.name)}</div>
+                <div class="m">${fmtFriendly(e.date, e.time)}</div></div>
+            </div>`).join('');
+          return `
+            <div class="card" style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="n" style="font-weight:700;">${escapeHtml(s.name)}</div>
+                <button class="mini-btn decline" data-unfollow="${s.id}">Unfollow</button>
+              </div>
+              ${rows || '<div class="modal-sub">No upcoming events posted.</div>'}
+            </div>`;
+        }));
+        body.innerHTML = sections.join('') + `<div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>`;
+        overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
+        body.querySelectorAll('[data-unfollow]').forEach(btn=>{
+          btn.onclick = async ()=>{
+            try{ await supabaseClient.from('store_follows').delete().eq('user_id', session.user.id).eq('store_id', btn.dataset.unfollow); renderFollowingTab(); }
+            catch(e){ showToast('Could not unfollow'); }
+          };
+        });
+      }catch(e){ body.innerHTML = `<div class="modal-sub">Could not load your followed stores.</div>`; }
+    }
+
+    renderBrowseTab();
+  }
+
+  // ---------- Admin dashboard (only visible/functional if profile.is_admin) ----------
+  function openAdminModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>🛠 Admin</h2><div id="adminBody"><div class="modal-sub">Loading…</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#adminBody');
+
+    async function draw(){
+      let pending = [];
+      try{
+        const { data } = await supabaseClient.from('stores').select('*').eq('approved', false).order('created_at');
+        pending = data || [];
+      }catch(e){}
+
+      body.innerHTML = `
+        <div class="section-label">Pending store requests (${pending.length})</div>
+        ${pending.length ? pending.map(s=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${escapeHtml(s.city||'')}${s.description?' · '+escapeHtml(s.description):''}</div></div>
+            <div style="display:flex;gap:6px;">
+              <button class="mini-btn" data-approve-store="${s.id}">Approve</button>
+              <button class="mini-btn decline" data-reject-store="${s.id}">Reject</button>
+            </div>
+          </div>`).join('') : `<div class="modal-sub">Nothing pending.</div>`}
+
+        <div class="section-label">Post an announcement</div>
+        <div class="field"><label>Title</label><input id="ann_title" placeholder="e.g. New features!"/></div>
+        <div class="field"><label>Message</label><textarea id="ann_message" placeholder="What's new…"></textarea></div>
+        <div class="modal-actions"><button class="btn-primary" id="postAnnBtn" style="flex:1;">Post to everyone</button></div>
+
+        <div class="modal-actions"><button class="btn-secondary" id="closeAdmin" style="flex:1;">${tr('close')}</button></div>
+      `;
+      overlay.querySelector('#closeAdmin').onclick = ()=>overlay.remove();
+      body.querySelectorAll('[data-approve-store]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          try{ await supabaseClient.from('stores').update({ approved: true }).eq('id', btn.dataset.approveStore); showToast('Store approved'); draw(); }
+          catch(e){ showToast('Could not approve'); }
+        };
+      });
+      body.querySelectorAll('[data-reject-store]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          if(!confirm('Reject and delete this store request?')) return;
+          try{ await supabaseClient.from('stores').delete().eq('id', btn.dataset.rejectStore); showToast('Rejected'); draw(); }
+          catch(e){ showToast('Could not reject'); }
+        };
+      });
+      body.querySelector('#postAnnBtn').onclick = async ()=>{
+        const title = body.querySelector('#ann_title').value.trim();
+        const message = body.querySelector('#ann_message').value.trim();
+        if(!title || !message){ showToast('Fill in both fields'); return; }
+        try{
+          await supabaseClient.from('announcements').insert({ title, message });
+          showToast('Announcement posted!');
+          body.querySelector('#ann_title').value = '';
+          body.querySelector('#ann_message').value = '';
+        }catch(e){ showToast('Could not post — check that you have admin access'); }
+      };
+    }
+    draw();
+  }
+
   function openDecksModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
