@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.7'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.8'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -2953,9 +2953,10 @@
         <div class="field">
           <label>${tr('homeCity')}</label>
           <div style="display:flex;gap:8px;">
-            <input id="acc_city" value="${escapeAttr(profile.home_city||'')}" placeholder="e.g. Austin, TX" style="flex:1;"/>
+            <input id="acc_city" value="${escapeAttr(profile.home_city||'')}" placeholder="e.g. Austin, TX" style="flex:1;" autocomplete="off"/>
             <button class="mini-btn" id="useLocationBtn">${tr('useMyLocation')}</button>
           </div>
+          <div id="citySuggestions"></div>
           <div class="hint">"Near you" matches within about 50 miles, based on this location or your device's GPS.</div>
         </div>
         <div class="modal-actions" style="margin-top:8px;">
@@ -3010,6 +3011,35 @@
         ()=>showToast('Could not get your location')
       );
     };
+    let citySuggestDebounce = null;
+    const cityInput = overlay.querySelector('#acc_city');
+    const suggestBox = overlay.querySelector('#citySuggestions');
+    let cityDirty = false;
+    cityInput.oninput = ()=>{
+      const q = cityInput.value.trim();
+      profile._pendingLat = null; profile._pendingLng = null; // typing invalidates any earlier pick/GPS capture until they choose again
+      cityDirty = true;
+      clearTimeout(citySuggestDebounce);
+      if(q.length < 3){ suggestBox.innerHTML = ''; return; }
+      citySuggestDebounce = setTimeout(async ()=>{
+        try{
+          const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(q));
+          const results = await res.json();
+          if(!results || results.length===0){ suggestBox.innerHTML = ''; return; }
+          suggestBox.innerHTML = results.map((r,i)=>`<button type="button" class="mini-btn" data-suggest-idx="${i}" style="display:block;width:100%;text-align:left;margin-top:4px;">${escapeHtml(r.display_name)}</button>`).join('');
+          suggestBox.querySelectorAll('[data-suggest-idx]').forEach(btn=>{
+            btn.onclick = ()=>{
+              const r = results[parseInt(btn.dataset.suggestIdx,10)];
+              cityInput.value = r.display_name;
+              profile._pendingLat = parseFloat(r.lat);
+              profile._pendingLng = parseFloat(r.lon);
+              cityDirty = false; // a real pick was made — coordinates are now trustworthy again
+              suggestBox.innerHTML = '';
+            };
+          });
+        }catch(e){ /* non-fatal — falls back to single-guess geocoding on save */ }
+      }, 350);
+    };
     overlay.querySelector('#saveProfileBtn').onclick = async ()=>{
       let username = overlay.querySelector('#acc_username').value.trim().replace(/^@/,'');
       if(username && !/^[a-zA-Z0-9_]{3,24}$/.test(username)){
@@ -3018,8 +3048,14 @@
       }
       const display_name = overlay.querySelector('#acc_name').value.trim();
       const home_city = overlay.querySelector('#acc_city').value.trim();
-      let home_lat = profile._pendingLat != null ? profile._pendingLat : profile.home_lat;
-      let home_lng = profile._pendingLng != null ? profile._pendingLng : profile.home_lng;
+      let home_lat, home_lng;
+      if(profile._pendingLat != null && profile._pendingLng != null){
+        home_lat = profile._pendingLat; home_lng = profile._pendingLng;
+      } else if(!cityDirty){
+        home_lat = profile.home_lat; home_lng = profile.home_lng;
+      } else {
+        home_lat = null; home_lng = null; // city text changed with no pick made — force a fresh geocode below rather than keep stale coordinates
+      }
       if((home_lat == null || home_lng == null) && home_city){
         const geo = await geocode(home_city);
         if(geo){ home_lat = geo.lat; home_lng = geo.lng; }
