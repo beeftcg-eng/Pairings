@@ -244,7 +244,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.10'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.11'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -2341,6 +2341,79 @@
   }
 
   // ---------- Welcome tour ----------
+  const INSTALL_GUIDE_BY_LANG = {
+    en: {
+      title: 'Install Pairings',
+      intro: "Installing Pairings puts it on your home screen like a real app — full screen, its own icon, and (once enabled) push notifications. It only takes a few taps.",
+      sections: [
+        {
+          platform: '📱 iPhone / iPad (Safari)',
+          steps: [
+            'Open this site in Safari (not Chrome — installing only works from Safari on iOS).',
+            'Tap the Share button — the square with an arrow pointing up, usually at the bottom of the screen.',
+            'Scroll down the menu that appears and tap "Add to Home Screen."',
+            'Tap "Add" in the top right.',
+            "Pairings now has its own icon on your home screen — open it from there, not from Safari, to get the full app experience."
+          ]
+        },
+        {
+          platform: '🤖 Android (Chrome)',
+          steps: [
+            'Open this site in Chrome.',
+            'You may see a banner at the bottom offering to "Install app" or "Add to Home screen" — tap it if so.',
+            'If not: tap the three-dot menu in the top right, then "Add to Home screen" or "Install app."',
+            'Confirm by tapping "Install" or "Add."',
+            'Pairings now has its own icon — open it from there for the full app experience.'
+          ]
+        },
+        {
+          platform: '💻 Desktop (Chrome / Edge)',
+          steps: [
+            'Look for an install icon in the address bar (usually on the right side — a small monitor with a down arrow).',
+            'Click it, then click "Install."',
+            'Alternatively: open the browser\'s menu (⋮) and look for "Install Pairings…"',
+            'Pairings now opens in its own window, separate from your regular browser tabs.'
+          ]
+        }
+      ]
+    },
+    es: {
+      title: 'Instalar Pairings',
+      intro: 'Instalar Pairings lo pone en tu pantalla de inicio como una app real — pantalla completa, su propio ícono y (una vez activado) notificaciones push. Solo toma unos toques.',
+      sections: [
+        {
+          platform: '📱 iPhone / iPad (Safari)',
+          steps: [
+            'Abre este sitio en Safari (no en Chrome — instalar solo funciona desde Safari en iOS).',
+            'Toca el botón Compartir — el cuadrado con una flecha hacia arriba, usualmente en la parte inferior de la pantalla.',
+            'Desplázate hacia abajo en el menú que aparece y toca "Agregar a pantalla de inicio."',
+            'Toca "Agregar" en la esquina superior derecha.',
+            'Pairings ahora tiene su propio ícono en tu pantalla de inicio — ábrelo desde ahí, no desde Safari, para tener la experiencia completa de la app.'
+          ]
+        },
+        {
+          platform: '🤖 Android (Chrome)',
+          steps: [
+            'Abre este sitio en Chrome.',
+            'Es posible que veas un aviso en la parte inferior ofreciendo "Instalar app" o "Agregar a pantalla de inicio" — tócalo si aparece.',
+            'Si no: toca el menú de tres puntos en la esquina superior derecha, luego "Agregar a pantalla de inicio" o "Instalar app."',
+            'Confirma tocando "Instalar" o "Agregar."',
+            'Pairings ahora tiene su propio ícono — ábrelo desde ahí para la experiencia completa.'
+          ]
+        },
+        {
+          platform: '💻 Computadora (Chrome / Edge)',
+          steps: [
+            'Busca un ícono de instalación en la barra de direcciones (usualmente a la derecha — una pantalla pequeña con una flecha hacia abajo).',
+            'Haz clic en él, luego haz clic en "Instalar."',
+            'Alternativamente: abre el menú del navegador (⋮) y busca "Instalar Pairings…"',
+            'Pairings ahora se abre en su propia ventana, separada de tus pestañas normales del navegador.'
+          ]
+        }
+      ]
+    }
+  };
+
   const ONBOARDING_STEPS_BY_LANG = {
     en: [
       {
@@ -2411,6 +2484,37 @@
       }
     ]
   };
+
+  function openInstallGuideModal(){
+    const guide = INSTALL_GUIDE_BY_LANG[currentLang] || INSTALL_GUIDE_BY_LANG.en;
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const isAndroid = /Android/.test(ua);
+    // Put the relevant platform first so it's the one people see without scrolling.
+    const ordered = guide.sections.slice().sort((a,b)=>{
+      const scoreOf = s => (isIOS && s.platform.includes('iPhone')) || (isAndroid && s.platform.includes('Android')) ? 0 : 1;
+      return scoreOf(a) - scoreOf(b);
+    });
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>📲 ${escapeHtml(guide.title)}</h2>
+        <div class="modal-sub">${escapeHtml(guide.intro)}</div>
+        ${ordered.map(s=>`
+          <div class="section-label">${escapeHtml(s.platform)}</div>
+          <div class="card" style="padding:14px 16px;">
+            <ol style="margin:0;padding-left:20px;line-height:1.7;">
+              ${s.steps.map(step=>`<li>${escapeHtml(step)}</li>`).join('')}
+            </ol>
+          </div>
+        `).join('')}
+        <div class="modal-actions"><button class="btn-secondary" id="closeInstallGuide" style="flex:1;">${tr('close')}</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeInstallGuide').onclick = ()=>overlay.remove();
+  }
 
   function openWelcomeModal(){
     let step = 0;
@@ -3071,6 +3175,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn-secondary" id="reopenWelcome" style="flex:1;">${tr('howThisWorks')}</button>
+          <button class="btn-secondary" id="openInstallGuide" style="flex:1;">📲 Install app</button>
         </div>
         <div class="modal-actions">
           <button class="btn-secondary" id="exportDataBtn" style="flex:1;">⬇️ ${tr('exportData')}</button>
@@ -3086,6 +3191,7 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
     overlay.querySelector('#reopenWelcome').onclick = ()=>{ overlay.remove(); openWelcomeModal(); };
+    overlay.querySelector('#openInstallGuide').onclick = ()=>{ overlay.remove(); openInstallGuideModal(); };
     overlay.querySelector('#exportDataBtn').onclick = exportMyData;
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#langEn').onclick = ()=>setLanguage('en', overlay);
