@@ -141,7 +141,14 @@
     display:flex;align-items:flex-end;justify-content:center;z-index:50;padding-top:env(safe-area-inset-top);}
   @media(min-width:640px){.overlay{align-items:center;}}
   .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;
-    width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom));}
+    width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom));
+    position:relative;}
+  /* Always-reachable close button — stays pinned as the modal scrolls, so
+     long modals don't require scrolling to the bottom to get out. */
+  .modal-x{position:sticky;top:0;float:right;z-index:5;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--text-dim);font-size:18px;line-height:1;cursor:pointer;border-radius:50%;
+    width:32px;height:32px;display:flex;align-items:center;justify-content:center;margin:-4px -4px 0 0;}
+  .modal-x:hover{color:var(--text);border-color:var(--rose);}
   @media(min-width:640px){.modal{border-radius:18px;}}
   .modal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 4px;font-size:17px;}
   .modal .modal-sub{color:var(--text-dim);font-size:12px;margin-bottom:14px;}
@@ -245,7 +252,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -571,6 +578,34 @@
   }
   function shareCode(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
 
+  // Every modal in the app gets an always-visible close button injected
+  // automatically. Doing it centrally here (rather than editing each of the
+  // ~20 modal templates) means new modals get it for free and none can be
+  // accidentally missed.
+  function attachModalCloseButton(modalEl){
+    if(!modalEl || modalEl.querySelector(':scope > .modal-x')) return;
+    const overlay = modalEl.closest('.overlay') || modalEl.parentElement;
+    if(!overlay) return;
+    const btn = document.createElement('button');
+    btn.className = 'modal-x';
+    btn.type = 'button';
+    btn.title = 'Close';
+    btn.textContent = '✕';
+    btn.onclick = (e)=>{ e.stopPropagation(); overlay.remove(); };
+    modalEl.insertBefore(btn, modalEl.firstChild);
+  }
+  new MutationObserver(muts=>{
+    muts.forEach(m=>{
+      m.addedNodes.forEach(node=>{
+        if(node.nodeType !== 1) return;
+        if(node.classList && node.classList.contains('overlay')){
+          node.querySelectorAll('.modal').forEach(attachModalCloseButton);
+        }
+        if(node.classList && node.classList.contains('modal')) attachModalCloseButton(node);
+      });
+    });
+  }).observe(document.body, { childList:true, subtree:true });
+
   function showToast(msg){
     document.querySelectorAll('.toast').forEach(t=>t.remove());
     const t = document.createElement('div');
@@ -713,6 +748,70 @@
     }catch(e){ /* non-fatal — will just re-sync next load */ }
     render();
     if(accountOverlay){ accountOverlay.remove(); openAccountModal(); }
+  }
+
+  // Restores from a file produced by exportMyData(). Deliberately asks
+  // whether to merge or replace rather than guessing — replacing is
+  // destructive and should never happen by accident.
+  function importMyData(){
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.onchange = async ()=>{
+      const file = input.files && input.files[0];
+      if(!file) return;
+      let payload;
+      try{
+        payload = JSON.parse(await file.text());
+      }catch(e){ showToast('That file is not valid JSON'); return; }
+
+      if(!payload || !Array.isArray(payload.tournaments)){
+        showToast("That doesn't look like a Pairings export");
+        return;
+      }
+      if(!userDataLoaded){
+        showToast('Your data has not loaded yet — refresh before importing');
+        return;
+      }
+
+      const incoming = payload.tournaments;
+      const incomingDecks = Array.isArray(payload.decks) ? payload.decks : [];
+
+      openChoiceDialog({
+        title: 'Import data',
+        message: `This file has ${incoming.length} event${incoming.length===1?'':'s'}${incomingDecks.length?` and ${incomingDecks.length} deck${incomingDecks.length===1?'':'s'}`:''}. How should it be applied?`,
+        choices: [
+          { label: 'Merge (keep what I have, skip duplicates)', action: async ()=>{
+              let added = 0, skipped = 0;
+              incoming.forEach(e=>{
+                if(isDuplicateEvent(e)){ skipped++; return; }
+                // Give the restored event a fresh id so it can't collide
+                // with anything currently in the list.
+                tournaments.push({ ...e, id: uid() });
+                added++;
+              });
+              incomingDecks.forEach(d=>{
+                if(decks.some(x=>x.name === d.name && x.game === d.game)) return;
+                decks.push({ ...d, id: d.id || deckUid() });
+              });
+              await saveTournaments();
+              await saveDecks();
+              render();
+              showToast(`Imported ${added} event${added===1?'':'s'}${skipped?` (skipped ${skipped} duplicate${skipped===1?'':'s'})`:''}`);
+            } },
+          { label: 'Replace everything', danger:true, action: async ()=>{
+              if(!confirm('This will DELETE all your current events and decks and replace them with the file. Are you sure?')) return;
+              tournaments = incoming.map(e=>({ ...e, id: e.id || uid() }));
+              decks = incomingDecks.map(d=>({ ...d, id: d.id || deckUid() }));
+              await saveTournaments();
+              await saveDecks();
+              render();
+              showToast('Data replaced from file');
+            } }
+        ]
+      });
+    };
+    input.click();
   }
 
   function exportMyData(){
@@ -1473,6 +1572,7 @@
               ${t.store ? `<span>${escapeHtml(t.store)}</span>` : ''}
               ${t.time ? `<span>${escapeHtml(t.time)}</span>` : ''}
               ${t.game ? `<span class="badge game">${gameIcon(t.game)} ${escapeHtml(t.game)}</span>` : ''}
+              ${t.isCasual ? `<span class="badge repeat">🎲 Casual${t.onlineMode==='online'?' · Online':''}</span>` : ''}
               ${t.format ? `<span class="badge format">${escapeHtml(t.format)}</span>` : ''}
               ${t.fee ? `<span class="badge fee">${escapeHtml(t.fee)}</span>` : ''}
               ${t.prizing ? `<span class="badge result">🏆 ${escapeHtml(t.prizing)}</span>` : ''}
@@ -1494,6 +1594,8 @@
               ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">${tr('eventPage')}</a>` : ''}
               ${t.deckLink ? `<a class="card-link" href="${escapeAttr(t.deckLink)}" target="_blank" rel="noopener">📋 Decklist ↗</a>` : ''}
               ${t.storeLink ? `<a class="card-link" href="${escapeAttr(t.storeLink)}" target="_blank" rel="noopener">🏬 Store page ↗</a>` : ''}
+              ${t.simulatorLink ? `<a class="card-link" href="${escapeAttr(t.simulatorLink)}" target="_blank" rel="noopener">🎮 Join online ↗</a>` : ''}
+              ${t.contactInfo ? `<span class="card-link" style="cursor:default;">✉ ${escapeHtml(t.contactInfo)}</span>` : ''}
               <a class="card-link" href="${TURNZERO_URL}" target="_blank" rel="noopener">⏱ Start a round timer ↗</a>
               <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">${tr('shareWithFriend')}</a>
               <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">${tr('inviteFriend')}</a>
@@ -1650,6 +1752,7 @@
   function openModal(id){
     const t = id ? tournaments.find(x=>x.id===id) : {
       id: uid(), name:'', game:'', store:'', date:'', time:'', format:'', fee:'', address:'', city:'', link:'', storeLink:'', deckLink:'', notes:'',
+      isCasual:false, onlineMode:'', simulatorLink:'', contactInfo:'',
       repeat:'none', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null
     };
     const overlay = document.createElement('div');
@@ -1680,6 +1783,23 @@
           <div class="field"><label>${tr('format')}</label>
             <input id="f_format" list="formatOptions" value="${escapeAttr(t.format||'')}" placeholder="e.g. Standard, Sealed…"/>
             <datalist id="formatOptions">${FORMATS.map(f=>`<option value="${escapeAttr(f)}">`).join('')}</datalist>
+          </div>
+        </div>
+        <div class="field" style="background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="f_iscasual" ${t.isCasual?'checked':''} style="width:18px;height:18px;"/>
+            <span>🎲 Casual / testing session (not a tournament)</span>
+          </label>
+          <div id="casualFields" style="display:${t.isCasual?'block':'none'};margin-top:10px;">
+            <div class="row2">
+              <select id="f_onlinemode">
+                <option value="physical" ${t.onlineMode!=='online'?'selected':''}>In person</option>
+                <option value="online" ${t.onlineMode==='online'?'selected':''}>Online</option>
+              </select>
+              <input id="f_contact" value="${escapeAttr(t.contactInfo||'')}" placeholder="Contact (Discord, WhatsApp…)"/>
+            </div>
+            <input id="f_simlink" value="${escapeAttr(t.simulatorLink||'')}" placeholder="Simulator / room link (for online)" style="margin-top:8px;"/>
+            <div class="hint">Casual sessions skip the store/fee fields — share one with a playgroup from the Playgroups screen.</div>
           </div>
         </div>
         <div class="row2">
@@ -1763,6 +1883,9 @@
       showToast('Filled what we could find — double check before saving');
     };
     overlay.querySelector('#cancelBtn').onclick = ()=>overlay.remove();
+    overlay.querySelector('#f_iscasual').onchange = (e)=>{
+      overlay.querySelector('#casualFields').style.display = e.target.checked ? 'block' : 'none';
+    };
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     if(id){ overlay.querySelector('#deleteBtn').onclick = ()=>{ overlay.remove(); handleDelete(id, t.date); }; }
 
@@ -1784,6 +1907,10 @@
         address: newAddress,
         link: overlay.querySelector('#f_link').value.trim(),
         deckLink: overlay.querySelector('#f_decklink').value.trim(),
+        isCasual: overlay.querySelector('#f_iscasual').checked,
+        onlineMode: overlay.querySelector('#f_onlinemode').value,
+        simulatorLink: overlay.querySelector('#f_simlink').value.trim(),
+        contactInfo: overlay.querySelector('#f_contact').value.trim(),
         storeLink: overlay.querySelector('#f_storelink').value.trim(),
         notes: overlay.querySelector('#f_notes').value.trim(),
         rsvp: t.rsvp || null,
@@ -2699,11 +2826,9 @@
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `<div class="modal" style="position:relative;">
-      <button id="pgCloseX" title="Close" style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text-dim);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px;">✕</button>
       <h2>👥 Playgroups</h2><div id="pgBody"><div class="modal-sub">Loading…</div></div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
-    overlay.querySelector('#pgCloseX').onclick = ()=>overlay.remove();
     const body = overlay.querySelector('#pgBody');
 
     async function drawList(){
@@ -2794,7 +2919,8 @@
       const isOwner = group.owner_id === session.user.id;
       body.innerHTML = `
         <button class="mini-btn" id="pgBack" style="margin-bottom:10px;">← All playgroups</button>
-        <div class="modal-sub"><strong>${escapeHtml(group.name)}</strong>${group.description?' — '+escapeHtml(group.description):''}</div>
+        <div class="modal-sub"><strong>${escapeHtml(group.name)}</strong>${group.description?' — '+escapeHtml(group.description):''}
+          ${isOwner?`<button class="mini-btn" id="pgEdit" style="margin-left:8px;">✎ Edit</button>`:''}</div>
         <div class="modal-sub" style="margin-bottom:12px;">Join code: <strong>${escapeHtml(group.join_code||'—')}</strong>
           <button class="mini-btn" id="pgCopyCode" style="margin-left:8px;">Copy</button></div>
 
@@ -2827,6 +2953,26 @@
       `;
 
       body.querySelector('#pgBack').onclick = ()=>drawList();
+      const pgEditBtn = body.querySelector('#pgEdit');
+      if(pgEditBtn) pgEditBtn.onclick = ()=>{
+        const newName = prompt('Playgroup name', group.name);
+        if(newName === null) return;
+        const trimmed = newName.trim();
+        if(!trimmed){ showToast('Name cannot be empty'); return; }
+        const newDesc = prompt('Description (leave blank for none)', group.description || '');
+        if(newDesc === null) return;
+        (async ()=>{
+          try{
+            const { data, error } = await supabaseClient.from('playgroups')
+              .update({ name: trimmed, description: newDesc.trim() })
+              .eq('id', group.id).select().maybeSingle();
+            if(error || !data) throw error || new Error('no row');
+            group.name = data.name; group.description = data.description;
+            showToast('Playgroup updated');
+            drawGroup(group);
+          }catch(e){ showToast('Could not update — only the owner can edit'); }
+        })();
+      };
       body.querySelector('#pgCopyCode').onclick = ()=>{
         const ok = copyText(group.join_code||'');
         showToast(ok?'Code copied':'Could not copy');
@@ -2854,6 +3000,7 @@
             id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
             repeat: e.repeat||'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'',
             link: e.link||'', storeLink: e.storeLink||'', notes:'', rsvp:null, result:null, occurrences:{},
+            isCasual: !!e.isCasual, onlineMode: e.onlineMode||'', simulatorLink: e.simulatorLink||'', contactInfo: e.contactInfo||'',
             lat:null, lng:null, googleEventId:null, readOnly:true
           });
           await saveTournaments();
@@ -2959,7 +3106,8 @@
             playgroup_id: group.id, shared_by: session.user.id,
             event: { name: t.name, game: t.game, store: t.store, date: i.date, time: t.time,
                      format: t.format, fee: t.fee, address: t.address, link: t.link,
-                     storeLink: t.storeLink, repeat: isRepeating(t) ? t.repeat : 'none' }
+                     storeLink: t.storeLink, repeat: isRepeating(t) ? t.repeat : 'none',
+                     isCasual: !!t.isCasual, onlineMode: t.onlineMode||'', simulatorLink: t.simulatorLink||'', contactInfo: t.contactInfo||'' }
           });
           showToast('Shared with the group');
           btn.textContent = 'Shared ✓'; btn.disabled = true;
@@ -3652,7 +3800,6 @@
     overlay.className = 'overlay';
     overlay.innerHTML = `
       <div class="modal" style="position:relative;">
-        <button id="accountCloseX" title="Close" style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text-dim);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px;">✕</button>
         <h2>${tr('account')}</h2>
         <div class="modal-sub">${escapeHtml(profile.email)}</div>
         <div class="field">
@@ -3711,6 +3858,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn-secondary" id="exportDataBtn" style="flex:1;">⬇️ ${tr('exportData')}</button>
+          <button class="btn-secondary" id="importDataBtn" style="flex:1;">⬆️ Import data</button>
         </div>
         <div class="modal-actions">
           <button class="btn-danger" id="logoutBtn" style="flex:1;">${tr('logOut')}</button>
@@ -3725,10 +3873,10 @@
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
-    overlay.querySelector('#accountCloseX').onclick = ()=>overlay.remove();
     overlay.querySelector('#reopenWelcome').onclick = ()=>{ overlay.remove(); openWelcomeModal(); };
     overlay.querySelector('#openInstallGuide').onclick = ()=>{ overlay.remove(); openInstallGuideModal(); };
     overlay.querySelector('#exportDataBtn').onclick = exportMyData;
+    overlay.querySelector('#importDataBtn').onclick = importMyData;
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#langEn').onclick = ()=>setLanguage('en', overlay);
     overlay.querySelector('#langEs').onclick = ()=>setLanguage('es', overlay);
