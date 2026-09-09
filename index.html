@@ -245,7 +245,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.0.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -426,6 +426,8 @@
     { key: 'log_reminder', label: 'Reminder to log a result' },
     { key: 'event_soon', label: 'Reminder before an event starts' },
     { key: 'store_new_event', label: 'A store you follow posts a new event' },
+    { key: 'playgroup_going', label: 'Someone in your playgroup is going to an event' },
+    { key: 'playgroup_shared_event', label: 'Someone shares an event with your playgroup' },
   ];
 
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
@@ -1515,6 +1517,7 @@
           <button class="btn icon-pill" id="openFriends">${tr('friends')}</button>
           <button class="btn icon-pill" id="openStats">${tr('stats')}</button>
           <button class="btn icon-pill" id="openStores">🏪 Stores</button>
+          <button class="btn icon-pill" id="openPlaygroups">👥 Playgroups</button>
           ${profile && profile.is_admin ? `<button class="btn icon-pill" id="openAdmin">🛠 Admin</button>` : ''}
           <button class="btn icon-pill" id="openAccount">${tr('account')}</button>
           <button class="btn icon-pill" id="openShare">${tr('share')}</button>
@@ -1553,6 +1556,7 @@
     document.getElementById('openFriends').onclick = ()=>openFriendsModal();
     document.getElementById('openStats').onclick = ()=>openStatsModal();
     document.getElementById('openStores').onclick = ()=>openStoresModal();
+    document.getElementById('openPlaygroups').onclick = ()=>openPlaygroupsModal();
     const adminBtn = document.getElementById('openAdmin'); if(adminBtn) adminBtn.onclick = ()=>openAdminModal();
     document.getElementById('openAccount').onclick = ()=>openAccountModal();
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
@@ -2684,6 +2688,286 @@
     overlay.querySelector('#closeAttendees').onclick = ()=>overlay.remove();
   }
 
+  // ---------- Playgroups ----------
+  function playgroupCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = ''; for(let i=0;i<6;i++) s += chars[Math.floor(Math.random()*chars.length)];
+    return s;
+  }
+
+  async function openPlaygroupsModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal" style="position:relative;">
+      <button id="pgCloseX" title="Close" style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text-dim);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px;">✕</button>
+      <h2>👥 Playgroups</h2><div id="pgBody"><div class="modal-sub">Loading…</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#pgCloseX').onclick = ()=>overlay.remove();
+    const body = overlay.querySelector('#pgBody');
+
+    async function drawList(){
+      body.innerHTML = `<div class="modal-sub">Loading…</div>`;
+      let myGroups = [];
+      try{
+        const { data: memberships } = await supabaseClient.from('playgroup_members')
+          .select('playgroup_id, playgroups(*)').eq('user_id', session.user.id);
+        myGroups = (memberships||[]).map(m=>m.playgroups).filter(Boolean);
+      }catch(e){}
+
+      body.innerHTML = `
+        <div class="modal-sub" style="margin-bottom:12px;">A playgroup is your circle — share events, compare stats, and get notified when someone's heading to a tournament.</div>
+
+        <div class="section-label">Your playgroups (${myGroups.length})</div>
+        ${myGroups.length ? myGroups.map(g=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(g.name)}</div><div class="m">${escapeHtml(g.description||'')}</div></div>
+            <button class="mini-btn" data-open-pg="${g.id}">Open</button>
+          </div>`).join('') : `<div class="modal-sub">You're not in any playgroups yet.</div>`}
+
+        <div class="section-label">Join with a code</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <input id="pgJoinCode" placeholder="e.g. AB12CD" style="flex:1;text-transform:uppercase;"/>
+          <button class="mini-btn" id="pgJoinBtn">Join</button>
+        </div>
+
+        <div class="section-label">Create a playgroup</div>
+        <div class="field"><input id="pgNewName" placeholder="Playgroup name, e.g. Tuesday Night Crew"/></div>
+        <div class="field"><input id="pgNewDesc" placeholder="Description (optional)"/></div>
+        <button class="mini-btn" id="pgCreateBtn">+ Create playgroup</button>
+      `;
+
+      body.querySelectorAll('[data-open-pg]').forEach(btn=>{
+        btn.onclick = ()=>drawGroup(myGroups.find(g=>g.id===btn.dataset.openPg));
+      });
+
+      body.querySelector('#pgCreateBtn').onclick = async ()=>{
+        const name = body.querySelector('#pgNewName').value.trim();
+        if(!name){ showToast('Give your playgroup a name'); return; }
+        try{
+          const { data: created, error } = await supabaseClient.from('playgroups').insert({
+            owner_id: session.user.id, name,
+            description: body.querySelector('#pgNewDesc').value.trim(),
+            join_code: playgroupCode()
+          }).select().maybeSingle();
+          if(error || !created) throw error || new Error('no row');
+          // The creator needs to be a member too, not just the owner.
+          await supabaseClient.from('playgroup_members').insert({ playgroup_id: created.id, user_id: session.user.id });
+          showToast('Playgroup created');
+          drawList();
+        }catch(e){ showToast('Could not create playgroup'); }
+      };
+
+      body.querySelector('#pgJoinBtn').onclick = async ()=>{
+        const code = body.querySelector('#pgJoinCode').value.trim().toUpperCase();
+        if(!code){ showToast('Enter a code'); return; }
+        try{
+          const { data: found, error } = await supabaseClient.rpc('find_playgroup_by_code', { code });
+          if(error) throw error;
+          const g = (found||[])[0];
+          if(!g){ showToast('No playgroup found with that code'); return; }
+          await supabaseClient.from('playgroup_members').insert({ playgroup_id: g.id, user_id: session.user.id });
+          showToast('Joined ' + g.name);
+          drawList();
+        }catch(e){ showToast('Could not join — you may already be a member'); }
+      };
+    }
+
+    async function drawGroup(group){
+      if(!group) return drawList();
+      body.innerHTML = `<div class="modal-sub">Loading…</div>`;
+      let members = [], sharedEvents = [];
+      try{
+        const { data: mems } = await supabaseClient.from('playgroup_members')
+          .select('user_id').eq('playgroup_id', group.id);
+        const ids = (mems||[]).map(m=>m.user_id);
+        if(ids.length){
+          const { data: profs } = await supabaseClient.from('profiles')
+            .select('id, username, display_name').in('id', ids);
+          members = profs || [];
+        }
+        const { data: shared } = await supabaseClient.from('playgroup_shared_events')
+          .select('*').eq('playgroup_id', group.id).order('created_at', {ascending:false}).limit(20);
+        sharedEvents = shared || [];
+      }catch(e){}
+
+      const isOwner = group.owner_id === session.user.id;
+      body.innerHTML = `
+        <button class="mini-btn" id="pgBack" style="margin-bottom:10px;">← All playgroups</button>
+        <div class="modal-sub"><strong>${escapeHtml(group.name)}</strong>${group.description?' — '+escapeHtml(group.description):''}</div>
+        <div class="modal-sub" style="margin-bottom:12px;">Join code: <strong>${escapeHtml(group.join_code||'—')}</strong>
+          <button class="mini-btn" id="pgCopyCode" style="margin-left:8px;">Copy</button></div>
+
+        <div class="section-label">Members (${members.length})</div>
+        ${members.map(m=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(m.display_name || m.username || 'Player')}${m.id===session.user.id?' (you)':''}</div>
+              ${m.username?`<div class="m">@${escapeHtml(m.username)}</div>`:''}</div>
+            <div style="display:flex;gap:6px;">
+              ${m.id!==session.user.id?`<button class="mini-btn" data-pg-stats="${m.id}" data-pg-name="${escapeAttr(m.display_name||m.username||'Player')}">📊 Stats</button>`:''}
+              ${m.id!==session.user.id?`<button class="mini-btn" data-pg-friend="${m.id}">+ Friend</button>`:''}
+            </div>
+          </div>`).join('')}
+
+        <div class="section-label">Group leaderboard</div>
+        <div id="pgLeaderboard"><div class="modal-sub">Calculating…</div></div>
+
+        <div class="section-label">Shared events</div>
+        <button class="mini-btn" id="pgShareEventBtn" style="margin-bottom:10px;">+ Share one of my events</button>
+        ${sharedEvents.length ? sharedEvents.map(se=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(se.event.name||'Event')}</div>
+              <div class="m">${fmtFriendly(se.event.date, se.event.time)}${se.event.store?' · '+escapeHtml(se.event.store):''}</div></div>
+            <button class="mini-btn" data-pg-add="${se.id}">+ Add to mine</button>
+          </div>`).join('') : `<div class="modal-sub">Nothing shared yet.</div>`}
+
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn-danger" id="pgLeave" style="flex:1;">${isOwner?'Delete playgroup':'Leave playgroup'}</button>
+        </div>
+      `;
+
+      body.querySelector('#pgBack').onclick = ()=>drawList();
+      body.querySelector('#pgCopyCode').onclick = ()=>{
+        const ok = copyText(group.join_code||'');
+        showToast(ok?'Code copied':'Could not copy');
+      };
+      body.querySelectorAll('[data-pg-stats]').forEach(btn=>{
+        btn.onclick = ()=>openFriendStatsModal(btn.dataset.pgStats, btn.dataset.pgName);
+      });
+      body.querySelectorAll('[data-pg-friend]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          btn.disabled = true;
+          try{
+            await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: btn.dataset.pgFriend, status:'pending' });
+            showToast('Friend request sent');
+            btn.textContent = 'Requested ✓';
+          }catch(e){ showToast('Could not send — you may already be connected'); btn.disabled=false; }
+        };
+      });
+      body.querySelectorAll('[data-pg-add]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const se = sharedEvents.find(x=>x.id===btn.dataset.pgAdd);
+          if(!se) return;
+          const e = se.event;
+          if(isDuplicateEvent(e)){ showToast('You already have this event'); btn.textContent='Already have it'; btn.disabled=true; return; }
+          tournaments.push({
+            id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
+            repeat: e.repeat||'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'',
+            link: e.link||'', storeLink: e.storeLink||'', notes:'', rsvp:null, result:null, occurrences:{},
+            lat:null, lng:null, googleEventId:null, readOnly:true
+          });
+          await saveTournaments();
+          render();
+          showToast('Added to your calendar');
+          btn.textContent = 'Added ✓'; btn.disabled = true;
+        };
+      });
+      body.querySelector('#pgShareEventBtn').onclick = ()=>openShareToPlaygroupModal(group);
+      body.querySelector('#pgLeave').onclick = async ()=>{
+        if(isOwner){
+          if(!confirm('Delete this playgroup for everyone? This cannot be undone.')) return;
+          try{ await supabaseClient.from('playgroups').delete().eq('id', group.id); showToast('Playgroup deleted'); drawList(); }
+          catch(e){ showToast('Could not delete'); }
+        } else {
+          if(!confirm('Leave this playgroup?')) return;
+          try{
+            await supabaseClient.from('playgroup_members').delete().eq('playgroup_id', group.id).eq('user_id', session.user.id);
+            showToast('Left playgroup'); drawList();
+          }catch(e){ showToast('Could not leave'); }
+        }
+      };
+
+      // Leaderboard — computed from each member's own data, respecting their
+      // stats-sharing setting (a member who opted out simply won't appear).
+      (async ()=>{
+        const lbEl = body.querySelector('#pgLeaderboard');
+        if(!lbEl) return;
+        const rows = [];
+        for(const m of members){
+          try{
+            const { data } = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', m.id).maybeSingle();
+            if(!data) continue;
+            const s = computeStats(data.tournaments||[], data.decks||[], null, null);
+            rows.push({
+              name: (m.display_name || m.username || 'Player') + (m.id===session.user.id?' (you)':''),
+              winRate: s.winRate, wins: s.totalWins, losses: s.totalLosses,
+              attended: s.attended, results: s.resultsLogged
+            });
+          }catch(e){ /* member opted out of sharing, or load failed — skip them */ }
+        }
+        if(rows.length === 0){
+          lbEl.innerHTML = `<div class="modal-sub">No shared stats yet — members can enable this in Account → Privacy.</div>`;
+          return;
+        }
+        const byWinRate = rows.filter(r=>r.winRate!=null).sort((a,b)=>b.winRate-a.winRate);
+        const byWins = rows.slice().sort((a,b)=>b.wins-a.wins);
+        const byEvents = rows.slice().sort((a,b)=>b.attended-a.attended);
+        const groupWins = rows.reduce((n,r)=>n+r.wins,0);
+        const groupLosses = rows.reduce((n,r)=>n+r.losses,0);
+        const groupEvents = rows.reduce((n,r)=>n+r.attended,0);
+        const groupRate = (groupWins+groupLosses)>0 ? Math.round((groupWins/(groupWins+groupLosses))*100) : null;
+
+        lbEl.innerHTML = `
+          <div class="stat-grid" style="margin-bottom:12px;">
+            <div class="stat-card"><div class="val">${groupEvents}</div><div class="lbl">Events (group total)</div></div>
+            <div class="stat-card"><div class="val">${groupRate!=null?groupRate+'%':'—'}</div><div class="lbl">Group win rate</div></div>
+            <div class="stat-card"><div class="val">${groupWins}-${groupLosses}</div><div class="lbl">Group record</div></div>
+            <div class="stat-card"><div class="val">${rows.length}</div><div class="lbl">Sharing stats</div></div>
+          </div>
+          ${byWinRate.length?`<div class="result-row"><div><div class="n">🏆 Best win rate</div><div class="m">${escapeHtml(byWinRate[0].name)}</div></div><div class="p">${byWinRate[0].winRate}%</div></div>`:''}
+          ${byWins.length?`<div class="result-row"><div><div class="n">⚔️ Most wins</div><div class="m">${escapeHtml(byWins[0].name)}</div></div><div class="p">${byWins[0].wins}</div></div>`:''}
+          ${byEvents.length?`<div class="result-row"><div><div class="n">📅 Most events</div><div class="m">${escapeHtml(byEvents[0].name)}</div></div><div class="p">${byEvents[0].attended}</div></div>`:''}
+          <div class="section-label">All members</div>
+          ${rows.sort((a,b)=>(b.winRate||0)-(a.winRate||0)).map(r=>`
+            <div class="result-row"><div><div class="n">${escapeHtml(r.name)}</div>
+              <div class="m">${r.wins}-${r.losses} · ${r.attended} event${r.attended===1?'':'s'}</div></div>
+              <div class="p">${r.winRate!=null?r.winRate+'%':'—'}</div></div>`).join('')}
+        `;
+      })();
+    }
+
+    drawList();
+  }
+
+  // Picks one of your own upcoming events to share into a playgroup.
+  function openShareToPlaygroupModal(group){
+    const today = todayStr();
+    const upcoming = buildInstances().filter(i=>i.date >= today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,40);
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>Share an event</h2>
+        <div class="modal-sub">to ${escapeHtml(group.name)}</div>
+        ${upcoming.length ? upcoming.map((i,idx)=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(i.t.name)}</div>
+              <div class="m">${fmtFriendly(i.date, i.t.time)}${i.t.store?' · '+escapeHtml(i.t.store):''}</div></div>
+            <button class="mini-btn" data-share-pg="${idx}">Share</button>
+          </div>`).join('') : `<div class="modal-sub">You have no upcoming events to share.</div>`}
+        <div class="modal-actions"><button class="btn-secondary" id="closeSharePg" style="flex:1;">${tr('close')}</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeSharePg').onclick = ()=>overlay.remove();
+    overlay.querySelectorAll('[data-share-pg]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const i = upcoming[parseInt(btn.dataset.sharePg,10)];
+        const t = i.t;
+        try{
+          await supabaseClient.from('playgroup_shared_events').insert({
+            playgroup_id: group.id, shared_by: session.user.id,
+            event: { name: t.name, game: t.game, store: t.store, date: i.date, time: t.time,
+                     format: t.format, fee: t.fee, address: t.address, link: t.link,
+                     storeLink: t.storeLink, repeat: isRepeating(t) ? t.repeat : 'none' }
+          });
+          showToast('Shared with the group');
+          btn.textContent = 'Shared ✓'; btn.disabled = true;
+        }catch(e){ showToast('Could not share'); }
+      };
+    });
+  }
+
   async function openStoresModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -3367,7 +3651,8 @@
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `
-      <div class="modal">
+      <div class="modal" style="position:relative;">
+        <button id="accountCloseX" title="Close" style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text-dim);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px;">✕</button>
         <h2>${tr('account')}</h2>
         <div class="modal-sub">${escapeHtml(profile.email)}</div>
         <div class="field">
@@ -3440,6 +3725,7 @@
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
+    overlay.querySelector('#accountCloseX').onclick = ()=>overlay.remove();
     overlay.querySelector('#reopenWelcome').onclick = ()=>{ overlay.remove(); openWelcomeModal(); };
     overlay.querySelector('#openInstallGuide').onclick = ()=>{ overlay.remove(); openInstallGuideModal(); };
     overlay.querySelector('#exportDataBtn').onclick = exportMyData;
