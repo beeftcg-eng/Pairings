@@ -245,7 +245,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.0.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -684,11 +684,21 @@
   }
 
   // ---------- Supabase data layer ----------
+  let profileLoaded = false;
   async function loadProfile(){
     try{
-      const { data } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      if(error) throw error;
       profile = data || { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null, onboarded:false };
-    }catch(e){ profile = { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null, onboarded:false }; }
+      profileLoaded = true;
+    }catch(e){
+      // Same reasoning as loadTournaments: a failed load must not become a
+      // blank profile that then gets saved over the real one. Keep whatever
+      // we already had and block profile writes until a load succeeds.
+      profileLoaded = false;
+      console.error('loadProfile failed:', e);
+      if(!profile) profile = { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null, onboarded:false };
+    }
     currentLang = (profile.language === 'es') ? 'es' : 'en';
   }
 
@@ -724,14 +734,34 @@
     }catch(e){ showToast('Could not export — try again'); }
   }
 
+  // Tracks whether we have genuinely loaded this user's data from the server.
+  // This matters a lot: if a load FAILS (blocked network on a locked-down
+  // machine, transient error, etc) we must never let an empty in-memory list
+  // get written back over real server data. Every save is gated on this.
+  let userDataLoaded = false;
+
   async function loadTournaments(){
     try{
-      const { data } = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', session.user.id).maybeSingle();
+      const { data, error } = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', session.user.id).maybeSingle();
+      if(error) throw error;
       tournaments = (data && data.tournaments) || [];
       decks = (data && data.decks) || [];
-    }catch(e){ tournaments = []; decks = []; }
+      userDataLoaded = true;
+    }catch(e){
+      // Deliberately do NOT clear tournaments/decks here — a failed load is
+      // not evidence that the user has no data. Leaving userDataLoaded false
+      // blocks any save until a load succeeds, so we can't overwrite the
+      // server copy with an empty list.
+      userDataLoaded = false;
+      console.error('loadTournaments failed:', e);
+      showToast('Could not load your data — not saving changes until this reconnects');
+    }
   }
   async function saveTournaments(){
+    if(!userDataLoaded){
+      showToast('Not saving — your data has not loaded yet. Try refreshing.');
+      return;
+    }
     try{
       await supabaseClient.from('user_data').upsert(
         { user_id: session.user.id, tournaments, updated_at: new Date().toISOString() },
@@ -740,6 +770,10 @@
     }catch(e){ showToast('Could not save — check your connection'); }
   }
   async function saveDecks(){
+    if(!userDataLoaded){
+      showToast('Not saving — your data has not loaded yet. Try refreshing.');
+      return;
+    }
     try{
       await supabaseClient.from('user_data').upsert(
         { user_id: session.user.id, decks, updated_at: new Date().toISOString() },
@@ -3820,6 +3854,7 @@
   // toward your stats, which ignore nothing but do read cleaner when
   // entries aren't perpetually pending).
   async function autoFinishStaleInProgress(){
+    if(!userDataLoaded) return; // never operate on data we failed to load
     let changed = false;
     const nowMs = Date.now();
     function maybeFinish(t, date, occ){
@@ -3857,8 +3892,14 @@
   }
 
   async function syncFollowedStoreEvents(){
+    if(!userDataLoaded) return; // never operate on data we failed to load
     try{
-      const { data: follows } = await supabaseClient.from('store_follows').select('store_id, stores(name)').eq('user_id', session.user.id);
+      const { data: follows, error: followsError } = await supabaseClient.from('store_follows').select('store_id, stores(name)').eq('user_id', session.user.id);
+      // If this fetch fails we must bail out entirely rather than continue —
+      // an empty follows list would otherwise cause the filter below to strip
+      // every store event out of the user's calendar, which looks exactly
+      // like "my followed stores reset themselves".
+      if(followsError) throw followsError;
       const followedStoreIds = (follows||[]).map(f=>f.store_id);
       const storeNameById = {};
       (follows||[]).forEach(f=>{ if(f.stores) storeNameById[f.store_id] = f.stores.name; });
