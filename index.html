@@ -245,7 +245,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '2026-09-07.16'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '2026-09-07.18'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -1314,6 +1314,9 @@
             <button class="chip ${currentLang==='en'?'active':''}" id="authLangEn" type="button" style="margin-right:6px;">English</button>
             <button class="chip ${currentLang==='es'?'active':''}" id="authLangEs" type="button">Español</button>
           </div>
+          <div style="text-align:center;margin-top:14px;">
+            <a href="${window.location.origin + window.location.pathname}privacy.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">Privacy Policy</a>
+          </div>
         </div>
       </div>`;
     document.getElementById('authLangEn').onclick = ()=>{ currentLang='en'; preLoginLangChoice='en'; renderAuth(mode); };
@@ -1413,8 +1416,12 @@
         const dp = fmtDateParts(date);
         const isPast = date < today;
         const repLabel = isRepeating(t) ? (REPEATS.find(r=>r.v===t.repeat)||{}).l : '';
-        const resultBadge = inst.result && (inst.result.placement || inst.result.record)
-          ? `<span class="badge result">🏆 ${escapeHtml([inst.result.placement, inst.result.record].filter(Boolean).join(' · '))}</span>` : '';
+        const inProg = inst.result && inst.result.inProgress;
+        const roundCount = inst.result && inst.result.matches ? inst.result.matches.length : 0;
+        const resultBadge = inProg
+          ? `<span class="badge repeat" style="background:rgba(245,185,66,0.18);color:var(--gold,#f5b942);">⏳ In progress${roundCount?` · ${roundCount} round${roundCount===1?'':'s'}`:''}${inst.result.record?` · ${escapeHtml(inst.result.record)}`:''}</span>`
+          : (inst.result && (inst.result.placement || inst.result.record)
+            ? `<span class="badge result">🏆 ${escapeHtml([inst.result.placement, inst.result.record].filter(Boolean).join(' · '))}</span>` : '');
         listHtml += `
         <div class="card ${isPast?'past':''}" data-id="${t.id}" data-date="${date}">
           <div class="date-block">${t.game ? `<div class="game-icon">${gameIcon(t.game)}</div>` : ''}<div class="dow">${dp.dow}</div><div class="dom">${dp.dom}</div></div>
@@ -1432,6 +1439,7 @@
               ${t.game ? `<span class="badge game">${gameIcon(t.game)} ${escapeHtml(t.game)}</span>` : ''}
               ${t.format ? `<span class="badge format">${escapeHtml(t.format)}</span>` : ''}
               ${t.fee ? `<span class="badge fee">${escapeHtml(t.fee)}</span>` : ''}
+              ${t.prizing ? `<span class="badge result">🏆 ${escapeHtml(t.prizing)}</span>` : ''}
               ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
               ${t.storeEventId ? `<span class="badge repeat">🏪 From a store you follow</span>` : (t.readOnly ? `<span class="badge repeat">${tr('sharedWithYou')}</span>` : '')}
               ${t.cancelled ? `<span class="badge fee" style="background:var(--rose);color:#fff;">⚠️ CANCELLED</span>` : ''}
@@ -1442,7 +1450,7 @@
               <button class="rsvp-btn going ${inst.rsvp==='going'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="going">${tr('going')}</button>
               <button class="rsvp-btn maybe ${inst.rsvp==='maybe'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="maybe">${tr('maybe')}</button>
               <button class="rsvp-btn skip ${inst.rsvp==='skip'?'active':''}" data-id="${t.id}" data-date="${date}" data-rsvp="skip">${tr('skip')}</button>
-              <button class="result-btn" data-id="${t.id}" data-date="${date}" data-action="logresult">${inst.result ? tr('editResult') : tr('logResult')}</button>
+              <button class="result-btn" data-id="${t.id}" data-date="${date}" data-action="logresult">${inProg ? '➕ Add round' : (inst.result ? tr('editResult') : tr('logResult'))}</button>
             </div>
             ${inst.result && inst.result.notes ? `<div class="card-notes">Result notes: ${escapeHtml(inst.result.notes)}</div>` : ''}
             ${t.notes ? `<div class="card-notes">${escapeHtml(t.notes.length>140?t.notes.slice(0,140)+'…':t.notes)}</div>` : ''}
@@ -1844,12 +1852,15 @@
     const matchingDecks = decks.filter(d => !t.game || !d.game || d.game === t.game).sort((a,b)=>(b.active?1:0)-(a.active?1:0));
     const currentDeckId = r.deckId || '';
 
+    const isInProgress = occ.result && occ.result.inProgress;
+    const hasAnyResult = !!occ.result;
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `
       <div class="modal" style="max-width:480px;">
-        <h2>Log your result</h2>
+        <h2>${hasAnyResult ? (isInProgress ? 'Update your rounds' : 'Edit your result') : 'Log your result'}</h2>
         <div class="modal-sub">${escapeHtml(t.name)} · ${fmtFriendly(date, t.time)}</div>
+        <div class="hint" style="margin-bottom:14px;">You can log rounds as you go and come back between rounds — nothing has to be filled in all at once.</div>
         <div class="row2">
           <div class="field"><label>Placement</label><input id="r_placement" value="${escapeAttr(r.placement)}" placeholder="e.g. 1st, Top 8"/></div>
           <div class="field"><label>Overall record</label><input id="r_record" value="${escapeAttr(r.record)}" placeholder="e.g. 3-1"/></div>
@@ -1878,8 +1889,12 @@
         <div class="modal-actions">
           ${occ.result ? '<button class="btn-danger" id="clearResult" type="button">Clear result</button>' : ''}
           <button class="btn-secondary" id="cancelResult" type="button">Cancel</button>
-          <button class="btn-primary" id="saveResult" type="button">Save result</button>
         </div>
+        <div class="modal-actions" style="margin-top:8px;">
+          <button class="btn-secondary" id="saveInProgress" type="button" style="flex:1;">💾 Save progress</button>
+          <button class="btn-primary" id="saveResult" type="button" style="flex:1;">✓ Mark finished</button>
+        </div>
+        <div class="hint" style="margin-top:8px;">"Save progress" keeps this event marked in-progress so you can add more rounds later. Anything left in progress is marked finished automatically 6 hours after the event started.</div>
       </div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
@@ -1974,7 +1989,7 @@
         showToast('Result cleared');
       };
     }
-    overlay.querySelector('#saveResult').onclick = async ()=>{
+    async function doSave(markInProgress){
       const placement = overlay.querySelector('#r_placement').value.trim();
       const record = overlay.querySelector('#r_record').value.trim();
       const deckId = deckSelect.value && deckSelect.value !== '__new__' ? deckSelect.value : '';
@@ -1984,12 +1999,18 @@
       const resultObj = { placement, record, notes, matches: cleanMatches };
       if(deckId) resultObj.deckId = deckId;
       else if(r.deck) resultObj.deck = r.deck; // keep old free-text entry if you didn't switch it to a tracked deck
+      if(markInProgress) resultObj.inProgress = true;
       setOcc(t, date, { result: resultObj });
       await saveTournaments();
-      syncResultLogged(t, date, true);
+      // Only tell the "remind me to log results" job to stop nagging once
+      // this is actually finished — an in-progress entry should still get
+      // the reminder if it's left unfinished.
+      syncResultLogged(t, date, !markInProgress);
       overlay.remove(); render();
-      showToast('Result saved');
-    };
+      showToast(markInProgress ? 'Progress saved — add more rounds anytime' : 'Result saved');
+    }
+    overlay.querySelector('#saveInProgress').onclick = ()=>doSave(true);
+    overlay.querySelector('#saveResult').onclick = ()=>doSave(false);
   }
 
   // ---------- Friends modal ----------
@@ -2766,7 +2787,7 @@
       function requestFormHtml(hasExisting){
         return `
           <div class="modal-sub">${hasExisting ? 'Add another store profile.' : "Run a store? Request a store profile — once approved, you can publish events that your followers see automatically."}</div>
-          <div class="field"><label>Store name</label><input id="req_name" placeholder="e.g. Meeple Mountain Games"/></div>
+          <div class="field"><label>Store name</label><input id="req_name" placeholder="e.g. Meeple Mountain Games" autocomplete="off" onkeydown="event.stopPropagation();"/></div>
           <div class="field"><label>City</label><input id="req_city" placeholder="e.g. Austin, TX"/></div>
           <div class="field"><label>Description (optional)</label><textarea id="req_desc" placeholder="A short description of your store"></textarea></div>
           <div class="field"><label>Website / Facebook page (optional)</label><input id="req_contact" placeholder="https://…"/></div>
@@ -2851,6 +2872,10 @@
               <div class="row2">
                 <input id="se_capacity" type="number" min="1" placeholder="Capacity (optional)" value="${pf.capacity||''}"/>
                 <select id="se_repeat">${REPEATS.map(r=>`<option value="${r.v}" ${pf.repeat===r.v?'selected':''}>${escapeHtml(r.l)}</option>`).join('')}</select>
+              </div>
+              <div class="row2">
+                <input id="se_fee" placeholder="Entry cost (optional), e.g. $10" value="${escapeAttr(pf.fee||'')}"/>
+                <input id="se_prizing" placeholder="Prizing (optional)" value="${escapeAttr(pf.prizing||'')}"/>
               </div>
               <button class="mini-btn" id="addStoreEventBtn" style="margin-top:8px;">${prefillEvent ? '+ Publish duplicate' : '+ Add event'}</button>
               ${prefillEvent ? `<button class="mini-btn" id="cancelDuplicateBtn" style="margin-top:8px;margin-left:6px;">Cancel</button>` : ''}
@@ -2943,7 +2968,9 @@
                 game: body.querySelector('#se_game').value.trim(),
                 format: body.querySelector('#se_format').value.trim(),
                 repeat: body.querySelector('#se_repeat').value,
-                capacity: capVal ? parseInt(capVal,10) : null
+                capacity: capVal ? parseInt(capVal,10) : null,
+                fee: body.querySelector('#se_fee').value.trim(),
+                prizing: body.querySelector('#se_prizing').value.trim()
               });
               showToast('Event published — your followers will see it');
               prefillEvent = null;
@@ -3371,6 +3398,9 @@
           <button class="btn-secondary" id="closeAccount" style="flex:1;">${tr('close')}</button>
         </div>
         ${DONATION_URL ? `<div style="text-align:center;margin-top:16px;"><a href="${escapeAttr(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('supportProject')}</a></div>` : ''}
+        <div style="text-align:center;margin-top:12px;">
+          <a href="${baseAppUrl()}privacy.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">Privacy Policy</a>
+        </div>
         <div style="text-align:center;margin-top:10px;color:var(--text-dim);font-size:11px;">Build: ${escapeHtml(APP_VERSION)}</div>
       </div>`;
     document.body.appendChild(overlay);
@@ -3784,6 +3814,48 @@
   // Once merged in, they're ordinary tournament entries: shareable,
   // invitable, calendar-syncable, everything the rest of the app already
   // does for a normal event.
+  // Anything left "in progress" gets automatically marked finished 6 hours
+  // after the event's start time — so a result you started logging mid-event
+  // and forgot about doesn't sit half-open forever (and correctly counts
+  // toward your stats, which ignore nothing but do read cleaner when
+  // entries aren't perpetually pending).
+  async function autoFinishStaleInProgress(){
+    let changed = false;
+    const nowMs = Date.now();
+    function maybeFinish(t, date, occ){
+      if(!occ.result || !occ.result.inProgress) return;
+      // Parse the event's start time as best we can; fall back to 6 PM,
+      // matching the same assumption the server-side reminder jobs make.
+      let hh = 18, mm = 0;
+      const m = (t.time||'').match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+      if(m){
+        hh = parseInt(m[1],10); mm = parseInt(m[2],10);
+        const ampm = (m[3]||'').toLowerCase();
+        if(ampm === 'pm' && hh < 12) hh += 12;
+        if(ampm === 'am' && hh === 12) hh = 0;
+      }
+      const startMs = new Date(`${date}T${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00`).getTime();
+      if(isNaN(startMs)) return;
+      if(nowMs - startMs >= 6*60*60*1000){
+        delete occ.result.inProgress;
+        setOcc(t, date, { result: occ.result });
+        syncResultLogged(t, date, true);
+        changed = true;
+      }
+    }
+    tournaments.forEach(t=>{
+      if(!isRepeating(t)){
+        if(t.result) maybeFinish(t, t.date, { result: t.result });
+      } else {
+        Object.keys(t.occurrences||{}).forEach(date=>{
+          const o = t.occurrences[date];
+          if(o && o.result) maybeFinish(t, date, o);
+        });
+      }
+    });
+    if(changed) await saveTournaments();
+  }
+
   async function syncFollowedStoreEvents(){
     try{
       const { data: follows } = await supabaseClient.from('store_follows').select('store_id, stores(name)').eq('user_id', session.user.id);
@@ -3800,9 +3872,19 @@
       // out events for other games entirely — this is what actually
       // declutters the main feed. Events with no game set are left in,
       // since we can't confidently say they're irrelevant.
+      // Matched via gameIcon()'s normalizer rather than exact string
+      // comparison: stores type the game as free text, so "Pokemon" from a
+      // store wouldn't match "Pokémon TCG" selected here without it.
       const interests = profile.interested_games || [];
       if(interests.length){
-        liveEvents = liveEvents.filter(e => !e.game || interests.includes(e.game));
+        const interestIcons = new Set(interests.map(g=>gameIcon(g)).filter(i=>i && i!=='🎴'));
+        const interestNorms = new Set(interests.map(g=>normalizeGameKey(g)));
+        liveEvents = liveEvents.filter(e=>{
+          if(!e.game) return true;
+          const icon = gameIcon(e.game);
+          if(icon && icon !== '🎴' && interestIcons.has(icon)) return true;
+          return interestNorms.has(normalizeGameKey(e.game));
+        });
       }
       const liveIds = new Set(liveEvents.map(e=>e.id));
       let goingCountById = {};
@@ -3814,7 +3896,10 @@
       }
       let changed = false;
 
-      // Drop local copies for events that were deleted, or whose store you no longer follow.
+      // Drop local copies for events that were deleted, whose store you no
+      // longer follow, or that no longer match your interested-games filter
+      // (this last one is what makes DESELECTING a game actually remove
+      // those events from your feed, rather than leaving stale copies behind).
       const before = tournaments.length;
       tournaments = tournaments.filter(t=>{
         if(!t.storeEventId) return true;
@@ -3837,6 +3922,7 @@
         const fresh = { name: e.name, game: e.game||'', format: e.format||'', date: e.date, time: e.time||'',
           fee: e.fee||'', address: e.address||'', link: e.link||'', storeLink: e.store_link||'',
           notes: e.notes||'', repeat: e.repeat||'none', cancelled: !!e.cancelled, store: storeName,
+          prizing: e.prizing||'',
           capacity: e.capacity||null, isFull: !!(e.capacity && (goingCountById[e.id]||0) >= e.capacity) };
         Object.keys(fresh).forEach(k=>{ if(t[k] !== fresh[k]){ t[k] = fresh[k]; changed = true; } });
       });
@@ -3851,6 +3937,7 @@
     try{
       await Promise.all([loadProfile(), loadTournaments(), loadFriendsData(), loadNotifications()]);
       await syncFollowedStoreEvents();
+      await autoFinishStaleInProgress();
       if(preLoginLangChoice && preLoginLangChoice !== currentLang){
         currentLang = preLoginLangChoice;
         try{ await supabaseClient.from('profiles').update({ language: currentLang }).eq('id', session.user.id); profile.language = currentLang; }catch(e){}
@@ -3941,6 +4028,7 @@
               ${e.game ? `<span class="badge game">${gameIcon(e.game)} ${escapeHtml(e.game)}</span>` : ''}
               ${e.format ? `<span class="badge format">${escapeHtml(e.format)}</span>` : ''}
               ${e.fee ? `<span class="badge fee">${escapeHtml(e.fee)}</span>` : ''}
+              ${e.prizing ? `<span class="badge result">🏆 ${escapeHtml(e.prizing)}</span>` : ''}
             </div>
             <div class="card-links">
               ${e.link ? `<a class="card-link" href="${escapeAttr(e.link)}" target="_blank" rel="noopener">Event page ↗</a>` : ''}
