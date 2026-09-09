@@ -252,7 +252,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.3'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -2935,7 +2935,7 @@
             </div>
           </div>`).join('')}
 
-        <div class="section-label">Group leaderboard</div>
+        <div class="section-label">🏆 Weekly leaderboard</div>
         <div id="pgLeaderboard"><div class="modal-sub">Calculating…</div></div>
 
         <div class="section-label">Shared events</div>
@@ -3026,50 +3026,105 @@
 
       // Leaderboard — computed from each member's own data, respecting their
       // stats-sharing setting (a member who opted out simply won't appear).
+      // Defaults to THIS WEEK so the rankings actually rotate and newer
+      // members get a real shot, rather than one person owning an all-time
+      // board forever. All-time is still available as a toggle.
       (async ()=>{
         const lbEl = body.querySelector('#pgLeaderboard');
         if(!lbEl) return;
-        const rows = [];
+
+        // Fetch each member's data once, then recompute locally when the
+        // period toggle changes — avoids re-hitting the network per switch.
+        const memberData = [];
         for(const m of members){
           try{
             const { data } = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', m.id).maybeSingle();
             if(!data) continue;
-            const s = computeStats(data.tournaments||[], data.decks||[], null, null);
-            rows.push({
+            memberData.push({ m, tournaments: data.tournaments||[], decks: data.decks||[] });
+          }catch(e){ /* member opted out of sharing, or load failed — skip them */ }
+        }
+
+        // Monday-start week, matching how most locals think about "this week".
+        function startOfWeekStr(){
+          const d = new Date();
+          const day = (d.getDay() + 6) % 7; // 0 = Monday
+          d.setDate(d.getDate() - day);
+          return dateToStr(d);
+        }
+        function weekRangeLabel(){
+          const start = new Date(startOfWeekStr()+'T00:00:00');
+          const end = new Date(start); end.setDate(end.getDate()+6);
+          const f = (x)=>x.toLocaleDateString(undefined,{month:'short', day:'numeric'});
+          return `${f(start)} – ${f(end)}`;
+        }
+
+        let period = 'week'; // 'week' | 'all'
+
+        function drawBoard(){
+          const since = period === 'week' ? startOfWeekStr() : null;
+          const rows = memberData.map(({m, tournaments:tt, decks:dd})=>{
+            const s = computeStats(tt, dd, null, since);
+            return {
               name: (m.display_name || m.username || 'Player') + (m.id===session.user.id?' (you)':''),
               winRate: s.winRate, wins: s.totalWins, losses: s.totalLosses,
               attended: s.attended, results: s.resultsLogged
-            });
-          }catch(e){ /* member opted out of sharing, or load failed — skip them */ }
-        }
-        if(rows.length === 0){
-          lbEl.innerHTML = `<div class="modal-sub">No shared stats yet — members can enable this in Account → Privacy.</div>`;
-          return;
-        }
-        const byWinRate = rows.filter(r=>r.winRate!=null).sort((a,b)=>b.winRate-a.winRate);
-        const byWins = rows.slice().sort((a,b)=>b.wins-a.wins);
-        const byEvents = rows.slice().sort((a,b)=>b.attended-a.attended);
-        const groupWins = rows.reduce((n,r)=>n+r.wins,0);
-        const groupLosses = rows.reduce((n,r)=>n+r.losses,0);
-        const groupEvents = rows.reduce((n,r)=>n+r.attended,0);
-        const groupRate = (groupWins+groupLosses)>0 ? Math.round((groupWins/(groupWins+groupLosses))*100) : null;
+            };
+          });
 
-        lbEl.innerHTML = `
-          <div class="stat-grid" style="margin-bottom:12px;">
-            <div class="stat-card"><div class="val">${groupEvents}</div><div class="lbl">Events (group total)</div></div>
-            <div class="stat-card"><div class="val">${groupRate!=null?groupRate+'%':'—'}</div><div class="lbl">Group win rate</div></div>
-            <div class="stat-card"><div class="val">${groupWins}-${groupLosses}</div><div class="lbl">Group record</div></div>
-            <div class="stat-card"><div class="val">${rows.length}</div><div class="lbl">Sharing stats</div></div>
-          </div>
-          ${byWinRate.length?`<div class="result-row"><div><div class="n">🏆 Best win rate</div><div class="m">${escapeHtml(byWinRate[0].name)}</div></div><div class="p">${byWinRate[0].winRate}%</div></div>`:''}
-          ${byWins.length?`<div class="result-row"><div><div class="n">⚔️ Most wins</div><div class="m">${escapeHtml(byWins[0].name)}</div></div><div class="p">${byWins[0].wins}</div></div>`:''}
-          ${byEvents.length?`<div class="result-row"><div><div class="n">📅 Most events</div><div class="m">${escapeHtml(byEvents[0].name)}</div></div><div class="p">${byEvents[0].attended}</div></div>`:''}
-          <div class="section-label">All members</div>
-          ${rows.sort((a,b)=>(b.winRate||0)-(a.winRate||0)).map(r=>`
-            <div class="result-row"><div><div class="n">${escapeHtml(r.name)}</div>
-              <div class="m">${r.wins}-${r.losses} · ${r.attended} event${r.attended===1?'':'s'}</div></div>
-              <div class="p">${r.winRate!=null?r.winRate+'%':'—'}</div></div>`).join('')}
-        `;
+          const periodToggle = `
+            <div class="chip-row" style="margin-bottom:10px;">
+              <button class="chip ${period==='week'?'active':''}" data-lb-period="week">This week</button>
+              <button class="chip ${period==='all'?'active':''}" data-lb-period="all">All time</button>
+            </div>`;
+
+          if(rows.length === 0){
+            lbEl.innerHTML = periodToggle + `<div class="modal-sub">No shared stats yet — members can enable this in Account → Privacy.</div>`;
+            wireToggle();
+            return;
+          }
+
+          // Only rank people who actually did something this period — an
+          // empty week shouldn't put someone on the podium with 0 games.
+          const active = rows.filter(r=>r.wins+r.losses > 0 || r.attended > 0);
+          const byWinRate = active.filter(r=>r.winRate!=null && (r.wins+r.losses)>0).sort((a,b)=>b.winRate-a.winRate || b.wins-a.wins);
+          const byWins = active.slice().sort((a,b)=>b.wins-a.wins);
+          const byEvents = active.slice().sort((a,b)=>b.attended-a.attended);
+          const groupWins = rows.reduce((n,r)=>n+r.wins,0);
+          const groupLosses = rows.reduce((n,r)=>n+r.losses,0);
+          const groupEvents = rows.reduce((n,r)=>n+r.attended,0);
+          const groupRate = (groupWins+groupLosses)>0 ? Math.round((groupWins/(groupWins+groupLosses))*100) : null;
+
+          lbEl.innerHTML = `
+            ${periodToggle}
+            <div class="modal-sub" style="margin-bottom:10px;">${period==='week' ? `📅 ${weekRangeLabel()} · resets every Monday` : 'All-time totals'}</div>
+            ${active.length === 0 ? `<div class="modal-sub">Nobody has logged anything yet this week — first result takes the top spot. 👀</div>` : `
+              <div class="stat-grid" style="margin-bottom:12px;">
+                <div class="stat-card"><div class="val">${groupEvents}</div><div class="lbl">Events (group)</div></div>
+                <div class="stat-card"><div class="val">${groupRate!=null?groupRate+'%':'—'}</div><div class="lbl">Group win rate</div></div>
+                <div class="stat-card"><div class="val">${groupWins}-${groupLosses}</div><div class="lbl">Group record</div></div>
+                <div class="stat-card"><div class="val">${active.length}</div><div class="lbl">Active ${period==='week'?'this week':'members'}</div></div>
+              </div>
+              ${byWinRate.length?`<div class="result-row"><div><div class="n">🏆 Best win rate</div><div class="m">${escapeHtml(byWinRate[0].name)}</div></div><div class="p">${byWinRate[0].winRate}%</div></div>`:''}
+              ${byWins.length && byWins[0].wins>0?`<div class="result-row"><div><div class="n">⚔️ Most wins</div><div class="m">${escapeHtml(byWins[0].name)}</div></div><div class="p">${byWins[0].wins}</div></div>`:''}
+              ${byEvents.length && byEvents[0].attended>0?`<div class="result-row"><div><div class="n">📅 Most events</div><div class="m">${escapeHtml(byEvents[0].name)}</div></div><div class="p">${byEvents[0].attended}</div></div>`:''}
+              <div class="section-label">${period==='week'?'This week':'All members'}</div>
+              ${active.sort((a,b)=>(b.winRate||0)-(a.winRate||0) || b.wins-a.wins).map(r=>`
+                <div class="result-row"><div><div class="n">${escapeHtml(r.name)}</div>
+                  <div class="m">${r.wins}-${r.losses} · ${r.attended} event${r.attended===1?'':'s'}</div></div>
+                  <div class="p">${r.winRate!=null?r.winRate+'%':'—'}</div></div>`).join('')}
+              ${rows.length > active.length ? `<div class="modal-sub" style="margin-top:8px;">${rows.length-active.length} member${rows.length-active.length===1?'':'s'} with nothing logged ${period==='week'?'this week':'yet'}.</div>` : ''}
+            `}
+          `;
+          wireToggle();
+        }
+
+        function wireToggle(){
+          lbEl.querySelectorAll('[data-lb-period]').forEach(btn=>{
+            btn.onclick = ()=>{ period = btn.dataset.lbPeriod; drawBoard(); };
+          });
+        }
+
+        drawBoard();
       })();
     }
 
