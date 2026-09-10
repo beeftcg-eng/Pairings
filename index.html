@@ -252,7 +252,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.3'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.4'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -422,6 +422,58 @@
   };
   function tr(key){
     return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS.en[key] || key;
+  }
+
+  // Player IDs shown on the Player Card. Free-form storage (JSONB) so
+  // adding a game later doesn't need a migration.
+  const PLAYER_ID_FIELDS = [
+    { key: 'bandai',   label: 'Bandai TCG+ ID',        hint: 'One Piece, Digimon, Dragon Ball' },
+    { key: 'konami',   label: 'Konami ID (KCID)',      hint: 'Yu-Gi-Oh!' },
+    { key: 'pokemon',  label: 'Pokémon Trainer ID',    hint: 'Pokémon TCG' },
+    { key: 'wizards',  label: 'Wizards Account / DCI', hint: 'Magic: The Gathering' },
+    { key: 'riftbound',label: 'Riftbound ID',          hint: 'Riftbound' },
+    { key: 'melee',    label: 'Melee.gg username',     hint: 'Used by many events' },
+    { key: 'other',    label: 'Other',                 hint: 'Anything else you get asked for' }
+  ];
+  let playerIds = {};
+
+  async function loadPlayerIds(){
+    try{
+      const { data } = await supabaseClient.from('player_ids').select('ids').eq('user_id', session.user.id).maybeSingle();
+      playerIds = (data && data.ids) || {};
+    }catch(e){ /* table may not exist yet if the migration hasn't run */ }
+  }
+  async function savePlayerIds(next){
+    try{
+      await supabaseClient.from('player_ids').upsert(
+        { user_id: session.user.id, ids: next, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+      playerIds = next;
+      return true;
+    }catch(e){ showToast('Could not save your IDs'); return false; }
+  }
+
+  // Shared avatar upload. `folder` is the first path segment, which the
+  // storage policies use to decide who's allowed to write.
+  async function uploadAvatar(file, folder){
+    if(!file) return null;
+    if(file.size > 2*1024*1024){ showToast('Image must be under 2MB'); return null; }
+    if(!/^image\/(jpeg|png|webp|gif)$/.test(file.type)){ showToast('Use a JPG, PNG, WEBP or GIF'); return null; }
+    try{
+      const ext = (file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
+      const path = `${folder}/${Date.now()}.${ext}`;
+      const { error } = await supabaseClient.storage.from('avatars').upload(path, file, { upsert:true, contentType:file.type });
+      if(error) throw error;
+      const { data } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+      return data.publicUrl;
+    }catch(e){ console.error(e); showToast('Could not upload image'); return null; }
+  }
+  function avatarImg(url, size, fallbackText){
+    const s = size || 40;
+    if(url) return `<img src="${escapeAttr(url)}" alt="" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;flex:none;background:var(--panel-2);"/>`;
+    const initial = (fallbackText||'?').trim().charAt(0).toUpperCase();
+    return `<div style="width:${s}px;height:${s}px;border-radius:50%;background:var(--panel-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex:none;font-weight:700;color:var(--text-dim);font-size:${Math.round(s*0.42)}px;">${escapeHtml(initial)}</div>`;
   }
 
   const NOTIF_PREF_KEYS = [
@@ -1620,6 +1672,7 @@
           <button class="btn icon-pill" id="openStats">${tr('stats')}</button>
           <button class="btn icon-pill" id="openStores">🏪 Stores</button>
           <button class="btn icon-pill" id="openPlaygroups">👥 Playgroups</button>
+          <button class="btn icon-pill" id="openPlayerCard">🪪 Player Card</button>
           ${profile && profile.is_admin ? `<button class="btn icon-pill" id="openAdmin">🛠 Admin</button>` : ''}
           <button class="btn icon-pill" id="openAccount">${tr('account')}</button>
           <button class="btn icon-pill" id="openShare">${tr('share')}</button>
@@ -1659,6 +1712,7 @@
     document.getElementById('openStats').onclick = ()=>openStatsModal();
     document.getElementById('openStores').onclick = ()=>openStoresModal();
     document.getElementById('openPlaygroups').onclick = ()=>openPlaygroupsModal();
+    document.getElementById('openPlayerCard').onclick = ()=>openPlayerCardModal();
     const adminBtn = document.getElementById('openAdmin'); if(adminBtn) adminBtn.onclick = ()=>openAdminModal();
     document.getElementById('openAccount').onclick = ()=>openAccountModal();
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
@@ -3625,6 +3679,11 @@
             </div>
           </div>`).join('') : `<div class="modal-sub">Nothing pending.</div>`}
 
+        <div class="section-label">🖼 Image moderation</div>
+        <div class="modal-sub" style="margin-bottom:8px;">Every image currently in use across profiles, stores and playgroups.</div>
+        <button class="mini-btn" id="loadImagesBtn" style="margin-bottom:10px;">Load all images</button>
+        <div id="adminImages"></div>
+
         <div class="section-label">Post an announcement</div>
         <div class="field"><label>Title</label><input id="ann_title" placeholder="e.g. New features!"/></div>
         <div class="field"><label>Message</label><textarea id="ann_message" placeholder="What's new…"></textarea></div>
@@ -3654,6 +3713,35 @@
           catch(e){ showToast('Could not reject'); }
         };
       });
+      body.querySelector('#loadImagesBtn').onclick = async ()=>{
+        const el = body.querySelector('#adminImages');
+        el.innerHTML = `<div class="modal-sub">Loading…</div>`;
+        try{
+          const { data, error } = await supabaseClient.rpc('admin_list_images');
+          if(error) throw error;
+          if(!data || data.length === 0){ el.innerHTML = `<div class="modal-sub">No images uploaded yet.</div>`; return; }
+          el.innerHTML = data.map((img,i)=>`
+            <div class="list-item">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <img src="${escapeAttr(img.image_url)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--panel-2);"/>
+                <div class="info"><div class="n">${escapeHtml(img.label||'—')}</div><div class="m">${escapeHtml(img.context)}</div></div>
+              </div>
+              <button class="mini-btn decline" data-clear-img="${i}">Remove</button>
+            </div>`).join('');
+          el.querySelectorAll('[data-clear-img]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              const img = data[parseInt(btn.dataset.clearImg,10)];
+              if(!confirm(`Remove this image from "${img.label}"? This clears it from their profile immediately.`)) return;
+              try{
+                const { error } = await supabaseClient.rpc('admin_clear_image', { p_context: img.context, p_subject_id: img.subject_id });
+                if(error) throw error;
+                showToast('Image removed');
+                body.querySelector('#loadImagesBtn').click();
+              }catch(e){ showToast('Could not remove image'); }
+            };
+          });
+        }catch(e){ el.innerHTML = `<div class="modal-sub">Could not load images — check that the avatars migration has been run.</div>`; }
+      };
       body.querySelector('#postAnnBtn').onclick = async ()=>{
         const title = body.querySelector('#ann_title').value.trim();
         const message = body.querySelector('#ann_message').value.trim();
@@ -3850,12 +3938,96 @@
   }
 
   // ---------- Account modal ----------
+  // Player Card — your IDs in one place, big enough to read out or show a
+  // clerk at registration, with one-tap copy for each.
+  function openPlayerCardModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    let editing = false;
+
+    function draw(){
+      const filled = PLAYER_ID_FIELDS.filter(f=>(playerIds[f.key]||'').trim());
+      overlay.innerHTML = `
+        <div class="modal" style="max-width:460px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+            ${avatarImg(profile.avatar_url, 48, profile.display_name || profile.username || profile.email)}
+            <div>
+              <h2 style="margin:0;">${escapeHtml(profile.display_name || profile.username || 'Player')}</h2>
+              ${profile.username ? `<div class="modal-sub" style="margin:0;">@${escapeHtml(profile.username)}</div>` : ''}
+            </div>
+          </div>
+
+          ${editing ? `
+            <div class="modal-sub">Fill in whichever IDs you actually use — blanks are hidden on your card.</div>
+            ${PLAYER_ID_FIELDS.map(f=>`
+              <div class="field">
+                <label>${escapeHtml(f.label)}</label>
+                <input data-pid="${f.key}" value="${escapeAttr(playerIds[f.key]||'')}" placeholder="${escapeAttr(f.hint)}"/>
+              </div>`).join('')}
+            <div class="modal-actions">
+              <button class="btn-secondary" id="pcCancel" style="flex:1;">Cancel</button>
+              <button class="btn-primary" id="pcSave" style="flex:1;">Save</button>
+            </div>
+          ` : `
+            ${filled.length ? filled.map(f=>`
+              <div class="list-item">
+                <div class="info">
+                  <div class="m">${escapeHtml(f.label)}</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;letter-spacing:1px;word-break:break-all;">${escapeHtml(playerIds[f.key])}</div>
+                </div>
+                <button class="mini-btn" data-copy-pid="${f.key}">Copy</button>
+              </div>`).join('') : `
+              <div class="empty-state">
+                <div class="big">No IDs saved yet</div>
+                <div>Add your Bandai, Konami, Pokémon and other player IDs so they're ready when a store asks at registration.</div>
+              </div>`}
+            <div class="modal-actions">
+              <button class="btn-secondary" id="pcEdit" style="flex:1;">${filled.length ? '✎ Edit IDs' : '+ Add your IDs'}</button>
+            </div>
+          `}
+        </div>`;
+
+      if(editing){
+        overlay.querySelector('#pcCancel').onclick = ()=>{ editing = false; draw(); };
+        overlay.querySelector('#pcSave').onclick = async ()=>{
+          const next = {};
+          overlay.querySelectorAll('[data-pid]').forEach(inp=>{
+            const v = inp.value.trim();
+            if(v) next[inp.dataset.pid] = v;
+          });
+          const ok = await savePlayerIds(next);
+          if(ok){ editing = false; draw(); showToast('Player card saved'); }
+        };
+      } else {
+        const editBtn = overlay.querySelector('#pcEdit');
+        if(editBtn) editBtn.onclick = ()=>{ editing = true; draw(); };
+        overlay.querySelectorAll('[data-copy-pid]').forEach(btn=>{
+          btn.onclick = ()=>{
+            const ok = copyText(playerIds[btn.dataset.copyPid]||'');
+            showToast(ok?'Copied':'Could not copy');
+          };
+        });
+      }
+    }
+
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    draw();
+  }
+
   function openAccountModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `
       <div class="modal" style="position:relative;">
         <h2>${tr('account')}</h2>
+        <div style="display:flex;align-items:center;gap:12px;margin:10px 0 14px;">
+          ${avatarImg(profile.avatar_url, 56, profile.display_name || profile.username || profile.email)}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="mini-btn" id="uploadAvatarBtn">📷 ${profile.avatar_url ? 'Change photo' : 'Add photo'}</button>
+            ${profile.avatar_url ? `<button class="mini-btn decline" id="removeAvatarBtn">Remove</button>` : ''}
+          </div>
+        </div>
         <div class="modal-sub">${escapeHtml(profile.email)}</div>
         <div class="field">
           <label>${tr('language')}</label>
@@ -3932,6 +4104,33 @@
     overlay.querySelector('#openInstallGuide').onclick = ()=>{ overlay.remove(); openInstallGuideModal(); };
     overlay.querySelector('#exportDataBtn').onclick = exportMyData;
     overlay.querySelector('#importDataBtn').onclick = importMyData;
+    overlay.querySelector('#uploadAvatarBtn').onclick = ()=>{
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      input.onchange = async ()=>{
+        const file = input.files && input.files[0];
+        if(!file) return;
+        showToast('Uploading…');
+        const url = await uploadAvatar(file, session.user.id);
+        if(!url) return;
+        try{
+          await supabaseClient.from('profiles').update({ avatar_url: url }).eq('id', session.user.id);
+          profile.avatar_url = url;
+          showToast('Photo updated');
+          overlay.remove(); openAccountModal();
+        }catch(e){ showToast('Could not save photo'); }
+      };
+      input.click();
+    };
+    const removeAvatarBtn = overlay.querySelector('#removeAvatarBtn');
+    if(removeAvatarBtn) removeAvatarBtn.onclick = async ()=>{
+      try{
+        await supabaseClient.from('profiles').update({ avatar_url: null }).eq('id', session.user.id);
+        profile.avatar_url = null;
+        showToast('Photo removed');
+        overlay.remove(); openAccountModal();
+      }catch(e){ showToast('Could not remove photo'); }
+    };
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#langEn').onclick = ()=>setLanguage('en', overlay);
     overlay.querySelector('#langEs').onclick = ()=>setLanguage('es', overlay);
@@ -4465,7 +4664,7 @@
     if(bootstrapping) return; // Supabase's auth listener can fire twice for one login — ignore the repeat
     bootstrapping = true;
     try{
-      await Promise.all([loadProfile(), loadTournaments(), loadFriendsData(), loadNotifications()]);
+      await Promise.all([loadProfile(), loadTournaments(), loadFriendsData(), loadNotifications(), loadPlayerIds()]);
       await syncFollowedStoreEvents();
       await autoFinishStaleInProgress();
       if(preLoginLangChoice && preLoginLangChoice !== currentLang){
