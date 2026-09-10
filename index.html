@@ -252,7 +252,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.4'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.4.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -578,6 +578,7 @@
   let pushEnabled = false;
 
   let pendingShareCode = null;
+  let pendingPlaygroupCode = null;
   (function captureShareParam(){
     const params = new URLSearchParams(window.location.search);
     const code = params.get('share');
@@ -586,6 +587,13 @@
       const url = new URL(window.location.href);
       url.searchParams.delete('share');
       window.history.replaceState({}, '', url.toString());
+    }
+    const pg = params.get('joinpg');
+    if(pg){
+      pendingPlaygroupCode = pg.toUpperCase();
+      const url2 = new URL(window.location.href);
+      url2.searchParams.delete('joinpg');
+      window.history.replaceState({}, '', url2.toString());
     }
   })();
 
@@ -2876,6 +2884,94 @@
     return s;
   }
 
+  // Shared by the "join with a code" box and the ?joinpg= invite link, so
+  // both paths behave identically (including the already-a-member case).
+  async function joinPlaygroupByCode(code, onDone){
+    try{
+      const { data: found, error } = await supabaseClient.rpc('find_playgroup_by_code', { code });
+      if(error) throw error;
+      const g = (found||[])[0];
+      if(!g){ showToast('No playgroup found with that code'); return false; }
+
+      const { data: existing } = await supabaseClient.from('playgroup_members')
+        .select('id').eq('playgroup_id', g.id).eq('user_id', session.user.id).maybeSingle();
+      if(existing){ showToast(`You're already in ${g.name}`); if(onDone) onDone(); return true; }
+
+      const { error: joinErr } = await supabaseClient.from('playgroup_members')
+        .insert({ playgroup_id: g.id, user_id: session.user.id });
+      if(joinErr) throw joinErr;
+      showToast('Joined ' + g.name + '! 🎉');
+      if(onDone) onDone();
+      return true;
+    }catch(e){ showToast('Could not join that playgroup'); return false; }
+  }
+
+  // Invite existing friends straight into a playgroup. Adds them as members
+  // directly (no accept step) — same trust model as the join link, since
+  // anyone with the link can join anyway. Members already in the group are
+  // shown as such rather than hidden, so it's clear who's covered.
+  function openInviteFriendsToPlaygroupModal(group, currentMemberIds, onDone){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const candidates = friendsAccepted.slice();
+
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>✉ Invite friends</h2>
+        <div class="modal-sub">to ${escapeHtml(group.name)}</div>
+        ${candidates.length ? candidates.map(p=>{
+          const already = currentMemberIds.includes(p.userId);
+          return `
+            <div class="list-item">
+              <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div>
+                ${already?`<div class="m">Already a member</div>`:''}</div>
+              ${already ? `<span class="mini-btn" style="opacity:.5;cursor:default;">In group ✓</span>`
+                        : `<button class="mini-btn" data-invite-friend="${p.userId}">Add</button>`}
+            </div>`;
+        }).join('') : `<div class="modal-sub">You don't have any friends added yet — add some from the Friends screen first, or share the invite link instead.</div>`}
+        <div class="modal-actions"><button class="btn-secondary" id="closeInviteFriends" style="flex:1;">${tr('close')}</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeInviteFriends').onclick = ()=>{ overlay.remove(); if(onDone) onDone(); };
+
+    overlay.querySelectorAll('[data-invite-friend]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        btn.disabled = true;
+        try{
+          const { error } = await supabaseClient.from('playgroup_members')
+            .insert({ playgroup_id: group.id, user_id: btn.dataset.inviteFriend });
+          if(error) throw error;
+          btn.textContent = 'Added ✓';
+          showToast('Added to the playgroup');
+        }catch(e){
+          btn.disabled = false;
+          showToast('Could not add — they may already be a member');
+        }
+      };
+    });
+  }
+
+  // Full-size image viewer, used by the admin moderation list so images can
+  // actually be judged rather than squinted at as thumbnails.
+  function openImageLightbox(url, label){
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;';
+    overlay.innerHTML = `
+      <img src="${escapeAttr(url)}" alt="" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;"/>
+      ${label ? `<div style="color:#fff;font-size:14px;margin-top:14px;text-align:center;">${escapeHtml(label)}</div>` : ''}
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <a href="${escapeAttr(url)}" target="_blank" rel="noopener" style="color:#9db4ff;font-size:13px;">Open original ↗</a>
+        <span style="color:#888;font-size:13px;">Tap anywhere to close</span>
+      </div>`;
+    overlay.onclick = (e)=>{
+      // Let the "open original" link work without closing first.
+      if(e.target.tagName === 'A') return;
+      overlay.remove();
+    };
+    document.body.appendChild(overlay);
+  }
+
   async function openPlaygroupsModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -2940,15 +3036,7 @@
       body.querySelector('#pgJoinBtn').onclick = async ()=>{
         const code = body.querySelector('#pgJoinCode').value.trim().toUpperCase();
         if(!code){ showToast('Enter a code'); return; }
-        try{
-          const { data: found, error } = await supabaseClient.rpc('find_playgroup_by_code', { code });
-          if(error) throw error;
-          const g = (found||[])[0];
-          if(!g){ showToast('No playgroup found with that code'); return; }
-          await supabaseClient.from('playgroup_members').insert({ playgroup_id: g.id, user_id: session.user.id });
-          showToast('Joined ' + g.name);
-          drawList();
-        }catch(e){ showToast('Could not join — you may already be a member'); }
+        await joinPlaygroupByCode(code, drawList);
       };
     }
 
@@ -2975,8 +3063,13 @@
         <button class="mini-btn" id="pgBack" style="margin-bottom:10px;">← All playgroups</button>
         <div class="modal-sub"><strong>${escapeHtml(group.name)}</strong>${group.description?' — '+escapeHtml(group.description):''}
           ${isOwner?`<button class="mini-btn" id="pgEdit" style="margin-left:8px;">✎ Edit</button>`:''}</div>
-        <div class="modal-sub" style="margin-bottom:12px;">Join code: <strong>${escapeHtml(group.join_code||'—')}</strong>
-          <button class="mini-btn" id="pgCopyCode" style="margin-left:8px;">Copy</button></div>
+        <div class="modal-sub" style="margin-bottom:8px;">Join code: <strong>${escapeHtml(group.join_code||'—')}</strong>
+          <button class="mini-btn" id="pgCopyCode" style="margin-left:8px;">Copy code</button></div>
+        <div class="share-link" style="margin-bottom:8px;">${baseAppUrl()}?joinpg=${escapeHtml(group.join_code||'')}</div>
+        <div class="btn-row" style="margin-bottom:14px;">
+          <button class="mini-btn" id="pgCopyLink">🔗 Copy invite link</button>
+          <button class="mini-btn" id="pgInviteFriends">✉ Invite friends</button>
+        </div>
 
         <div class="section-label">Members (${members.length})</div>
         ${members.map(m=>`
@@ -3030,6 +3123,14 @@
       body.querySelector('#pgCopyCode').onclick = ()=>{
         const ok = copyText(group.join_code||'');
         showToast(ok?'Code copied':'Could not copy');
+      };
+      body.querySelector('#pgCopyLink').onclick = ()=>{
+        const ok = copyText(`${baseAppUrl()}?joinpg=${group.join_code||''}`);
+        showToast(ok?'Invite link copied — anyone who opens it joins instantly':'Could not copy');
+      };
+      body.querySelector('#pgInviteFriends').onclick = ()=>{
+        const currentMemberIds = members.map(m=>m.id);
+        openInviteFriendsToPlaygroupModal(group, currentMemberIds, ()=>drawGroup(group));
       };
       body.querySelectorAll('[data-pg-stats]').forEach(btn=>{
         btn.onclick = ()=>openFriendStatsModal(btn.dataset.pgStats, btn.dataset.pgName);
@@ -3723,11 +3824,14 @@
           el.innerHTML = data.map((img,i)=>`
             <div class="list-item">
               <div style="display:flex;align-items:center;gap:10px;">
-                <img src="${escapeAttr(img.image_url)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--panel-2);"/>
+                <img src="${escapeAttr(img.image_url)}" alt="" data-zoom-img="${escapeAttr(img.image_url)}" data-zoom-label="${escapeAttr(img.label||'')}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--panel-2);cursor:zoom-in;" title="Click to enlarge"/>
                 <div class="info"><div class="n">${escapeHtml(img.label||'—')}</div><div class="m">${escapeHtml(img.context)}</div></div>
               </div>
               <button class="mini-btn decline" data-clear-img="${i}">Remove</button>
             </div>`).join('');
+          el.querySelectorAll('[data-zoom-img]').forEach(im=>{
+            im.onclick = ()=>openImageLightbox(im.dataset.zoomImg, im.dataset.zoomLabel);
+          });
           el.querySelectorAll('[data-clear-img]').forEach(btn=>{
             btn.onclick = async ()=>{
               const img = data[parseInt(btn.dataset.clearImg,10)];
@@ -4676,7 +4780,11 @@
       subscribeRealtime();
       render();
       ensureTimezoneSaved();
-      if(pendingShareCode){
+      if(pendingPlaygroupCode){
+        const pgCode = pendingPlaygroupCode;
+        pendingPlaygroupCode = null;
+        joinPlaygroupByCode(pgCode);
+      } else if(pendingShareCode){
         const code = pendingShareCode;
         pendingShareCode = null;
         openSharedEventModal(code);
