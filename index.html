@@ -257,7 +257,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.6.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.6.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -2711,73 +2711,88 @@
     en: [
       {
         title: 'Welcome to Pairings 👋',
-        body: "Track your local TCG tournaments, share them with friends, and keep tabs on your decks and results. Here's a quick tour of what's here — takes about 30 seconds."
+        body: "Track your local TCG tournaments, share them with friends, and keep tabs on your decks and results. Here's a quick tour — about 30 seconds."
+      },
+      {
+        title: 'Finding your way around',
+        body: 'The top bar keeps the things you use daily: 🔔 notifications, 👥 Playgroups, 🪪 Player Card, and "+ Add". Everything else — Stats, Friends, Stores, sharing, settings — lives behind the ☰ menu button.'
       },
       {
         title: 'Add your first event',
-        body: 'Tap "+ Add" to enter one by hand, or paste text or a link from a store\'s page — Pairings will try to fill in the date, store, and format automatically. There\'s also a "Store\'s page" field, handy for checking if an event got cancelled or postponed.'
+        body: 'Tap "+ Add" to enter one by hand, or paste text or a link from a store\'s page and Pairings will try to fill in the date, store and format for you. You can also mark something as a casual or online testing session rather than a tournament.'
       },
       {
-        title: 'Set a username',
-        body: 'Open Account and set a username — that\'s how friends find and add you, instead of needing your email. Your home city goes there too, so you get notified when a friend is playing something near you.'
+        title: 'Your Player Card 🪪',
+        body: "Tap Player Card to save your Bandai, Konami, Pokémon, Wizards and other player IDs in one place. They show in big, readable type with one-tap copy — so when a store asks at registration, you're not digging through emails. Only you can see them."
       },
       {
-        title: 'Add friends',
-        body: 'Tap Friends to send a request by username or email. Once connected, you\'ll be notified if a friend is also going to something you\'re attending, or you can send them a direct invite to a specific event from that event\'s card.'
+        title: 'Playgroups 👥',
+        body: "Create a playgroup for your circle, then share the join code or invite link. You'll get notified when a groupmate is heading to an event, you can share events with the group, and there's a weekly leaderboard that resets every Monday — so nobody owns the top spot forever."
       },
       {
-        title: 'Log results & track decks',
-        body: 'After an event, tap "Log result" on its card to record your placement and round-by-round matches. Manage your decks from Stats → "Manage your decks" — Riftbound players can even import a deck straight from Piltover Archive.'
+        title: 'Set a username and city',
+        body: 'Open ☰ → Account and set a username so friends can add you without your email. Your home city matters too: it powers "near you" notifications and the Pokémon event finder.'
+      },
+      {
+        title: 'Find events automatically',
+        body: '☰ → Pokémon near you shows official League Challenges, Cups and Pre-releases around you, with one-tap add to your calendar. ☰ → Stores lets you follow local shops so their events appear in your feed by themselves.'
+      },
+      {
+        title: 'Log results as you play',
+        body: 'Tap "Log result" on any event to record placement and round-by-round matches. You can save progress mid-tournament and add rounds between games — anything left unfinished is closed out automatically 6 hours after the event started.'
       },
       {
         title: 'Dig into your stats',
-        body: 'Stats breaks down by game with a tap, shows what you beat and lose to most, and filters by week/month/3 months. You can also check any friend\'s stats the same way, right from the Friends list — unless they\'ve turned that off in Account → Privacy.'
-      },
-      {
-        title: 'Calendar sync & notifications',
-        body: 'Every event has an "Add to Google Calendar" or Apple/Outlook (.ics) link. Turn on push notifications from the 🔔 bell so you get alerts even when the app is closed — including a heads-up 2 hours before something you\'re going to starts. You can turn off any specific type from Account.'
+        body: '☰ → Stats breaks down by game, shows what you beat and lose to most, and filters by week, month or 3 months. You can check a friend\'s stats too — or turn yours off in Account → Privacy.'
       },
       {
         title: "You're all set 🎉",
-        body: 'One more thing worth knowing: Account has a language switcher (English/Español), a button to export all your data, and privacy/notification settings. You can revisit this tour anytime from Account → "How this works".'
+        body: 'Under ☰ you\'ll also find calendar sync, data export and import, notification settings, a language switcher, and how to install the app. Revisit this tour anytime from ☰ → Account → "How this works".'
       }
     ],
     es: [
       {
         title: '¡Bienvenido a Pairings! 👋',
-        body: 'Organiza tus torneos locales de TCG, compártelos con amigos, y lleva el control de tus mazos y resultados. Aquí va un recorrido rápido — toma unos 30 segundos.'
+        body: 'Organiza tus torneos locales de TCG, compártelos con amigos, y lleva el control de tus mazos y resultados. Aquí va un recorrido rápido — unos 30 segundos.'
+      },
+      {
+        title: 'Cómo navegar',
+        body: 'La barra superior tiene lo que usas a diario: 🔔 notificaciones, 👥 Grupos, 🪪 Mi Tarjeta, y "+ Agregar". Todo lo demás — Estadísticas, Amigos, Tiendas, compartir, ajustes — está en el menú ☰.'
       },
       {
         title: 'Agrega tu primer evento',
-        body: 'Toca "+ Agregar" para ingresarlo a mano, o pega texto o un enlace de la página de una tienda — Pairings intentará completar la fecha, tienda y formato automáticamente. También hay un campo de "Página de la tienda", útil para revisar si cancelaron o pospusieron un evento.'
+        body: 'Toca "+ Agregar" para ingresarlo a mano, o pega texto o un enlace de la página de una tienda y Pairings intentará completar la fecha, tienda y formato por ti. También puedes marcarlo como sesión casual o de testing en línea en vez de torneo.'
       },
       {
-        title: 'Configura un nombre de usuario',
-        body: 'Abre Cuenta y elige un nombre de usuario — así es como tus amigos te encuentran y agregan, sin necesitar tu correo. Tu ciudad también va ahí, para que te avisen cuando un amigo esté jugando algo cerca de ti.'
+        title: 'Tu Tarjeta de Jugador 🪪',
+        body: 'Toca Mi Tarjeta para guardar tus IDs de Bandai, Konami, Pokémon, Wizards y otros en un solo lugar. Se muestran en letra grande con botón de copiar — así cuando la tienda te los pida al registrarte, no andas buscando entre correos. Solo tú puedes verlos.'
       },
       {
-        title: 'Agrega amigos',
-        body: 'Toca Amigos para enviar una solicitud por nombre de usuario o correo. Una vez conectados, te avisarán si un amigo también va a algo a lo que asistes, o puedes invitarlo directamente a un evento específico desde la tarjeta de ese evento.'
+        title: 'Grupos 👥',
+        body: 'Crea un grupo para tu círculo y comparte el código o el enlace de invitación. Te avisarán cuando alguien del grupo vaya a un evento, puedes compartir eventos con ellos, y hay una tabla semanal que se reinicia cada lunes — para que nadie se quede con el trono para siempre.'
       },
       {
-        title: 'Registra resultados y mazos',
-        body: 'Después de un evento, toca "Registrar resultado" en su tarjeta para anotar tu posición y los resultados ronda por ronda. Administra tus mazos desde Estadísticas → "Administrar tus mazos" — los jugadores de Riftbound pueden incluso importar un mazo directamente desde Piltover Archive.'
+        title: 'Configura usuario y ciudad',
+        body: 'Abre ☰ → Cuenta y elige un nombre de usuario para que tus amigos te agreguen sin tu correo. Tu ciudad también importa: activa las notificaciones de "cerca de ti" y el buscador de eventos de Pokémon.'
+      },
+      {
+        title: 'Encuentra eventos automáticamente',
+        body: '☰ → Pokémon cerca de ti muestra League Challenges, Cups y Pre-releases oficiales cerca tuyo, y los agregas con un toque. ☰ → Tiendas te deja seguir tiendas locales para que sus eventos aparezcan solos en tu calendario.'
+      },
+      {
+        title: 'Registra resultados mientras juegas',
+        body: 'Toca "Registrar resultado" en cualquier evento para anotar tu posición y los resultados ronda por ronda. Puedes guardar el progreso a media partida y agregar rondas entre juegos — lo que quede sin terminar se cierra solo 6 horas después de iniciado el evento.'
       },
       {
         title: 'Explora tus estadísticas',
-        body: 'Las estadísticas se separan por juego con un toque, muestran a qué le ganas y pierdes más, y se filtran por semana/mes/3 meses. También puedes ver las estadísticas de cualquier amigo de la misma forma, desde la lista de Amigos — a menos que las haya desactivado en Cuenta → Privacidad.'
-      },
-      {
-        title: 'Sincronización de calendario y notificaciones',
-        body: 'Cada evento tiene un enlace para "Agregar a Google Calendar" o Apple/Outlook (.ics). Activa las notificaciones push desde la campana 🔔 para recibir avisos incluso con la app cerrada — incluyendo un aviso 2 horas antes de que empiece algo a lo que vas. Puedes desactivar cualquier tipo específico desde Cuenta.'
+        body: '☰ → Estadísticas se separa por juego, muestra a qué le ganas y pierdes más, y filtra por semana, mes o 3 meses. También puedes ver las de un amigo — o desactivar las tuyas en Cuenta → Privacidad.'
       },
       {
         title: '¡Listo! 🎉',
-        body: 'Algo más que vale la pena saber: Cuenta tiene un selector de idioma (English/Español), un botón para exportar todos tus datos, y ajustes de privacidad y notificaciones. Puedes volver a ver este recorrido cuando quieras desde Cuenta → "Cómo funciona".'
+        body: 'En ☰ también encuentras sincronización de calendario, exportar e importar tus datos, ajustes de notificaciones, selector de idioma, y cómo instalar la app. Puedes volver a ver este recorrido desde ☰ → Cuenta → "Cómo funciona".'
       }
     ]
   };
-
   function openInstallGuideModal(){
     const guide = INSTALL_GUIDE_BY_LANG[currentLang] || INSTALL_GUIDE_BY_LANG.en;
     const ua = navigator.userAgent || '';
