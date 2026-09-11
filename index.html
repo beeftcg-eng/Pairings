@@ -257,7 +257,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.6'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.6.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -1705,16 +1705,10 @@
         </div>
         <div class="head-actions">
           <button class="btn icon-pill" id="openNotif" title="Notifications">🔔${unread>0?` <span class="bell-badge">${unread}</span>`:''}</button>
-          <button class="btn icon-pill" id="openFriends">${tr('friends')}</button>
-          <button class="btn icon-pill" id="openStats">${tr('stats')}</button>
-          <button class="btn icon-pill" id="openStores">🏪 Stores</button>
-          <button class="btn icon-pill" id="openPlaygroups">👥 Playgroups</button>
-          <button class="btn icon-pill" id="openPlayerCard">🪪 Player Card</button>
-          <button class="btn icon-pill" id="openPokeEvents">⚡ Pokémon near you</button>
-          ${profile && profile.is_admin ? `<button class="btn icon-pill" id="openAdmin">🛠 Admin</button>` : ''}
-          <button class="btn icon-pill" id="openAccount">${tr('account')}</button>
-          <button class="btn icon-pill" id="openShare">${tr('share')}</button>
+          <button class="btn icon-pill" id="openPlaygroups">👥 ${tr('playgroups')}</button>
+          <button class="btn icon-pill" id="openPlayerCard">🪪 ${tr('playerCard')}</button>
           <button class="btn add-btn" id="openAdd">${tr('addBtn')}</button>
+          <button class="btn icon-pill" id="openMenu" title="${tr('menu')}">☰</button>
         </div>
       </div>
 
