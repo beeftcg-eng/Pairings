@@ -80,6 +80,11 @@
 
   /* ---------- Quick links ---------- */
   .quick-links{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+  .pg-menu-row{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;
+    border:none;border-bottom:1px solid var(--line);color:var(--text);font-family:inherit;font-size:14px;
+    padding:12px 2px;cursor:pointer;}
+  .pg-menu-row:last-of-type{border-bottom:none;}
+  .pg-menu-row:hover{color:var(--teal);}
   .qlink{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);
     color:var(--text-dim);text-decoration:none;font-size:12px;padding:7px 11px;border-radius:9px;}
   .qlink:hover{border-color:var(--rift);color:var(--text);}
@@ -252,7 +257,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.5'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.6'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -339,6 +344,18 @@
       winRate: 'Win rate', overallRecord: 'Overall record', gamesYouPlay: 'Games you play — tap for the full breakdown',
       whereYouPlay: 'Where you play most', whatYouLose: 'What you lose to the most', whatYouBeat: 'What you beat the most',
       exportData: 'Export my data',
+      menu: 'Menu', playgroups: 'Playgroups', playerCard: 'Player Card',
+      menuYou: 'You', menuCommunity: 'Community', menuFindEvents: 'Find events',
+      shareMyList: 'Share my list', officialLocators: 'Official event locators',
+      installApp: 'Install this app', pokeNearYou: 'Pokémon near you',
+      pokeTitle: 'Pokémon events near you',
+      pokeIntro: 'Official Pokémon TCG events (League Challenges, Cups and Pre-releases) happening near',
+      pokeSetCity: 'Set your home city first',
+      pokeSetCityBody: "Open Account and set your home city — that's how we know which events are near you.",
+      pokeOpenAccount: 'Open Account', pokeNone: 'No Pokémon events found within',
+      pokeTryWider: 'Try a wider radius.', pokeDetails: 'Details', pokeAdd: '+ Add',
+      pokeAway: 'km away', pokeShowing: 'Showing the nearest', pokeOf: 'of',
+      pokeCourtesy: 'Event data courtesy of', pokeNotSetUp: "Couldn't load events — the pokedata sync may not be set up yet.",
       formatsPlayed: 'Formats played', winCurrentDecks: 'Win rate — current decks', winPastDecks: 'Win rate — past decks',
       winOtherDecks: 'Win rate — other (not saved as a deck)', allMatchups: 'All matchups',
       privacyLabel: 'Privacy', shareStatsLabel: 'Let friends see my stats',
@@ -410,6 +427,18 @@
       winRate: 'Porcentaje de victorias', overallRecord: 'Récord general', gamesYouPlay: 'Juegos que practicas — toca para ver el desglose',
       whereYouPlay: 'Dónde juegas más', whatYouLose: 'A qué pierdes más', whatYouBeat: 'A qué le ganas más',
       exportData: 'Exportar mis datos',
+      menu: 'Menú', playgroups: 'Grupos', playerCard: 'Mi Tarjeta',
+      menuYou: 'Tú', menuCommunity: 'Comunidad', menuFindEvents: 'Buscar eventos',
+      shareMyList: 'Compartir mi lista', officialLocators: 'Buscadores oficiales de eventos',
+      installApp: 'Instalar esta app', pokeNearYou: 'Pokémon cerca de ti',
+      pokeTitle: 'Eventos de Pokémon cerca de ti',
+      pokeIntro: 'Eventos oficiales de Pokémon TCG (League Challenges, Cups y Pre-releases) cerca de',
+      pokeSetCity: 'Primero configura tu ciudad',
+      pokeSetCityBody: 'Abre Cuenta y configura tu ciudad — así sabemos qué eventos están cerca de ti.',
+      pokeOpenAccount: 'Abrir Cuenta', pokeNone: 'No se encontraron eventos de Pokémon en',
+      pokeTryWider: 'Intenta con un radio más amplio.', pokeDetails: 'Detalles', pokeAdd: '+ Agregar',
+      pokeAway: 'km de distancia', pokeShowing: 'Mostrando los', pokeOf: 'más cercanos de',
+      pokeCourtesy: 'Datos de eventos cortesía de', pokeNotSetUp: 'No se pudieron cargar los eventos — la sincronización aún no está configurada.',
       formatsPlayed: 'Formatos jugados', winCurrentDecks: 'Porcentaje de victorias — mazos actuales', winPastDecks: 'Porcentaje de victorias — mazos anteriores',
       winOtherDecks: 'Porcentaje de victorias — otros (sin guardar como mazo)', allMatchups: 'Todos los enfrentamientos',
       privacyLabel: 'Privacidad', shareStatsLabel: 'Permitir que mis amigos vean mis estadísticas',
@@ -1691,15 +1720,6 @@
 
       <div class="hero">${ringHtml}</div>
 
-      <div class="quick-links">
-        <a class="qlink" href="${riftboundEventsUrl()}" target="_blank" rel="noopener">🔗 Riftbound events${profile && profile.home_city ? ' near '+escapeHtml(profile.home_city) : ''}</a>
-        <a class="qlink" href="https://en.onepiece-cardgame.com/events/" target="_blank" rel="noopener">🔗 One Piece TCG events</a>
-        <a class="qlink" href="https://www.facebook.com/events/" target="_blank" rel="noopener">🔗 Facebook Events</a>
-        <a class="qlink" href="https://www.google.com/maps/search/game+store+near+me" target="_blank" rel="noopener">🔗 Find local game stores</a>
-        <button class="qlink" id="openBulkImport" style="cursor:pointer;font-family:inherit;">${tr('bulkImport')}</button>
-        ${!isStandaloneApp ? `<button class="qlink" id="installAppBtn" style="cursor:pointer;font-family:inherit;">📲 Install this app on your device</button>` : ''}
-      </div>
-
       <div class="toolbar">
         <input class="search" id="searchInput" placeholder="${tr('searchPlaceholder')}" value="${escapeAttr(searchTerm)}"/>
         <div class="seg">
@@ -1714,17 +1734,9 @@
     `;
 
     document.getElementById('openAdd').onclick = ()=>openModal(null);
-    document.getElementById('openBulkImport').onclick = ()=>openBulkImportModal();
-    const installBtn = document.getElementById('installAppBtn'); if(installBtn) installBtn.onclick = handleInstallClick;
-    document.getElementById('openShare').onclick = ()=>openShareModal();
-    document.getElementById('openFriends').onclick = ()=>openFriendsModal();
-    document.getElementById('openStats').onclick = ()=>openStatsModal();
-    document.getElementById('openStores').onclick = ()=>openStoresModal();
     document.getElementById('openPlaygroups').onclick = ()=>openPlaygroupsModal();
     document.getElementById('openPlayerCard').onclick = ()=>openPlayerCardModal();
-    document.getElementById('openPokeEvents').onclick = ()=>openPokedataModal();
-    const adminBtn = document.getElementById('openAdmin'); if(adminBtn) adminBtn.onclick = ()=>openAdminModal();
-    document.getElementById('openAccount').onclick = ()=>openAccountModal();
+    document.getElementById('openMenu').onclick = ()=>openMainMenu();
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
     let searchDebounceTimer = null;
     document.getElementById('searchInput').oninput = (e)=>{
@@ -4144,10 +4156,83 @@
     return 2*R*Math.asin(Math.sqrt(a));
   }
 
+  // ---------- Main menu ----------
+  // Everything that isn't a daily-use action lives here, grouped, so the
+  // header stays down to notifications / playgroups / player card / add.
+  function openMainMenu(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const row = (id, icon, label) =>
+      `<button class="pg-menu-row" id="${id}"><span style="width:22px;display:inline-block;">${icon}</span>${escapeHtml(label)}</button>`;
+
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>${tr('menu')}</h2>
+
+        <div class="section-label">${tr('menuYou')}</div>
+        ${row('mStats','📊', tr('stats').replace(/^📊\s*/,''))}
+        ${row('mAccount','⚙️', tr('account'))}
+
+        <div class="section-label">${tr('menuCommunity')}</div>
+        ${row('mFriends','🤝', tr('friends'))}
+        ${row('mStores','🏪', 'Stores')}
+        ${row('mShare','🔗', tr('shareMyList'))}
+
+        <div class="section-label">${tr('menuFindEvents')}</div>
+        ${row('mPoke','⚡', tr('pokeNearYou'))}
+        ${row('mLocators','🌐', tr('officialLocators'))}
+
+        <div style="border-top:1px solid var(--line);margin-top:16px;padding-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <span style="color:var(--text-dim);font-size:11px;">Build: ${escapeHtml(APP_VERSION)}</span>
+          <div style="display:flex;gap:10px;align-items:center;">
+            ${!isStandaloneApp ? `<button class="mini-btn" id="mInstall">📲 ${tr('installApp')}</button>` : ''}
+            ${profile && profile.is_admin ? `<button class="mini-btn decline" id="mAdmin">🛠 Admin</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+
+    const go = (id, fn)=>{ const el = overlay.querySelector('#'+id); if(el) el.onclick = ()=>{ overlay.remove(); fn(); }; };
+    go('mStats', openStatsModal);
+    go('mAccount', openAccountModal);
+    go('mFriends', openFriendsModal);
+    go('mStores', openStoresModal);
+    go('mShare', openShareModal);
+    go('mPoke', openPokedataModal);
+    go('mLocators', openLocatorsModal);
+    go('mAdmin', openAdminModal);
+    const inst = overlay.querySelector('#mInstall');
+    if(inst) inst.onclick = ()=>{ overlay.remove(); handleInstallClick(); };
+  }
+
+  // The external official event locators, grouped so they don't each need
+  // a permanent row on the main screen.
+  function openLocatorsModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const links = [
+      { url: riftboundEventsUrl(), label: '🔗 Riftbound events' + (profile && profile.home_city ? ' — ' + profile.home_city : '') },
+      { url: 'https://en.onepiece-cardgame.com/events/', label: '🔗 One Piece TCG events' },
+      { url: 'https://www.facebook.com/events/', label: '🔗 Facebook Events' },
+      { url: 'https://www.google.com/maps/search/game+store+near+me', label: '🔗 Find local game stores' }
+    ];
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>${tr('officialLocators')}</h2>
+        <div class="modal-sub">These open the official sites in a new tab.</div>
+        ${links.map(l=>`<a class="pg-menu-row" href="${escapeAttr(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;">${escapeHtml(l.label)} ↗</a>`).join('')}
+        <div class="modal-actions"><button class="btn-secondary" id="closeLocators" style="flex:1;">${tr('close')}</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeLocators').onclick = ()=>overlay.remove();
+  }
+
   async function openPokedataModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    overlay.innerHTML = `<div class="modal"><h2>⚡ Pokémon events near you</h2><div id="pokeBody"><div class="modal-sub">Loading…</div></div></div>`;
+    overlay.innerHTML = `<div class="modal"><h2>⚡ ${tr('pokeTitle')}</h2><div id="pokeBody"><div class="modal-sub">Loading…</div></div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     const body = overlay.querySelector('#pokeBody');
@@ -4155,10 +4240,10 @@
     if(profile.home_lat == null || profile.home_lng == null){
       body.innerHTML = `
         <div class="empty-state">
-          <div class="big">Set your home city first</div>
-          <div>Open Account and set your home city — that's how we know which events are near you.</div>
+          <div class="big">${tr('pokeSetCity')}</div>
+          <div>${tr('pokeSetCityBody')}</div>
         </div>
-        <div class="modal-actions"><button class="btn-primary" id="pokeGoAccount" style="flex:1;">Open Account</button></div>`;
+        <div class="modal-actions"><button class="btn-primary" id="pokeGoAccount" style="flex:1;">${tr('pokeOpenAccount')}</button></div>`;
       body.querySelector('#pokeGoAccount').onclick = ()=>{ overlay.remove(); openAccountModal(); };
       return;
     }
@@ -4174,7 +4259,7 @@
         if(error) throw error;
         events = data || [];
       }catch(e){
-        body.innerHTML = `<div class="modal-sub">Couldn't load events — the pokedata sync may not be set up yet.</div>`;
+        body.innerHTML = `<div class="modal-sub">${tr('pokeNotSetUp')}</div>`;
         return;
       }
 
@@ -4188,23 +4273,23 @@
         `<button class="chip ${radiusKm===r?'active':''}" data-poke-radius="${r}">${r} km</button>`).join('');
 
       body.innerHTML = `
-        <div class="modal-sub">Official Pokémon TCG events (League Challenges, Cups and Pre-releases) happening near ${escapeHtml(profile.home_city||'you')}.</div>
+        <div class="modal-sub">${tr('pokeIntro')} ${escapeHtml(profile.home_city||'')}.</div>
         <div class="chip-row" style="margin-bottom:12px;">${radiusChips}</div>
         ${near.length ? near.slice(0,60).map((e,i)=>`
           <div class="list-item">
             <div class="info">
               <div class="n">${escapeHtml(e.name||'Pokémon event')}</div>
               <div class="m">${fmtFriendly(e.date, e.time)} · ${escapeHtml(e.shop||'')}${e.city?' · '+escapeHtml(e.city):''}</div>
-              <div class="m" style="font-size:11px;">${Math.round(e.km)} km away${e.event_type?' · '+escapeHtml(e.event_type):''}${e.cost?' · '+escapeHtml(e.cost):''}</div>
+              <div class="m" style="font-size:11px;">${Math.round(e.km)} ${tr('pokeAway')}${e.event_type?' · '+escapeHtml(e.event_type):''}${e.cost?' · '+escapeHtml(e.cost):''}</div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-              ${e.pokemon_url?`<a class="mini-btn" href="${escapeAttr(e.pokemon_url)}" target="_blank" rel="noopener">Details ↗</a>`:''}
-              <button class="mini-btn" data-poke-add="${i}">+ Add</button>
+              ${e.pokemon_url?`<a class="mini-btn" href="${escapeAttr(e.pokemon_url)}" target="_blank" rel="noopener">${tr('pokeDetails')} ↗</a>`:''}
+              <button class="mini-btn" data-poke-add="${i}">${tr('pokeAdd')}</button>
             </div>
-          </div>`).join('') : `<div class="modal-sub">No Pokémon events found within ${radiusKm} km. Try a wider radius.</div>`}
-        ${near.length > 60 ? `<div class="modal-sub" style="margin-top:8px;">Showing the nearest 60 of ${near.length}.</div>` : ''}
+          </div>`).join('') : `<div class="modal-sub">${tr('pokeNone')} ${radiusKm} km. ${tr('pokeTryWider')}</div>`}
+        ${near.length > 60 ? `<div class="modal-sub" style="margin-top:8px;">${tr('pokeShowing')} 60 ${tr('pokeOf')} ${near.length}.</div>` : ''}
         <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--line);">
-          <span style="color:var(--text-dim);font-size:11.5px;">Event data courtesy of
+          <span style="color:var(--text-dim);font-size:11.5px;">${tr('pokeCourtesy')}
             <a href="https://www.pokedata.ovh/events/" target="_blank" rel="noopener" style="color:var(--teal);">pokedata.ovh</a>
           </span>
         </div>
