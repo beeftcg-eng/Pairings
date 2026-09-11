@@ -252,7 +252,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.4.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.5'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -1681,6 +1681,7 @@
           <button class="btn icon-pill" id="openStores">🏪 Stores</button>
           <button class="btn icon-pill" id="openPlaygroups">👥 Playgroups</button>
           <button class="btn icon-pill" id="openPlayerCard">🪪 Player Card</button>
+          <button class="btn icon-pill" id="openPokeEvents">⚡ Pokémon near you</button>
           ${profile && profile.is_admin ? `<button class="btn icon-pill" id="openAdmin">🛠 Admin</button>` : ''}
           <button class="btn icon-pill" id="openAccount">${tr('account')}</button>
           <button class="btn icon-pill" id="openShare">${tr('share')}</button>
@@ -1721,6 +1722,7 @@
     document.getElementById('openStores').onclick = ()=>openStoresModal();
     document.getElementById('openPlaygroups').onclick = ()=>openPlaygroupsModal();
     document.getElementById('openPlayerCard').onclick = ()=>openPlayerCardModal();
+    document.getElementById('openPokeEvents').onclick = ()=>openPokedataModal();
     const adminBtn = document.getElementById('openAdmin'); if(adminBtn) adminBtn.onclick = ()=>openAdminModal();
     document.getElementById('openAccount').onclick = ()=>openAccountModal();
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
@@ -2954,22 +2956,45 @@
 
   // Full-size image viewer, used by the admin moderation list so images can
   // actually be judged rather than squinted at as thumbnails.
-  function openImageLightbox(url, label){
+  // Lets any user flag an image for admin review. Writes to image_reports,
+  // which the admin panel reads — this is what makes moderation reactive
+  // rather than depending entirely on the admin happening to browse.
+  async function reportImage(imageUrl, context, subjectId, label){
+    if(!imageUrl){ showToast('Nothing to report here'); return; }
+    const reason = prompt(`Report this image${label ? ' from "'+label+'"' : ''}?\n\nBriefly, what's wrong with it? (optional)`);
+    if(reason === null) return; // cancelled
+    try{
+      const { error } = await supabaseClient.from('image_reports').insert({
+        reported_by: session.user.id,
+        image_url: imageUrl,
+        context: context || null,
+        subject_id: subjectId || null,
+        reason: (reason||'').trim() || null
+      });
+      if(error) throw error;
+      showToast('Reported — thanks, it will be reviewed');
+    }catch(e){ showToast('Could not send the report'); }
+  }
+
+  function openImageLightbox(url, label, reportCtx){
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;';
     overlay.innerHTML = `
       <img src="${escapeAttr(url)}" alt="" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;"/>
       ${label ? `<div style="color:#fff;font-size:14px;margin-top:14px;text-align:center;">${escapeHtml(label)}</div>` : ''}
-      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+      <div style="margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;align-items:center;">
         <a href="${escapeAttr(url)}" target="_blank" rel="noopener" style="color:#9db4ff;font-size:13px;">Open original ↗</a>
+        ${reportCtx ? `<button id="lbReport" style="background:none;border:none;color:#f5919e;font-size:13px;cursor:pointer;text-decoration:underline;">🚩 Report this image</button>` : ''}
         <span style="color:#888;font-size:13px;">Tap anywhere to close</span>
       </div>`;
     overlay.onclick = (e)=>{
-      // Let the "open original" link work without closing first.
-      if(e.target.tagName === 'A') return;
+      // Let the link and report button work without closing first.
+      if(e.target.tagName === 'A' || e.target.id === 'lbReport') return;
       overlay.remove();
     };
     document.body.appendChild(overlay);
+    const rb = overlay.querySelector('#lbReport');
+    if(rb) rb.onclick = ()=>reportImage(url, reportCtx.context, reportCtx.subjectId, label);
   }
 
   async function openPlaygroupsModal(){
@@ -3050,7 +3075,7 @@
         const ids = (mems||[]).map(m=>m.user_id);
         if(ids.length){
           const { data: profs } = await supabaseClient.from('profiles')
-            .select('id, username, display_name').in('id', ids);
+            .select('id, username, display_name, avatar_url').in('id', ids);
           members = profs || [];
         }
         const { data: shared } = await supabaseClient.from('playgroup_shared_events')
@@ -3074,8 +3099,11 @@
         <div class="section-label">Members (${members.length})</div>
         ${members.map(m=>`
           <div class="list-item">
-            <div class="info"><div class="n">${escapeHtml(m.display_name || m.username || 'Player')}${m.id===session.user.id?' (you)':''}</div>
-              ${m.username?`<div class="m">@${escapeHtml(m.username)}</div>`:''}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+              <span ${m.avatar_url?`data-member-avatar="${escapeAttr(m.avatar_url)}" data-member-id="${m.id}" data-member-name="${escapeAttr(m.display_name||m.username||'Player')}" style="cursor:zoom-in;"`:''}>${avatarImg(m.avatar_url, 36, m.display_name || m.username)}</span>
+              <div class="info"><div class="n">${escapeHtml(m.display_name || m.username || 'Player')}${m.id===session.user.id?' (you)':''}</div>
+                ${m.username?`<div class="m">@${escapeHtml(m.username)}</div>`:''}</div>
+            </div>
             <div style="display:flex;gap:6px;">
               ${m.id!==session.user.id?`<button class="mini-btn" data-pg-stats="${m.id}" data-pg-name="${escapeAttr(m.display_name||m.username||'Player')}">📊 Stats</button>`:''}
               ${m.id!==session.user.id?`<button class="mini-btn" data-pg-friend="${m.id}">+ Friend</button>`:''}
@@ -3132,6 +3160,10 @@
         const currentMemberIds = members.map(m=>m.id);
         openInviteFriendsToPlaygroupModal(group, currentMemberIds, ()=>drawGroup(group));
       };
+      body.querySelectorAll('[data-member-avatar]').forEach(el=>{
+        el.onclick = ()=>openImageLightbox(el.dataset.memberAvatar, el.dataset.memberName,
+          { context:'profile', subjectId: el.dataset.memberId });
+      });
       body.querySelectorAll('[data-pg-stats]').forEach(btn=>{
         btn.onclick = ()=>openFriendStatsModal(btn.dataset.pgStats, btn.dataset.pgName);
       });
@@ -3780,6 +3812,9 @@
             </div>
           </div>`).join('') : `<div class="modal-sub">Nothing pending.</div>`}
 
+        <div class="section-label">🚩 Reported images</div>
+        <div id="adminReports"><div class="modal-sub">Loading…</div></div>
+
         <div class="section-label">🖼 Image moderation</div>
         <div class="modal-sub" style="margin-bottom:8px;">Every image currently in use across profiles, stores and playgroups.</div>
         <button class="mini-btn" id="loadImagesBtn" style="margin-bottom:10px;">Load all images</button>
@@ -3814,6 +3849,61 @@
           catch(e){ showToast('Could not reject'); }
         };
       });
+      // Reported images queue
+      (async ()=>{
+        const rEl = body.querySelector('#adminReports');
+        if(!rEl) return;
+        try{
+          const { data, error } = await supabaseClient.from('image_reports')
+            .select('*').eq('status','open').order('created_at', {ascending:false}).limit(50);
+          if(error) throw error;
+          if(!data || data.length === 0){ rEl.innerHTML = `<div class="modal-sub">No open reports. 🎉</div>`; return; }
+          rEl.innerHTML = data.map((rep,i)=>`
+            <div class="list-item">
+              <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                <img src="${escapeAttr(rep.image_url)}" alt="" data-rep-zoom="${i}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--panel-2);cursor:zoom-in;"/>
+                <div class="info">
+                  <div class="n">${escapeHtml(rep.context||'unknown')}</div>
+                  <div class="m">${escapeHtml(rep.reason || 'No reason given')}</div>
+                  <div class="m" style="font-size:11px;">${new Date(rep.created_at).toLocaleString()}</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+                <button class="mini-btn decline" data-rep-remove="${i}">Remove image</button>
+                <button class="mini-btn" data-rep-dismiss="${i}">Dismiss</button>
+              </div>
+            </div>`).join('');
+
+          rEl.querySelectorAll('[data-rep-zoom]').forEach(im=>{
+            im.onclick = ()=>openImageLightbox(data[parseInt(im.dataset.repZoom,10)].image_url, 'Reported image');
+          });
+          rEl.querySelectorAll('[data-rep-remove]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              const rep = data[parseInt(btn.dataset.repRemove,10)];
+              if(!confirm('Remove this image and resolve the report?')) return;
+              try{
+                if(rep.context && rep.subject_id){
+                  await supabaseClient.rpc('admin_clear_image', { p_context: rep.context, p_subject_id: rep.subject_id });
+                }
+                await supabaseClient.from('image_reports').update({ status:'resolved' }).eq('id', rep.id);
+                showToast('Image removed and report resolved');
+                draw();
+              }catch(e){ showToast('Could not resolve'); }
+            };
+          });
+          rEl.querySelectorAll('[data-rep-dismiss]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              const rep = data[parseInt(btn.dataset.repDismiss,10)];
+              try{
+                await supabaseClient.from('image_reports').update({ status:'dismissed' }).eq('id', rep.id);
+                showToast('Report dismissed');
+                draw();
+              }catch(e){ showToast('Could not dismiss'); }
+            };
+          });
+        }catch(e){ rEl.innerHTML = `<div class="modal-sub">Could not load reports — check the avatars migration has been run.</div>`; }
+      })();
+
       body.querySelector('#loadImagesBtn').onclick = async ()=>{
         const el = body.querySelector('#adminImages');
         el.innerHTML = `<div class="modal-sub">Loading…</div>`;
@@ -4044,6 +4134,112 @@
   // ---------- Account modal ----------
   // Player Card — your IDs in one place, big enough to read out or show a
   // clerk at registration, with one-tap copy for each.
+  // ---------- Pokémon events near you (data from pokedata.ovh) ----------
+  // Reads ONLY from our own cached table — never calls pokedata directly
+  // from the browser. See the sync-pokedata Edge Function for the fetch.
+  function haversineKm(lat1, lng1, lat2, lng2){
+    const R = 6371, toRad = d => d*Math.PI/180;
+    const dLat = toRad(lat2-lat1), dLng = toRad(lng2-lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+
+  async function openPokedataModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>⚡ Pokémon events near you</h2><div id="pokeBody"><div class="modal-sub">Loading…</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#pokeBody');
+
+    if(profile.home_lat == null || profile.home_lng == null){
+      body.innerHTML = `
+        <div class="empty-state">
+          <div class="big">Set your home city first</div>
+          <div>Open Account and set your home city — that's how we know which events are near you.</div>
+        </div>
+        <div class="modal-actions"><button class="btn-primary" id="pokeGoAccount" style="flex:1;">Open Account</button></div>`;
+      body.querySelector('#pokeGoAccount').onclick = ()=>{ overlay.remove(); openAccountModal(); };
+      return;
+    }
+
+    let radiusKm = 100;
+
+    async function draw(){
+      body.innerHTML = `<div class="modal-sub">Loading…</div>`;
+      let events = [];
+      try{
+        const { data, error } = await supabaseClient.from('pokedata_events')
+          .select('*').gte('date', todayStr()).order('date').limit(500);
+        if(error) throw error;
+        events = data || [];
+      }catch(e){
+        body.innerHTML = `<div class="modal-sub">Couldn't load events — the pokedata sync may not be set up yet.</div>`;
+        return;
+      }
+
+      const near = events
+        .filter(e => e.latitude != null && e.longitude != null)
+        .map(e => ({ ...e, km: haversineKm(profile.home_lat, profile.home_lng, e.latitude, e.longitude) }))
+        .filter(e => e.km <= radiusKm)
+        .sort((a,b) => a.date.localeCompare(b.date) || a.km - b.km);
+
+      const radiusChips = [50,100,200,400].map(r=>
+        `<button class="chip ${radiusKm===r?'active':''}" data-poke-radius="${r}">${r} km</button>`).join('');
+
+      body.innerHTML = `
+        <div class="modal-sub">Official Pokémon TCG events (League Challenges, Cups and Pre-releases) happening near ${escapeHtml(profile.home_city||'you')}.</div>
+        <div class="chip-row" style="margin-bottom:12px;">${radiusChips}</div>
+        ${near.length ? near.slice(0,60).map((e,i)=>`
+          <div class="list-item">
+            <div class="info">
+              <div class="n">${escapeHtml(e.name||'Pokémon event')}</div>
+              <div class="m">${fmtFriendly(e.date, e.time)} · ${escapeHtml(e.shop||'')}${e.city?' · '+escapeHtml(e.city):''}</div>
+              <div class="m" style="font-size:11px;">${Math.round(e.km)} km away${e.event_type?' · '+escapeHtml(e.event_type):''}${e.cost?' · '+escapeHtml(e.cost):''}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+              ${e.pokemon_url?`<a class="mini-btn" href="${escapeAttr(e.pokemon_url)}" target="_blank" rel="noopener">Details ↗</a>`:''}
+              <button class="mini-btn" data-poke-add="${i}">+ Add</button>
+            </div>
+          </div>`).join('') : `<div class="modal-sub">No Pokémon events found within ${radiusKm} km. Try a wider radius.</div>`}
+        ${near.length > 60 ? `<div class="modal-sub" style="margin-top:8px;">Showing the nearest 60 of ${near.length}.</div>` : ''}
+        <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--line);">
+          <span style="color:var(--text-dim);font-size:11.5px;">Event data courtesy of
+            <a href="https://www.pokedata.ovh/events/" target="_blank" rel="noopener" style="color:var(--teal);">pokedata.ovh</a>
+          </span>
+        </div>
+        <div class="modal-actions"><button class="btn-secondary" id="closePoke" style="flex:1;">${tr('close')}</button></div>`;
+
+      overlay.querySelector('#closePoke').onclick = ()=>overlay.remove();
+      body.querySelectorAll('[data-poke-radius]').forEach(btn=>{
+        btn.onclick = ()=>{ radiusKm = parseInt(btn.dataset.pokeRadius,10); draw(); };
+      });
+      body.querySelectorAll('[data-poke-add]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const e = near[parseInt(btn.dataset.pokeAdd,10)];
+          const candidate = { name: e.name||'Pokémon event', date: e.date, store: e.shop||'' };
+          if(isDuplicateEvent(candidate)){
+            showToast('You already have this event');
+            btn.textContent = 'Already have it'; btn.disabled = true; return;
+          }
+          tournaments.push({
+            id: uid(), name: candidate.name, game: 'Pokémon TCG', store: e.shop||'',
+            date: e.date, time: e.time||'', repeat:'none', format: e.event_type||'',
+            fee: e.cost||'', address: e.street_address||'', city: e.city||'',
+            link: e.pokemon_url||'', storeLink: e.event_website||'',
+            notes:'', rsvp:null, result:null, occurrences:{},
+            lat: e.latitude, lng: e.longitude, googleEventId:null
+          });
+          await saveTournaments();
+          render();
+          showToast('Added to your calendar');
+          btn.textContent = 'Added ✓'; btn.disabled = true;
+        };
+      });
+    }
+    draw();
+  }
+
   function openPlayerCardModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
