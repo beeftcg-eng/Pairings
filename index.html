@@ -257,7 +257,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.6.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.7'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -321,7 +321,8 @@
       connectGCal: 'Connect Google Calendar', logOut: 'Log out', close: 'Close', howThisWorks: 'How this works',
       supportProject: '💛 Support this project', language: 'Language',
       // Friends modal
-      addFriendLabel: 'Add a friend by username or email', send: 'Send',
+      cropTitle: 'Frame your photo', cropHint: 'Drag to reposition, use the slider to zoom.', cropZoom: 'Zoom', cropUse: 'Use this photo',
+      addFriendLabel: 'Add a friend', addFriendHint: 'Enter their username, display name, or email — any of the three works.', send: 'Send',
       requestsForYou: 'Requests for you', wantsFriend: 'wants to be friends',
       sentWaiting: 'Sent, waiting', requestPending: 'request pending',
       yourFriends: 'Your friends', noFriendsYet: 'No friends yet — send a request above.',
@@ -404,7 +405,8 @@
       connectGCal: 'Conectar Google Calendar', logOut: 'Cerrar sesión', close: 'Cerrar', howThisWorks: 'Cómo funciona',
       supportProject: '💛 Apoya este proyecto', language: 'Idioma',
       // Friends modal
-      addFriendLabel: 'Agrega un amigo por usuario o correo', send: 'Enviar',
+      cropTitle: 'Ajusta tu foto', cropHint: 'Arrastra para mover, usa el control para acercar.', cropZoom: 'Zoom', cropUse: 'Usar esta foto',
+      addFriendLabel: 'Agrega un amigo', addFriendHint: 'Ingresa su nombre de usuario, nombre visible o correo — cualquiera de los tres funciona.', send: 'Enviar',
       requestsForYou: 'Solicitudes para ti', wantsFriend: 'quiere ser tu amigo',
       sentWaiting: 'Enviadas, en espera', requestPending: 'solicitud pendiente',
       yourFriends: 'Tus amigos', noFriendsYet: 'Aún no tienes amigos — envía una solicitud arriba.',
@@ -485,6 +487,106 @@
 
   // Shared avatar upload. `folder` is the first path segment, which the
   // storage policies use to decide who's allowed to write.
+  // Lets the user frame their photo before upload — drag to reposition,
+  // slider to zoom. Outputs a square JPEG, which also keeps file sizes
+  // predictable regardless of what they started with.
+  function openImageCropper(file, onDone){
+    const SIZE = 400; // output resolution
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const overlay = document.createElement('div');
+        overlay.className = 'overlay';
+        overlay.innerHTML = `
+          <div class="modal" style="max-width:380px;text-align:center;">
+            <h2>${tr('cropTitle')}</h2>
+            <div class="modal-sub">${tr('cropHint')}</div>
+            <div id="cropStage" style="position:relative;width:280px;height:280px;margin:0 auto 14px;
+              border-radius:50%;overflow:hidden;background:var(--panel-2);border:2px solid var(--line);cursor:grab;touch-action:none;">
+              <canvas id="cropCanvas" width="280" height="280" style="display:block;"></canvas>
+            </div>
+            <div class="field">
+              <label>${tr('cropZoom')}</label>
+              <input type="range" id="cropZoom" min="100" max="300" value="100" style="width:100%;"/>
+            </div>
+            <div class="modal-actions">
+              <button class="btn-secondary" id="cropCancel" style="flex:1;">${tr('cancel')}</button>
+              <button class="btn-primary" id="cropSave" style="flex:1;">${tr('cropUse')}</button>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+
+        const canvas = overlay.querySelector('#cropCanvas');
+        const ctx = canvas.getContext('2d');
+        const stage = overlay.querySelector('#cropStage');
+        const zoomEl = overlay.querySelector('#cropZoom');
+
+        // Start with the image scaled to just cover the circle.
+        const baseScale = Math.max(280/img.width, 280/img.height);
+        let zoom = 1, offX = 0, offY = 0;
+
+        function clampOffsets(){
+          const w = img.width * baseScale * zoom;
+          const h = img.height * baseScale * zoom;
+          const maxX = Math.max(0, (w - 280)/2);
+          const maxY = Math.max(0, (h - 280)/2);
+          offX = Math.max(-maxX, Math.min(maxX, offX));
+          offY = Math.max(-maxY, Math.min(maxY, offY));
+        }
+        function draw(){
+          clampOffsets();
+          const w = img.width * baseScale * zoom;
+          const h = img.height * baseScale * zoom;
+          ctx.clearRect(0,0,280,280);
+          ctx.drawImage(img, (280-w)/2 + offX, (280-h)/2 + offY, w, h);
+        }
+        draw();
+
+        zoomEl.oninput = ()=>{ zoom = parseInt(zoomEl.value,10)/100; draw(); };
+
+        // Drag to reposition (mouse + touch via pointer events).
+        let dragging = false, lastX = 0, lastY = 0;
+        stage.addEventListener('pointerdown', (e)=>{
+          dragging = true; lastX = e.clientX; lastY = e.clientY;
+          stage.style.cursor = 'grabbing';
+          stage.setPointerCapture(e.pointerId);
+        });
+        stage.addEventListener('pointermove', (e)=>{
+          if(!dragging) return;
+          offX += e.clientX - lastX; offY += e.clientY - lastY;
+          lastX = e.clientX; lastY = e.clientY;
+          draw();
+        });
+        const endDrag = ()=>{ dragging = false; stage.style.cursor = 'grab'; };
+        stage.addEventListener('pointerup', endDrag);
+        stage.addEventListener('pointercancel', endDrag);
+
+        overlay.querySelector('#cropCancel').onclick = ()=>overlay.remove();
+        overlay.querySelector('#cropSave').onclick = ()=>{
+          // Re-render at output resolution so the saved image isn't limited
+          // to the 280px preview size.
+          const out = document.createElement('canvas');
+          out.width = SIZE; out.height = SIZE;
+          const octx = out.getContext('2d');
+          const ratio = SIZE/280;
+          const w = img.width * baseScale * zoom * ratio;
+          const h = img.height * baseScale * zoom * ratio;
+          octx.drawImage(img, (SIZE-w)/2 + offX*ratio, (SIZE-h)/2 + offY*ratio, w, h);
+          out.toBlob((blob)=>{
+            overlay.remove();
+            if(!blob){ showToast('Could not process that image'); return; }
+            onDone(new File([blob], 'avatar.jpg', { type:'image/jpeg' }));
+          }, 'image/jpeg', 0.9);
+        };
+      };
+      img.onerror = ()=>showToast('Could not read that image');
+      img.src = reader.result;
+    };
+    reader.onerror = ()=>showToast('Could not read that file');
+    reader.readAsDataURL(file);
+  }
+
   async function uploadAvatar(file, folder){
     if(!file) return null;
     if(file.size > 2*1024*1024){ showToast('Image must be under 2MB'); return null; }
@@ -1044,14 +1146,48 @@
 
   async function sendFriendRequest(identifier){
     try{
-      const raw = identifier.trim();
-      const isEmail = raw.includes('@');
-      const query = supabaseClient.from('profiles').select('id');
-      const { data: target } = isEmail
-        ? await query.eq('email', raw.toLowerCase()).maybeSingle()
-        : await query.ilike('username', raw.replace(/^@/,'')).maybeSingle();
-      if(!target){ showToast(isEmail ? 'No account found with that email' : 'No account found with that username'); return false; }
+      let raw = (identifier||'').trim();
+      if(!raw) return false;
+      // A leading @ is a username convention, not part of the value.
+      const stripped = raw.replace(/^@/, '');
+      // Only treat it as an email if the @ is in the middle (a@b), not a
+      // leading @username — otherwise "@someone" was being searched as email.
+      const isEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw);
+
+      let target = null;
+      let ambiguous = [];
+
+      if(isEmail){
+        const { data } = await supabaseClient.from('profiles').select('id, username, display_name')
+          .eq('email', raw.toLowerCase()).maybeSingle();
+        target = data;
+      } else {
+        // Try username first (it's unique), then fall back to display name
+        // (which isn't, so we may find several).
+        const { data: byUser } = await supabaseClient.from('profiles').select('id, username, display_name')
+          .ilike('username', stripped).maybeSingle();
+        if(byUser){
+          target = byUser;
+        } else {
+          const { data: byName } = await supabaseClient.from('profiles').select('id, username, display_name')
+            .ilike('display_name', stripped).limit(5);
+          if(byName && byName.length === 1) target = byName[0];
+          else if(byName && byName.length > 1) ambiguous = byName;
+        }
+      }
+
+      if(ambiguous.length){
+        // Display names aren't unique — don't guess which person they meant.
+        const names = ambiguous.map(p=>p.username ? '@'+p.username : (p.display_name||'someone')).join(', ');
+        showToast(`Several people use that name — try their username instead: ${names}`);
+        return false;
+      }
+      if(!target){
+        showToast('No account found with that username, display name or email');
+        return false;
+      }
       if(target.id === session.user.id){ showToast("That's you!"); return false; }
+
       const { error } = await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: target.id, status: 'pending' });
       if(error){
         showToast(error.code === '23505' ? 'Already friends or a request is pending' : 'Could not send request');
@@ -2261,8 +2397,9 @@
       body.innerHTML = `
         <div class="field">
           <label>${tr('addFriendLabel')}</label>
+          <div class="hint" style="margin-bottom:6px;">${tr('addFriendHint')}</div>
           <div style="display:flex;gap:8px;">
-            <input id="friendEmail" placeholder="@username or friend@example.com" style="flex:1;"/>
+            <input id="friendEmail" placeholder="@username, name, or email" style="flex:1;"/>
             <button class="mini-btn" id="sendReqBtn">${tr('send')}</button>
           </div>
         </div>
@@ -4501,18 +4638,21 @@
     overlay.querySelector('#uploadAvatarBtn').onclick = ()=>{
       const input = document.createElement('input');
       input.type = 'file'; input.accept = 'image/*';
-      input.onchange = async ()=>{
+      input.onchange = ()=>{
         const file = input.files && input.files[0];
         if(!file) return;
-        showToast('Uploading…');
-        const url = await uploadAvatar(file, session.user.id);
-        if(!url) return;
-        try{
-          await supabaseClient.from('profiles').update({ avatar_url: url }).eq('id', session.user.id);
-          profile.avatar_url = url;
-          showToast('Photo updated');
-          overlay.remove(); openAccountModal();
-        }catch(e){ showToast('Could not save photo'); }
+        // Let them frame it first — the cropper hands back a square JPEG.
+        openImageCropper(file, async (cropped)=>{
+          showToast('Uploading…');
+          const url = await uploadAvatar(cropped, session.user.id);
+          if(!url) return;
+          try{
+            await supabaseClient.from('profiles').update({ avatar_url: url }).eq('id', session.user.id);
+            profile.avatar_url = url;
+            showToast('Photo updated');
+            overlay.remove(); openAccountModal();
+          }catch(e){ showToast('Could not save photo'); }
+        });
       };
       input.click();
     };
