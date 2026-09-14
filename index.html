@@ -257,7 +257,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.8.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.8.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -321,6 +321,7 @@
       connectGCal: 'Connect Google Calendar', logOut: 'Log out', close: 'Close', howThisWorks: 'How this works',
       supportProject: '💛 Support this project', language: 'Language',
       // Friends modal
+      alreadyFriends: 'Friends ✓', friendPending: 'Request pending', addFriendShort: '+ Friend',
       notifAddEvent: '+ Add to my calendar', notifEventAdded: 'Added — tap it to fill in the details',
       deleteAccount: 'Delete my account', deleteAcctTitle: 'Delete your account?',
       deleteAcctWarn: 'This permanently deletes your events, results, decks, player IDs, friendships and playgroup memberships. It cannot be undone.',
@@ -412,6 +413,7 @@
       connectGCal: 'Conectar Google Calendar', logOut: 'Cerrar sesión', close: 'Cerrar', howThisWorks: 'Cómo funciona',
       supportProject: '💛 Apoya este proyecto', language: 'Idioma',
       // Friends modal
+      alreadyFriends: 'Amigos ✓', friendPending: 'Solicitud pendiente', addFriendShort: '+ Amigo',
       notifAddEvent: '+ Agregar a mi calendario', notifEventAdded: 'Agregado — tócalo para completar los detalles',
       deleteAccount: 'Eliminar mi cuenta', deleteAcctTitle: '¿Eliminar tu cuenta?',
       deleteAcctWarn: 'Esto elimina permanentemente tus eventos, resultados, mazos, IDs de jugador, amistades y membresías de grupos. No se puede deshacer.',
@@ -1156,6 +1158,16 @@
     const p = profilesById[userId];
     if(!p) return '';
     return p.display_name && p.username ? '@'+p.username : '';
+  }
+
+  // Is this person already a friend, or is a request already in flight
+  // either direction? Used to avoid offering "+ Friend" for someone you're
+  // already connected to.
+  function friendState(userId){
+    if(friendsAccepted.some(p=>p.userId === userId)) return 'friends';
+    if(pendingIncoming.some(p=>p.userId === userId)) return 'pending';
+    if(pendingOutgoing.some(p=>p.userId === userId)) return 'pending';
+    return 'none';
   }
 
   async function sendFriendRequest(identifier){
@@ -3327,7 +3339,13 @@
             </div>
             <div style="display:flex;gap:6px;">
               ${m.id!==session.user.id?`<button class="mini-btn" data-pg-stats="${m.id}" data-pg-name="${escapeAttr(m.display_name||m.username||'Player')}">📊 Stats</button>`:''}
-              ${m.id!==session.user.id?`<button class="mini-btn" data-pg-friend="${m.id}">+ Friend</button>`:''}
+              ${m.id!==session.user.id ? (
+                friendState(m.id) === 'friends'
+                  ? `<span class="mini-btn" style="opacity:.55;cursor:default;">${tr('alreadyFriends')}</span>`
+                  : friendState(m.id) === 'pending'
+                    ? `<span class="mini-btn" style="opacity:.55;cursor:default;">${tr('friendPending')}</span>`
+                    : `<button class="mini-btn" data-pg-friend="${m.id}">${tr('addFriendShort')}</button>`
+              ) : ''}
             </div>
           </div>`).join('')}
 
@@ -3392,9 +3410,12 @@
         btn.onclick = async ()=>{
           btn.disabled = true;
           try{
-            await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: btn.dataset.pgFriend, status:'pending' });
+            const { error } = await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: btn.dataset.pgFriend, status:'pending' });
+            if(error) throw error;
             showToast('Friend request sent');
-            btn.textContent = 'Requested ✓';
+            btn.textContent = tr('friendPending');
+            // Refresh so friendState() reflects reality if this view redraws.
+            await loadFriendsData();
           }catch(e){ showToast('Could not send — you may already be connected'); btn.disabled=false; }
         };
       });
