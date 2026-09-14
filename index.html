@@ -257,7 +257,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.8'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.8.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -321,6 +321,7 @@
       connectGCal: 'Connect Google Calendar', logOut: 'Log out', close: 'Close', howThisWorks: 'How this works',
       supportProject: '💛 Support this project', language: 'Language',
       // Friends modal
+      notifAddEvent: '+ Add to my calendar', notifEventAdded: 'Added — tap it to fill in the details',
       deleteAccount: 'Delete my account', deleteAcctTitle: 'Delete your account?',
       deleteAcctWarn: 'This permanently deletes your events, results, decks, player IDs, friendships and playgroup memberships. It cannot be undone.',
       deleteAcctOwns: 'Deleting your account will also permanently delete these, for everyone:',
@@ -411,6 +412,7 @@
       connectGCal: 'Conectar Google Calendar', logOut: 'Cerrar sesión', close: 'Cerrar', howThisWorks: 'Cómo funciona',
       supportProject: '💛 Apoya este proyecto', language: 'Idioma',
       // Friends modal
+      notifAddEvent: '+ Agregar a mi calendario', notifEventAdded: 'Agregado — tócalo para completar los detalles',
       deleteAccount: 'Eliminar mi cuenta', deleteAcctTitle: '¿Eliminar tu cuenta?',
       deleteAcctWarn: 'Esto elimina permanentemente tus eventos, resultados, mazos, IDs de jugador, amistades y membresías de grupos. No se puede deshacer.',
       deleteAcctOwns: 'Eliminar tu cuenta también borrará permanentemente esto, para todos:',
@@ -2459,9 +2461,18 @@
   function openNotificationsModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
+    // Which notifications can be acted on right here?
+    const pendingReqIds = new Set(pendingIncoming.map(p=>p.userId));
     const rows = notifications.length ? notifications.map(n=>{
       const isInvite = n.type === 'event_invite' && n.related_invitation_id;
       const inviteStatus = isInvite ? (invitationStatusById[n.related_invitation_id] || 'pending') : null;
+      // A friend request is still actionable only while it's actually pending.
+      const isFriendReq = n.type === 'friend_request' && n.related_user_id && pendingReqIds.has(n.related_user_id);
+      const friendship = isFriendReq ? pendingIncoming.find(p=>p.userId === n.related_user_id) : null;
+      // Anything carrying an event we don't already have can be added directly.
+      const canAddEvent = !!n.event_name && !!n.event_date
+        && ['friend_going_same','friend_going_near','store_new_event','playgroup_going','playgroup_shared_event'].includes(n.type)
+        && !isDuplicateEvent({ name: n.event_name, date: n.event_date, store: '' });
       return `
       <div class="notif-item ${n.read?'':'unread'}">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
@@ -2473,6 +2484,15 @@
           <div class="rsvp-row" style="margin-top:8px;">
             <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">${tr('accept')}</button>
             <button class="rsvp-btn skip" data-invite-decline="${n.related_invitation_id}" data-notif="${n.id}">${tr('decline')}</button>
+          </div>` : ''}
+        ${isFriendReq ? `
+          <div class="rsvp-row" style="margin-top:8px;">
+            <button class="rsvp-btn going" data-notif-accept-friend="${friendship.friendshipId}">${tr('accept')}</button>
+            <button class="rsvp-btn skip" data-notif-decline-friend="${friendship.friendshipId}">${tr('decline')}</button>
+          </div>` : ''}
+        ${canAddEvent ? `
+          <div class="rsvp-row" style="margin-top:8px;">
+            <button class="rsvp-btn going" data-notif-add-event="${n.id}">${tr('notifAddEvent')}</button>
           </div>` : ''}
         ${isInvite && inviteStatus === 'accepted' ? `<div class="t" style="color:var(--teal);margin-top:4px;">${tr('accepted')}</div>` : ''}
         ${isInvite && inviteStatus === 'declined' ? `<div class="t" style="color:var(--rose);margin-top:4px;">${tr('declined')}</div>` : ''}
@@ -2496,6 +2516,37 @@
     overlay.querySelectorAll('[data-del-notif]').forEach(b=>b.onclick = async ()=>{
       await deleteNotification(b.dataset.delNotif);
       render();
+      overlay.remove();
+      openNotificationsModal();
+    });
+    overlay.querySelectorAll('[data-notif-accept-friend]').forEach(b=>b.onclick = async ()=>{
+      b.disabled = true;
+      await acceptFriend(b.dataset.notifAcceptFriend);
+      render();
+      overlay.remove();
+      openNotificationsModal();
+    });
+    overlay.querySelectorAll('[data-notif-decline-friend]').forEach(b=>b.onclick = async ()=>{
+      b.disabled = true;
+      await removeFriendship(b.dataset.notifDeclineFriend);
+      render();
+      overlay.remove();
+      openNotificationsModal();
+    });
+    overlay.querySelectorAll('[data-notif-add-event]').forEach(b=>b.onclick = async ()=>{
+      const n = notifications.find(x=>x.id === b.dataset.notifAddEvent);
+      if(!n) return;
+      b.disabled = true;
+      // Only the name and date come through on a notification, so this
+      // creates a minimal entry the user can flesh out by editing it.
+      tournaments.push({
+        id: uid(), name: n.event_name, game:'', store:'', date: n.event_date, time:'',
+        repeat:'none', format:'', fee:'', address:'', city:'', link:'', storeLink:'',
+        notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null
+      });
+      await saveTournaments();
+      render();
+      showToast(tr('notifEventAdded'));
       overlay.remove();
       openNotificationsModal();
     });
