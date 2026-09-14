@@ -257,7 +257,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.7'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.7.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -321,6 +321,12 @@
       connectGCal: 'Connect Google Calendar', logOut: 'Log out', close: 'Close', howThisWorks: 'How this works',
       supportProject: '💛 Support this project', language: 'Language',
       // Friends modal
+      deleteAccount: 'Delete my account', deleteAcctTitle: 'Delete your account?',
+      deleteAcctWarn: 'This permanently deletes your events, results, decks, player IDs, friendships and playgroup memberships. It cannot be undone.',
+      deleteAcctOwns: 'Deleting your account will also permanently delete these, for everyone:',
+      deleteAcctTypeIt: 'Type DELETE below to confirm.',
+      deleteAcctExportFirst: 'Consider exporting your data first — you can do that from this screen.',
+      deleteAcctConfirm: 'Permanently delete', deleteAcctDone: 'Your account has been deleted.',
       cropTitle: 'Frame your photo', cropHint: 'Drag to reposition, use the slider to zoom.', cropZoom: 'Zoom', cropUse: 'Use this photo',
       addFriendLabel: 'Add a friend', addFriendHint: 'Enter their username, display name, or email — any of the three works.', send: 'Send',
       requestsForYou: 'Requests for you', wantsFriend: 'wants to be friends',
@@ -405,6 +411,12 @@
       connectGCal: 'Conectar Google Calendar', logOut: 'Cerrar sesión', close: 'Cerrar', howThisWorks: 'Cómo funciona',
       supportProject: '💛 Apoya este proyecto', language: 'Idioma',
       // Friends modal
+      deleteAccount: 'Eliminar mi cuenta', deleteAcctTitle: '¿Eliminar tu cuenta?',
+      deleteAcctWarn: 'Esto elimina permanentemente tus eventos, resultados, mazos, IDs de jugador, amistades y membresías de grupos. No se puede deshacer.',
+      deleteAcctOwns: 'Eliminar tu cuenta también borrará permanentemente esto, para todos:',
+      deleteAcctTypeIt: 'Escribe DELETE abajo para confirmar.',
+      deleteAcctExportFirst: 'Considera exportar tus datos primero — puedes hacerlo desde esta pantalla.',
+      deleteAcctConfirm: 'Eliminar permanentemente', deleteAcctDone: 'Tu cuenta ha sido eliminada.',
       cropTitle: 'Ajusta tu foto', cropHint: 'Arrastra para mover, usa el control para acercar.', cropZoom: 'Zoom', cropUse: 'Usar esta foto',
       addFriendLabel: 'Agrega un amigo', addFriendHint: 'Ingresa su nombre de usuario, nombre visible o correo — cualquiera de los tres funciona.', send: 'Enviar',
       requestsForYou: 'Solicitudes para ti', wantsFriend: 'quiere ser tu amigo',
@@ -4546,6 +4558,81 @@
     draw();
   }
 
+  // Account deletion. Deliberately a few steps: shows exactly what will be
+  // lost (including anything that affects OTHER people, like a store or
+  // playgroup they own), nudges toward exporting first, and requires typing
+  // DELETE rather than a single tap.
+  async function openDeleteAccountModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>⚠️ ${tr('deleteAcctTitle')}</h2><div id="delBody"><div class="modal-sub">…</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#delBody');
+
+    let preview = null;
+    try{
+      const res = await fetch(FUNCTIONS_URL + '/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
+        body: JSON.stringify({ preview: true })
+      });
+      preview = await res.json();
+      if(preview.error) throw new Error(preview.error);
+    }catch(e){
+      body.innerHTML = `<div class="modal-sub">Couldn't reach the deletion service. If this keeps happening, email beeftcg@gmail.com and it can be done manually.</div>
+        <div class="modal-actions"><button class="btn-secondary" id="delClose" style="flex:1;">${tr('close')}</button></div>`;
+      body.querySelector('#delClose').onclick = ()=>overlay.remove();
+      return;
+    }
+
+    const owns = [...(preview.owned_stores||[]).map(n=>'🏪 '+n), ...(preview.owned_playgroups||[]).map(n=>'👥 '+n)];
+
+    body.innerHTML = `
+      <div class="modal-sub">${tr('deleteAcctWarn')}</div>
+      <div class="list-item"><div class="info"><div class="n">${preview.events||0} events · ${preview.decks||0} decks</div>
+        <div class="m">plus your results, stats, friendships and player IDs</div></div></div>
+      ${owns.length ? `
+        <div class="section-label" style="color:var(--rose);">${tr('deleteAcctOwns')}</div>
+        ${owns.map(o=>`<div class="list-item"><div class="info"><div class="n">${escapeHtml(o)}</div>
+          <div class="m">Followers and members will lose access</div></div></div>`).join('')}
+      ` : ''}
+      <div class="hint" style="margin:14px 0;">💾 ${tr('deleteAcctExportFirst')}</div>
+      <div class="field">
+        <label>${tr('deleteAcctTypeIt')}</label>
+        <input id="delConfirmInput" placeholder="DELETE" autocomplete="off" style="text-transform:uppercase;"/>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="delCancel" style="flex:1;">${tr('cancel')}</button>
+        <button class="btn-danger" id="delGo" style="flex:1;" disabled>${tr('deleteAcctConfirm')}</button>
+      </div>`;
+
+    const input = body.querySelector('#delConfirmInput');
+    const goBtn = body.querySelector('#delGo');
+    input.oninput = ()=>{ goBtn.disabled = input.value.trim().toUpperCase() !== 'DELETE'; };
+    body.querySelector('#delCancel').onclick = ()=>overlay.remove();
+
+    goBtn.onclick = async ()=>{
+      goBtn.disabled = true; goBtn.textContent = 'Deleting…';
+      try{
+        const res = await fetch(FUNCTIONS_URL + '/delete-account', {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
+          body: JSON.stringify({ confirm: true })
+        });
+        const out = await res.json();
+        if(out.error) throw new Error(out.error);
+        overlay.remove();
+        alert(tr('deleteAcctDone'));
+        await supabaseClient.auth.signOut();
+        window.location.href = baseAppUrl();
+      }catch(e){
+        showToast('Could not delete the account — try again or email beeftcg@gmail.com');
+        goBtn.disabled = false; goBtn.textContent = tr('deleteAcctConfirm');
+      }
+    };
+  }
+
   function openAccountModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -4625,6 +4712,8 @@
         ${DONATION_URL ? `<div style="text-align:center;margin-top:16px;"><a href="${escapeAttr(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('supportProject')}</a></div>` : ''}
         <div style="text-align:center;margin-top:12px;">
           <a href="${baseAppUrl()}privacy.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">Privacy Policy</a>
+          <span style="color:var(--text-dim);font-size:12px;"> · </span>
+          <button id="deleteAccountBtn" style="background:none;border:none;color:var(--rose);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;font-family:inherit;">${tr('deleteAccount')}</button>
         </div>
         <div style="text-align:center;margin-top:10px;color:var(--text-dim);font-size:11px;">Build: ${escapeHtml(APP_VERSION)}</div>
       </div>`;
@@ -4635,6 +4724,7 @@
     overlay.querySelector('#openInstallGuide').onclick = ()=>{ overlay.remove(); openInstallGuideModal(); };
     overlay.querySelector('#exportDataBtn').onclick = exportMyData;
     overlay.querySelector('#importDataBtn').onclick = importMyData;
+    overlay.querySelector('#deleteAccountBtn').onclick = ()=>{ overlay.remove(); openDeleteAccountModal(); };
     overlay.querySelector('#uploadAvatarBtn').onclick = ()=>{
       const input = document.createElement('input');
       input.type = 'file'; input.accept = 'image/*';
