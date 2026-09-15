@@ -338,6 +338,7 @@
       // Notifications modal
       notifications: 'Notifications', markAllRead: 'Mark all read',
       pushEnabled: '🔔 Push enabled on this device', enablePush: 'Enable push on this device',
+      disablePush: 'Disable push on this device',
       noNotifsYet: 'No notifications yet.', accepted: '✓ Accepted', declined: 'Declined',
       // Share modal
       shareWithAnyone: 'Share with anyone', shareEvents: 'Share events', viewSharedCode: 'View a shared code',
@@ -430,6 +431,7 @@
       // Notifications modal
       notifications: 'Notificaciones', markAllRead: 'Marcar todo como leído',
       pushEnabled: '🔔 Notificaciones activadas en este dispositivo', enablePush: 'Activar notificaciones en este dispositivo',
+      disablePush: 'Desactivar notificaciones en este dispositivo',
       noNotifsYet: 'Todavía no hay notificaciones.', accepted: '✓ Aceptada', declined: 'Rechazada',
       // Share modal
       shareWithAnyone: 'Compartir con cualquiera', shareEvents: 'Compartir eventos', viewSharedCode: 'Ver un código compartido',
@@ -1352,6 +1354,19 @@
       showToast('Push notifications enabled on this device');
       render();
     }catch(e){ console.error(e); showToast('Could not enable push notifications'); }
+  }
+  async function disablePush(){
+    try{
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg ? await reg.pushManager.getSubscription() : null;
+      if(sub){
+        await supabaseClient.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+        await sub.unsubscribe();
+      }
+      pushEnabled = false;
+      showToast('Push notifications disabled on this device');
+      render();
+    }catch(e){ console.error(e); showToast('Could not disable push notifications'); }
   }
 
   // ---------- Google Calendar ----------
@@ -2515,7 +2530,7 @@
         <h2>${tr('notifications')}</h2>
         <div class="modal-actions" style="margin-top:0;margin-bottom:14px;">
           <button class="btn-secondary" id="markAllBtn" style="flex:1;">${tr('markAllRead')}</button>
-          <button class="btn-primary" id="pushBtn" style="flex:1;">${pushEnabled ? tr('pushEnabled') : tr('enablePush')}</button>
+          <button class="${pushEnabled ? 'btn-secondary' : 'btn-primary'}" id="pushBtn" style="flex:1;">${pushEnabled ? tr('disablePush') : tr('enablePush')}</button>
         </div>
         <div style="max-height:50vh;overflow-y:auto;">${rows}</div>
         <div class="modal-actions"><button class="btn-secondary" id="closeNotif" style="flex:1;">${tr('close')}</button></div>
@@ -2524,7 +2539,7 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeNotif').onclick = ()=>overlay.remove();
     overlay.querySelector('#markAllBtn').onclick = async ()=>{ await markAllRead(); render(); overlay.remove(); };
-    overlay.querySelector('#pushBtn').onclick = async ()=>{ await enablePush(); overlay.remove(); openNotificationsModal(); };
+    overlay.querySelector('#pushBtn').onclick = async ()=>{ await (pushEnabled ? disablePush() : enablePush()); overlay.remove(); openNotificationsModal(); };
     overlay.querySelectorAll('[data-del-notif]').forEach(b=>b.onclick = async ()=>{
       await deleteNotification(b.dataset.delNotif);
       render();
