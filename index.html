@@ -14,9 +14,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="Pairings"/>
 
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
+<!-- A <link> (with preconnect) instead of a CSS @import: the browser starts
+     fetching the fonts immediately rather than only after the stylesheet has
+     been downloaded and parsed. -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap"/>
 
+<style>
   :root{
     --void:#100e1a;
     --panel:#181528;
@@ -246,8 +251,11 @@
   updated pairings.html, you just drop it in and config.js stays untouched.
   ============================================================
 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- Pinned to an exact version with a Subresource Integrity hash, so a CDN
+     compromise or surprise upgrade can't change what runs in the app. To
+     upgrade: change the version, then regenerate the hash with
+     curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP" crossorigin="anonymous"></script>
 <script src="/config.js"></script>
 <script>
 (function(){
@@ -257,7 +265,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.8.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.9.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -620,7 +628,7 @@
   }
   function avatarImg(url, size, fallbackText){
     const s = size || 40;
-    if(url) return `<img src="${escapeAttr(url)}" alt="" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;flex:none;background:var(--panel-2);"/>`;
+    if(url) return `<img src="${safeHref(url)}" alt="" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;flex:none;background:var(--panel-2);"/>`;
     const initial = (fallbackText||'?').trim().charAt(0).toUpperCase();
     return `<div style="width:${s}px;height:${s}px;border-radius:50%;background:var(--panel-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;flex:none;font-weight:700;color:var(--text-dim);font-size:${Math.round(s*0.42)}px;">${escapeHtml(initial)}</div>`;
   }
@@ -787,6 +795,42 @@
   }
   function shareCode(){ return Math.random().toString(36).slice(2,8).toUpperCase(); }
 
+  // Share codes are write-once rows in kv_store (see the "kv insert share
+  // codes" policy). insert — not upsert — so an existing code is never
+  // overwritten; on a collision (Postgres 23505) just try another code.
+  async function createShareRow(payload){
+    for(let i = 0; i < 5; i++){
+      const code = shareCode();
+      const { error } = await supabaseClient.from('kv_store').insert({ key: 'share:' + code, value: payload });
+      if(!error) return code;
+      if(error.code !== '23505') throw error;
+    }
+    throw new Error('could not allocate a share code');
+  }
+  // Reads one share payload by exact code. Uses the get_share_payload RPC;
+  // if the database doesn't have it yet, falls back to a direct select.
+  // Links inside are re-validated here because the payload is written by
+  // someone else and ends up in the viewer's own event list.
+  async function fetchSharePayload(code){
+    let payload = null;
+    const { data, error } = await supabaseClient.rpc('get_share_payload', { p_code: code });
+    if(!error){
+      payload = data;
+    } else if(error.code === 'PGRST202' || error.code === '42883'){
+      const r = await supabaseClient.from('kv_store').select('value').eq('key', 'share:' + code).maybeSingle();
+      payload = r.data ? r.data.value : null;
+    } else {
+      throw error;
+    }
+    if(payload && Array.isArray(payload.events)){
+      payload.events.forEach(e=>{
+        if('link' in e) e.link = safeUrl(e.link);
+        if('storeLink' in e) e.storeLink = safeUrl(e.storeLink);
+      });
+    }
+    return payload;
+  }
+
   // Every modal in the app gets an always-visible close button injected
   // automatically. Doing it centrally here (rather than editing each of the
   // ~20 modal templates) means new modals get it for free and none can be
@@ -841,6 +885,41 @@
     return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   function escapeAttr(s){ return escapeHtml(s); }
+
+  // escapeAttr only stops attribute break-out; it does NOT stop a
+  // "javascript:..." value from running when the link is clicked. Every
+  // user-supplied URL (event links, store links, shared events from other
+  // people) must go through safeUrl before being used as an href or src.
+  // Allows http(s) only; a bare "facebook.com/events/1" gets https:// added.
+  function safeUrl(u){
+    if(u == null) return '';
+    const s = String(u).trim();
+    if(!s || /[\s<>"']/.test(s)) return '';
+    if(/^https?:\/\//i.test(s)) return s;
+    if(/^[a-z][a-z0-9+.-]*:/i.test(s)) return ''; // some other scheme: javascript:, data:, vbscript:, file:, ...
+    if(/^[^\/?#]+\.[a-z]{2,}([\/?#]|$)/i.test(s)) return 'https://' + s;
+    return '';
+  }
+  function safeHref(u){ return escapeAttr(safeUrl(u)); }
+
+  // qrcodejs is only needed on the store-owner page, so load it (pinned +
+  // SRI-checked) the first time it's asked for instead of on every page view.
+  let qrLibPromise = null;
+  function loadQrLib(){
+    if(window.QRCode) return Promise.resolve();
+    if(!qrLibPromise){
+      qrLibPromise = new Promise((resolve, reject)=>{
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        s.integrity = 'sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU';
+        s.crossOrigin = 'anonymous';
+        s.onload = ()=>resolve();
+        s.onerror = ()=>{ qrLibPromise = null; reject(new Error('qrcode load failed')); };
+        document.head.appendChild(s);
+      });
+    }
+    return qrLibPromise;
+  }
 
   // ---------- date helpers ----------
   function dateToStr(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -1050,13 +1129,48 @@
   // get written back over real server data. Every save is gated on this.
   let userDataLoaded = false;
 
+  // Server-side version of the user_data row, used for optimistic-concurrency
+  // saves (see save_user_data in master-schema.sql). null means "not
+  // available" — either the column/function hasn't been added yet, or we're
+  // running against an older database — and saves fall back to a plain upsert.
+  let userDataVersion = null;
+
+  // Last successfully loaded events/decks, kept in localStorage purely so the
+  // list can still be SHOWN when the network is down (e.g. bad venue wifi).
+  // It is never written back to the server: a load that falls back to this
+  // leaves userDataLoaded false, which blocks every save. Cleared on sign-out.
+  const OFFLINE_CACHE_PREFIX = 'pairings-offline:';
+  function writeOfflineCache(){
+    try{ localStorage.setItem(OFFLINE_CACHE_PREFIX + session.user.id, JSON.stringify({ tournaments, decks, at: Date.now() })); }catch(e){}
+  }
+  function readOfflineCache(){
+    try{
+      const raw = localStorage.getItem(OFFLINE_CACHE_PREFIX + session.user.id);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  function clearOfflineCache(){
+    try{
+      Object.keys(localStorage).filter(k=>k.startsWith(OFFLINE_CACHE_PREFIX)).forEach(k=>localStorage.removeItem(k));
+    }catch(e){}
+  }
+
   async function loadTournaments(){
     try{
-      const { data, error } = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', session.user.id).maybeSingle();
-      if(error) throw error;
+      let res = await supabaseClient.from('user_data').select('tournaments, decks, version').eq('user_id', session.user.id).maybeSingle();
+      if(res.error && /version/i.test(res.error.message || '')){
+        // Database predates the versioned-save migration; load without it.
+        res = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', session.user.id).maybeSingle();
+        userDataVersion = null;
+      } else if(!res.error){
+        userDataVersion = (res.data && typeof res.data.version === 'number') ? res.data.version : (res.data ? null : 0);
+      }
+      if(res.error) throw res.error;
+      const data = res.data;
       tournaments = (data && data.tournaments) || [];
       decks = (data && data.decks) || [];
       userDataLoaded = true;
+      writeOfflineCache();
     }catch(e){
       // Deliberately do NOT clear tournaments/decks here — a failed load is
       // not evidence that the user has no data. Leaving userDataLoaded false
@@ -1064,33 +1178,92 @@
       // server copy with an empty list.
       userDataLoaded = false;
       console.error('loadTournaments failed:', e);
-      showToast('Could not load your data — not saving changes until this reconnects');
+      const cached = (!tournaments.length && !decks.length) ? readOfflineCache() : null;
+      if(cached && Array.isArray(cached.tournaments)){
+        tournaments = cached.tournaments;
+        decks = Array.isArray(cached.decks) ? cached.decks : [];
+        showToast('Offline — showing your last synced list (read-only until you reconnect)');
+      } else {
+        showToast('Could not load your data — not saving changes until this reconnects');
+      }
     }
   }
-  async function saveTournaments(){
+
+  // Merge two lists of {id, ...} items. Local wins for ids present in both
+  // (that's the edit being saved); items that exist on only one side are kept.
+  // The trade-off: something deleted on one device while another device still
+  // has it comes back rather than being lost — recoverable beats silent loss.
+  function mergeById(serverArr, localArr){
+    const byId = new Map();
+    // Items with no id (very old data) can't be matched, so each is kept as-is.
+    const key = x => (x && x.id != null) ? x.id : Symbol('no-id');
+    (serverArr || []).forEach(x=>byId.set(key(x), x));
+    (localArr || []).forEach(x=>byId.set(key(x), x));
+    return [...byId.values()];
+  }
+
+  // Saves are serialized: two overlapping saves would both carry the same
+  // expected version and the second would always look like a conflict.
+  let saveQueue = Promise.resolve();
+  function persistUserData(fields){
+    const run = saveQueue.then(()=>doPersistUserData(fields));
+    saveQueue = run.catch(()=>{});
+    return run;
+  }
+
+  // fields: which of 'tournaments' / 'decks' this save is for. Values are read
+  // from the live variables when the save actually runs, not when queued.
+  async function doPersistUserData(fields){
     if(!userDataLoaded){
       showToast('Not saving — your data has not loaded yet. Try refreshing.');
-      return;
+      return false;
     }
+    const failMsg = fields.includes('decks') && !fields.includes('tournaments')
+      ? 'Could not save decks — check your connection'
+      : 'Could not save — check your connection';
     try{
-      await supabaseClient.from('user_data').upsert(
-        { user_id: session.user.id, tournaments, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      );
-    }catch(e){ showToast('Could not save — check your connection'); }
-  }
-  async function saveDecks(){
-    if(!userDataLoaded){
-      showToast('Not saving — your data has not loaded yet. Try refreshing.');
-      return;
+      if(userDataVersion !== null){
+        for(let attempt = 0; attempt < 2; attempt++){
+          const args = { p_expected_version: userDataVersion };
+          if(fields.includes('tournaments')) args.p_tournaments = tournaments;
+          if(fields.includes('decks')) args.p_decks = decks;
+          const { data, error } = await supabaseClient.rpc('save_user_data', args);
+          if(error){
+            // PGRST202 / 42883: function not found — migration not run yet.
+            if(error.code === 'PGRST202' || error.code === '42883'){ userDataVersion = null; break; }
+            throw error;
+          }
+          if(typeof data === 'number' && data >= 0){ userDataVersion = data; writeOfflineCache(); return true; }
+          // Version conflict: another device saved since we loaded. Pull its
+          // copy, merge our changes onto it, and try once more.
+          const { data: fresh, error: freshErr } = await supabaseClient.from('user_data').select('tournaments, decks, version').eq('user_id', session.user.id).maybeSingle();
+          if(freshErr || !fresh) throw (freshErr || new Error('reload after conflict failed'));
+          tournaments = fields.includes('tournaments') ? mergeById(fresh.tournaments, tournaments) : (fresh.tournaments || []);
+          decks = fields.includes('decks') ? mergeById(fresh.decks, decks) : (fresh.decks || []);
+          userDataVersion = fresh.version;
+          if(attempt === 1) throw new Error('save conflict persisted after merge');
+          showToast('Merged changes made on another device');
+          render();
+        }
+      }
+      // Legacy path (database without save_user_data): plain upsert, but
+      // the error is now actually checked — supabase-js returns { error }
+      // rather than throwing, so the old try/catch never saw failures.
+      const row = { user_id: session.user.id, updated_at: new Date().toISOString() };
+      if(fields.includes('tournaments')) row.tournaments = tournaments;
+      if(fields.includes('decks')) row.decks = decks;
+      const { error } = await supabaseClient.from('user_data').upsert(row, { onConflict: 'user_id' });
+      if(error) throw error;
+      writeOfflineCache();
+      return true;
+    }catch(e){
+      console.error('save failed:', e);
+      showToast(failMsg);
+      return false;
     }
-    try{
-      await supabaseClient.from('user_data').upsert(
-        { user_id: session.user.id, decks, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      );
-    }catch(e){ showToast('Could not save decks — check your connection'); }
   }
+  function saveTournaments(){ return persistUserData(['tournaments']); }
+  function saveDecks(){ return persistUserData(['decks']); }
 
   async function syncAttendance(t, date){
     const occ = getOcc(t, date);
@@ -1282,21 +1455,31 @@
   // every time the app becomes visible again (reopened from background,
   // switched back to from another app, etc.), which is the only reliable
   // way to recover on iOS specifically.
-  async function refreshOnResume(){
+  // hiddenMs: how long the page was in the background. Tab-flicking back and
+  // forth is common, and a full reload (3 fetches + store sync + re-render) on
+  // every flick is wasteful, so the data reload only runs after 60s away.
+  // The realtime reconnect ALWAYS runs — iOS can kill the socket within
+  // seconds and gives no signal that it did. hiddenMs undefined = bfcache
+  // restore, where we know nothing about how long it was away, so reload.
+  async function refreshOnResume(hiddenMs){
     if(!session) return;
-    try{
-      await Promise.all([loadTournaments(), loadFriendsData(), loadNotifications()]);
-      await syncFollowedStoreEvents();
-      render();
-    }catch(e){ /* non-fatal */ }
+    if(hiddenMs === undefined || hiddenMs > 60000){
+      try{
+        await Promise.all([loadTournaments(), loadFriendsData(), loadNotifications()]);
+        await syncFollowedStoreEvents();
+        render();
+      }catch(e){ /* non-fatal */ }
+    }
     try{
       if(realtimeChannel){ await supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
     }catch(e){}
     realtimeSubscribed = false;
     subscribeRealtime();
   }
+  let hiddenAt = 0;
   document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState === 'visible') refreshOnResume();
+    if(document.visibilityState === 'hidden'){ hiddenAt = Date.now(); return; }
+    refreshOnResume(hiddenAt ? Date.now() - hiddenAt : undefined);
   });
   window.addEventListener('pageshow', (e)=>{
     if(e.persisted) refreshOnResume(); // page restored from iOS's back-forward cache
@@ -1857,10 +2040,10 @@
             ${inst.result && inst.result.notes ? `<div class="card-notes">Result notes: ${escapeHtml(inst.result.notes)}</div>` : ''}
             ${t.notes ? `<div class="card-notes">${escapeHtml(t.notes.length>140?t.notes.slice(0,140)+'…':t.notes)}</div>` : ''}
             <div class="card-links">
-              ${t.link ? `<a class="card-link" href="${escapeAttr(t.link)}" target="_blank" rel="noopener">${tr('eventPage')}</a>` : ''}
-              ${t.deckLink ? `<a class="card-link" href="${escapeAttr(t.deckLink)}" target="_blank" rel="noopener">📋 Decklist ↗</a>` : ''}
-              ${t.storeLink ? `<a class="card-link" href="${escapeAttr(t.storeLink)}" target="_blank" rel="noopener">🏬 Store page ↗</a>` : ''}
-              ${t.simulatorLink ? `<a class="card-link" href="${escapeAttr(t.simulatorLink)}" target="_blank" rel="noopener">🎮 Join online ↗</a>` : ''}
+              ${safeUrl(t.link) ? `<a class="card-link" href="${safeHref(t.link)}" target="_blank" rel="noopener">${tr('eventPage')}</a>` : ''}
+              ${safeUrl(t.deckLink) ? `<a class="card-link" href="${safeHref(t.deckLink)}" target="_blank" rel="noopener">📋 Decklist ↗</a>` : ''}
+              ${safeUrl(t.storeLink) ? `<a class="card-link" href="${safeHref(t.storeLink)}" target="_blank" rel="noopener">🏬 Store page ↗</a>` : ''}
+              ${safeUrl(t.simulatorLink) ? `<a class="card-link" href="${safeHref(t.simulatorLink)}" target="_blank" rel="noopener">🎮 Join online ↗</a>` : ''}
               ${t.contactInfo ? `<span class="card-link" style="cursor:default;">✉ ${escapeHtml(t.contactInfo)}</span>` : ''}
               <a class="card-link" href="${TURNZERO_URL}" target="_blank" rel="noopener">⏱ Start a round timer ↗</a>
               <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">${tr('shareWithFriend')}</a>
@@ -3228,10 +3411,10 @@
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;';
     overlay.innerHTML = `
-      <img src="${escapeAttr(url)}" alt="" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;"/>
+      <img src="${safeHref(url)}" alt="" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;"/>
       ${label ? `<div style="color:#fff;font-size:14px;margin-top:14px;text-align:center;">${escapeHtml(label)}</div>` : ''}
       <div style="margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;align-items:center;">
-        <a href="${escapeAttr(url)}" target="_blank" rel="noopener" style="color:#9db4ff;font-size:13px;">Open original ↗</a>
+        <a href="${safeHref(url)}" target="_blank" rel="noopener" style="color:#9db4ff;font-size:13px;">Open original ↗</a>
         ${reportCtx ? `<button id="lbReport" style="background:none;border:none;color:#f5919e;font-size:13px;cursor:pointer;text-decoration:underline;">🚩 Report this image</button>` : ''}
         <span style="color:#888;font-size:13px;">Tap anywhere to close</span>
       </div>`;
@@ -3898,7 +4081,10 @@
 
             <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
           `;
-          try{ new QRCode(document.getElementById('storeQrHolder'), { text: `${baseAppUrl()}?storepage=${myStore.follow_code}`, width:150, height:150 }); }catch(e){}
+          loadQrLib().then(()=>{
+            const holder = document.getElementById('storeQrHolder');
+            if(holder) new QRCode(holder, { text: `${baseAppUrl()}?storepage=${myStore.follow_code}`, width:150, height:150 });
+          }).catch(()=>{ /* non-fatal — the follow code is still shown as text */ });
 
           overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
           body.querySelector('#backToStoreList').onclick = ()=>drawStoreList();
@@ -4122,7 +4308,7 @@
           rEl.innerHTML = data.map((rep,i)=>`
             <div class="list-item">
               <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-                <img src="${escapeAttr(rep.image_url)}" alt="" data-rep-zoom="${i}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--panel-2);cursor:zoom-in;"/>
+                <img src="${safeHref(rep.image_url)}" alt="" data-rep-zoom="${i}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--panel-2);cursor:zoom-in;"/>
                 <div class="info">
                   <div class="n">${escapeHtml(rep.context||'unknown')}</div>
                   <div class="m">${escapeHtml(rep.reason || 'No reason given')}</div>
@@ -4244,7 +4430,7 @@
           el.innerHTML = data.map((img,i)=>`
             <div class="list-item">
               <div style="display:flex;align-items:center;gap:10px;">
-                <img src="${escapeAttr(img.image_url)}" alt="" data-zoom-img="${escapeAttr(img.image_url)}" data-zoom-label="${escapeAttr(img.label||'')}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--panel-2);cursor:zoom-in;" title="Click to enlarge"/>
+                <img src="${safeHref(img.image_url)}" alt="" data-zoom-img="${escapeAttr(img.image_url)}" data-zoom-label="${escapeAttr(img.label||'')}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--panel-2);cursor:zoom-in;" title="Click to enlarge"/>
                 <div class="info"><div class="n">${escapeHtml(img.label||'—')}</div><div class="m">${escapeHtml(img.context)}</div></div>
               </div>
               <button class="mini-btn decline" data-clear-img="${i}">Remove</button>
@@ -4298,8 +4484,8 @@
             <div class="n" data-view="${d.id}">${escapeHtml(d.name)}</div>
             <div class="m">${escapeHtml(metaBits.join(' · '))}</div>
             ${(d.viewLink || d.editLink) ? `<div style="margin-top:4px;display:flex;gap:10px;">
-              ${d.viewLink ? `<a href="${escapeAttr(d.viewLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">View on Piltover Archive ↗</a>` : ''}
-              ${d.editLink ? `<a href="${escapeAttr(d.editLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">Edit ↗</a>` : ''}
+              ${safeUrl(d.viewLink) ? `<a href="${safeHref(d.viewLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">View on Piltover Archive ↗</a>` : ''}
+              ${safeUrl(d.editLink) ? `<a href="${safeHref(d.editLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">Edit ↗</a>` : ''}
             </div>` : ''}
           </div>
           <div style="display:flex;gap:6px;">
@@ -4539,7 +4725,7 @@
       <div class="modal">
         <h2>${tr('officialLocators')}</h2>
         <div class="modal-sub">These open the official sites in a new tab.</div>
-        ${links.map(l=>`<a class="pg-menu-row" href="${escapeAttr(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;">${escapeHtml(l.label)} ↗</a>`).join('')}
+        ${links.map(l=>`<a class="pg-menu-row" href="${safeHref(l.url)}" target="_blank" rel="noopener" style="text-decoration:none;">${escapeHtml(l.label)} ↗</a>`).join('')}
         <div class="modal-actions"><button class="btn-secondary" id="closeLocators" style="flex:1;">${tr('close')}</button></div>
       </div>`;
     document.body.appendChild(overlay);
@@ -4601,7 +4787,7 @@
               <div class="m" style="font-size:11px;">${Math.round(e.km)} ${tr('pokeAway')}${e.event_type?' · '+escapeHtml(e.event_type):''}${e.cost?' · '+escapeHtml(e.cost):''}</div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-              ${e.pokemon_url?`<a class="mini-btn" href="${escapeAttr(e.pokemon_url)}" target="_blank" rel="noopener">${tr('pokeDetails')} ↗</a>`:''}
+              ${safeUrl(e.pokemon_url)?`<a class="mini-btn" href="${safeHref(e.pokemon_url)}" target="_blank" rel="noopener">${tr('pokeDetails')} ↗</a>`:''}
               <button class="mini-btn" data-poke-add="${i}">${tr('pokeAdd')}</button>
             </div>
           </div>`).join('') : `<div class="modal-sub">${tr('pokeNone')} ${radiusKm} km. ${tr('pokeTryWider')}</div>`}
@@ -4869,7 +5055,7 @@
           <button class="btn-danger" id="logoutBtn" style="flex:1;">${tr('logOut')}</button>
           <button class="btn-secondary" id="closeAccount" style="flex:1;">${tr('close')}</button>
         </div>
-        ${DONATION_URL ? `<div style="text-align:center;margin-top:16px;"><a href="${escapeAttr(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('supportProject')}</a></div>` : ''}
+        ${safeUrl(DONATION_URL) ? `<div style="text-align:center;margin-top:16px;"><a href="${safeHref(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('supportProject')}</a></div>` : ''}
         <div style="text-align:center;margin-top:12px;">
           <a href="${baseAppUrl()}privacy.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">Privacy Policy</a>
           <span style="color:var(--text-dim);font-size:12px;"> · </span>
@@ -4918,7 +5104,7 @@
     overlay.querySelector('#connectGoogleBtn').onclick = ()=>connectGoogleCalendar(()=>{ overlay.remove(); openAccountModal(); });
     overlay.querySelector('#langEn').onclick = ()=>setLanguage('en', overlay);
     overlay.querySelector('#langEs').onclick = ()=>setLanguage('es', overlay);
-    overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); realtimeSubscribed = false; realtimeChannel = null; overlay.remove(); };
+    overlay.querySelector('#logoutBtn').onclick = async ()=>{ await supabaseClient.auth.signOut(); clearOfflineCache(); realtimeSubscribed = false; realtimeChannel = null; overlay.remove(); };
     overlay.querySelector('#useLocationBtn').onclick = ()=>{
       if(!navigator.geolocation){ showToast('Geolocation is not available on this device'); return; }
       navigator.geolocation.getCurrentPosition(
@@ -5010,7 +5196,6 @@
 
   // ---------- Single-event share link ----------
   async function shareEventLink(t, date){
-    const code = shareCode();
     const payload = {
       createdAt: Date.now(),
       events: [{
@@ -5019,7 +5204,7 @@
       }]
     };
     try{
-      await supabaseClient.from('kv_store').upsert({ key: 'share:'+code, value: payload, updated_at: new Date().toISOString() });
+      const code = await createShareRow(payload);
       const url = window.location.origin + window.location.pathname + '?share=' + code;
       const ok = copyText(url);
       showToast(ok ? 'Link copied — send it to a friend' : ('Could not copy — here\'s the link: ' + url));
@@ -5034,8 +5219,7 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     const body = overlay.querySelector('#sharedBody');
     try{
-      const { data } = await supabaseClient.from('kv_store').select('value').eq('key', 'share:'+code).maybeSingle();
-      const payload = data ? data.value : null;
+      const payload = await fetchSharePayload(code);
       if(!payload || !payload.events || payload.events.length===0){
         body.innerHTML = `<div class="modal-sub">This link has expired or doesn't exist.</div>
           <div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">Close</button></div>`;
@@ -5245,13 +5429,12 @@
       body.querySelector('#makeCodeBtn').onclick = async ()=>{
         const selected = selectedInstances();
         if(selected.length === 0){ showToast('Select at least one event'); return; }
-        const code = shareCode();
         const payload = { createdAt: Date.now(), events: selected.map(i=>({
           name: i.t.name, game: i.t.game, store: i.t.store, date: i.date, time: i.t.time, format: i.t.format, fee: i.t.fee,
           address: i.t.address, link: i.t.link, storeLink: i.t.storeLink, repeat: isRepeating(i.t) ? i.t.repeat : 'none'
         })) };
         try{
-          await supabaseClient.from('kv_store').upsert({ key: 'share:'+code, value: payload, updated_at: new Date().toISOString() });
+          const code = await createShareRow(payload);
           const area = body.querySelector('#codeArea');
           area.innerHTML = `<div class="share-code-display"><div style="font-size:12px;color:var(--text-dim);margin-bottom:6px;">${tr('shareThisCode')}</div>
             <div class="code">${code}</div><button class="mini-btn" id="copyCodeBtn" style="margin-top:10px;">Copy code</button>
@@ -5274,8 +5457,7 @@
         const resultArea = body.querySelector('#lookupResult');
         resultArea.innerHTML = `<div class="modal-sub">Looking up…</div>`;
         try{
-          const { data } = await supabaseClient.from('kv_store').select('value').eq('key','share:'+code).maybeSingle();
-          const payload = data ? data.value : null;
+          const payload = await fetchSharePayload(code);
           if(!payload || !payload.events || payload.events.length===0){
             resultArea.innerHTML = `<div class="modal-sub">No list found for that code.</div>`; return;
           }
@@ -5548,7 +5730,7 @@
               ${e.prizing ? `<span class="badge result">🏆 ${escapeHtml(e.prizing)}</span>` : ''}
             </div>
             <div class="card-links">
-              ${e.link ? `<a class="card-link" href="${escapeAttr(e.link)}" target="_blank" rel="noopener">Event page ↗</a>` : ''}
+              ${safeUrl(e.link) ? `<a class="card-link" href="${safeHref(e.link)}" target="_blank" rel="noopener">Event page ↗</a>` : ''}
               <a class="card-link gold" href="${gcalQuickLink({name:e.name, time:e.time, fee:e.fee, notes:e.notes, link:e.link}, e.date)}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
             </div>
           </div>
@@ -5562,7 +5744,7 @@
           <div class="empty-state" style="margin-bottom:0;">
             <div class="big">🏪 ${escapeHtml(store.name)}</div>
             <div>${escapeHtml(store.city||'')}${store.description ? ' · '+escapeHtml(store.description) : ''}</div>
-            ${store.contact_link ? `<div style="margin-top:8px;"><a href="${escapeAttr(store.contact_link)}" target="_blank" rel="noopener" style="color:var(--teal);">${escapeHtml(store.contact_link)} ↗</a></div>` : ''}
+            ${safeUrl(store.contact_link) ? `<div style="margin-top:8px;"><a href="${safeHref(store.contact_link)}" target="_blank" rel="noopener" style="color:var(--teal);">${escapeHtml(store.contact_link)} ↗</a></div>` : ''}
           </div>
           <div class="section-label" style="text-align:center;">Upcoming events</div>
           ${rows || `<div class="modal-sub" style="text-align:center;">No upcoming events posted right now.</div>`}
@@ -5592,7 +5774,7 @@
       const hadSession = !!session;
       session = sess;
       if(session && !hadSession) bootstrapApp();
-      if(!session) renderAuth('signin');
+      if(!session){ clearOfflineCache(); renderAuth('signin'); }
     });
   })();
 })();
