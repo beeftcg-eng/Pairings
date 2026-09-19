@@ -265,7 +265,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.9.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.9.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -1012,7 +1012,15 @@
   let profileLoaded = false;
   async function loadProfile(){
     try{
-      const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      // Other users can no longer read most profile columns (email, home
+      // location, timezone, prefs...), so your OWN full row comes from the
+      // get_my_profile function. Falls back to select * for a database that
+      // hasn't run the profile-privacy SQL yet.
+      let res = await supabaseClient.rpc('get_my_profile').maybeSingle();
+      if(res.error && (res.error.code === 'PGRST202' || res.error.code === '42883')){
+        res = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+      }
+      const { data, error } = res;
       if(error) throw error;
       profile = data || { id: session.user.id, email: session.user.email, display_name:'', username:'', home_city:'', home_lat:null, home_lng:null, onboarded:false };
       profileLoaded = true;
@@ -1318,7 +1326,7 @@
       }
       const ids = [...new Set(list.map(f=>f.requester_id===session.user.id?f.addressee_id:f.requester_id))];
       if(ids.length){
-        const { data: profs } = await supabaseClient.from('profiles').select('id,email,display_name,username').in('id', ids);
+        const { data: profs } = await supabaseClient.from('profiles').select('id,display_name,username').in('id', ids);
         (profs||[]).forEach(p=>profilesById[p.id]=p);
       }
     }catch(e){ /* ignore */ }
@@ -1327,7 +1335,7 @@
   function friendLabel(userId){
     const p = profilesById[userId];
     if(!p) return 'Someone';
-    return p.display_name || (p.username ? '@'+p.username : p.email);
+    return p.display_name || (p.username ? '@'+p.username : 'Someone');
   }
   function friendSubLabel(userId){
     const p = profilesById[userId];
@@ -1359,9 +1367,14 @@
       let ambiguous = [];
 
       if(isEmail){
-        const { data } = await supabaseClient.from('profiles').select('id, username, display_name')
-          .eq('email', raw.toLowerCase()).maybeSingle();
-        target = data;
+        // Emails aren't readable from the profiles table any more; this
+        // exact-match function returns only id/username/display_name.
+        let res = await supabaseClient.rpc('find_profile_by_email', { p_email: raw }).maybeSingle();
+        if(res.error && (res.error.code === 'PGRST202' || res.error.code === '42883')){
+          res = await supabaseClient.from('profiles').select('id, username, display_name')
+            .eq('email', raw.toLowerCase()).maybeSingle();
+        }
+        target = res.data;
       } else {
         // Try username first (it's unique), then fall back to display name
         // (which isn't, so we may find several).
