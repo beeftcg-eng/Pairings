@@ -83,15 +83,25 @@ self.addEventListener('notificationclick', (event) => {
   // Only same-origin paths — a push payload must never be able to send the
   // user to an arbitrary external site.
   let target = '/';
+  let openName = '';
   try {
     const u = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
-    if (u.origin === self.location.origin) target = u.pathname + u.search + u.hash;
+    if (u.origin === self.location.origin) {
+      target = u.pathname + u.search + u.hash;
+      openName = u.searchParams.get('open') || '';   // e.g. /?open=notifications
+    }
   } catch (e) {}
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((clientList) => {
       for (const client of clientList) {
-        if ('focus' in client) return client.focus();
+        if ('focus' in client) {
+          // The app is already open: tell it which screen to show (it only honours
+          // names it knows), then bring it to the front.
+          if (openName) client.postMessage({ type: 'open', name: openName });
+          return client.focus();
+        }
       }
+      // App closed: start it at the deep link; the page reads ?open= on boot.
       if (self.clients.openWindow) return self.clients.openWindow(target);
     })
   );
