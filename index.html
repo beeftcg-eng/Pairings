@@ -265,7 +265,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.9.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.9.3'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -282,6 +282,14 @@
     return;
   }
 
+  // Email links (password reset, sign-up confirmation) open the app as
+  //   /#access_token=…&type=recovery        or, when the link is dead,
+  //   /#error=access_denied&error_code=otp_expired…
+  // supabase-js consumes that hash while it starts up, which finishes before the auth
+  // listener at the bottom of this file exists, so read what we need first.
+  const LINK_PARAMS = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+  let recoveryPending = LINK_PARAMS.get('type') === 'recovery';   // show "choose a new password"
+  const emailLinkError = LINK_PARAMS.get('error_code') || LINK_PARAMS.get('error');
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const FUNCTIONS_URL = SUPABASE_URL + '/functions/v1';
 
@@ -295,6 +303,16 @@
       authTagline: 'Track your local TCG tournaments — solo, or with friends.',
       signin: 'Sign in', signup: 'Create an account', email: 'Email', password: 'Password',
       newHere: 'New here?', alreadyHave: 'Already have an account?',
+      forgotPassword: 'Forgot password?',
+      resetEnterEmail: 'Enter your email above first, then tap "Forgot password?"',
+      resetSent: 'If that email has an account, a reset link is on its way. Check your spam folder too.',
+      resetFailed: "Couldn't send the reset email — please try again in a minute.",
+      newPasswordSub: "Choose a new password. Use at least 8 characters, and one you don't use elsewhere.",
+      newPassword: 'New password', confirmPassword: 'Confirm new password', savePassword: 'Save password',
+      passwordsDontMatch: "The two passwords don't match.", passwordTooShort: 'Use at least 8 characters.',
+      passwordUpdated: "Password updated — you're signed in.",
+      emailLinkExpired: 'That email link has expired or was already used. Try signing in, or use "Forgot password?" to get a new one.',
+      backToSignIn: 'Back to sign in',
       searchPlaceholder: 'Search name, store, notes…',
       upcoming: 'Upcoming', past: 'Past', all: 'All',
       friends: 'Friends', stats: '📊 Stats', account: 'Account', share: 'Share', addBtn: '+ Add',
@@ -388,6 +406,16 @@
       authTagline: 'Organiza tus torneos locales de TCG — solo, o con amigos.',
       signin: 'Iniciar sesión', signup: 'Crear una cuenta', email: 'Correo electrónico', password: 'Contraseña',
       newHere: '¿Nuevo aquí?', alreadyHave: '¿Ya tienes una cuenta?',
+      forgotPassword: '¿Olvidaste tu contraseña?',
+      resetEnterEmail: 'Escribe tu correo arriba y luego toca "¿Olvidaste tu contraseña?"',
+      resetSent: 'Si ese correo tiene una cuenta, te enviamos un enlace para restablecerla. Revisa también tu carpeta de spam.',
+      resetFailed: 'No pudimos enviar el correo — inténtalo de nuevo en un minuto.',
+      newPasswordSub: 'Elige una contraseña nueva. Usa al menos 8 caracteres, y una que no uses en otros sitios.',
+      newPassword: 'Contraseña nueva', confirmPassword: 'Confirma la contraseña nueva', savePassword: 'Guardar contraseña',
+      passwordsDontMatch: 'Las dos contraseñas no coinciden.', passwordTooShort: 'Usa al menos 8 caracteres.',
+      passwordUpdated: 'Contraseña actualizada — ya iniciaste sesión.',
+      emailLinkExpired: 'Ese enlace del correo venció o ya se usó. Intenta iniciar sesión, o usa "¿Olvidaste tu contraseña?" para pedir uno nuevo.',
+      backToSignIn: 'Volver a iniciar sesión',
       searchPlaceholder: 'Buscar nombre, tienda, notas…',
       upcoming: 'Próximos', past: 'Pasados', all: 'Todos',
       friends: 'Amigos', stats: '📊 Estadísticas', account: 'Cuenta', share: 'Compartir', addBtn: '+ Agregar',
@@ -1905,6 +1933,7 @@
           <div class="auth-sub">${tr('authTagline')}</div>
           <div class="field"><label>${tr('email')}</label><input id="a_email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
           <div class="field"><label>${tr('password')}</label><input id="a_password" type="password" placeholder="••••••••" autocomplete="${mode==='signin'?'current-password':'new-password'}"/></div>
+          ${mode==='signin' ? `<div class="auth-toggle" style="margin:-4px 0 12px;text-align:right;"><a id="forgotPw">${tr('forgotPassword')}</a></div>` : ''}
           <button class="btn-primary" id="a_submit" style="width:100%;">${mode==='signin'?tr('signin'):tr('signup')}</button>
           <div class="auth-toggle">${mode==='signin' ? `${tr('newHere')} <a id="toSignup">${tr('signup')}</a>` : `${tr('alreadyHave')} <a id="toSignin">${tr('signin')}</a>`}</div>
           <div style="text-align:center;margin-top:16px;">
@@ -1933,8 +1962,56 @@
         }
       }catch(e){ showToast('Something went wrong'); }
     };
+    const forgotPw = document.getElementById('forgotPw');
+    if(forgotPw) forgotPw.onclick = async ()=>{
+      const email = document.getElementById('a_email').value.trim();
+      if(!email){ showToast(tr('resetEnterEmail')); return; }
+      try{
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: baseAppUrl() });
+        // Supabase answers the same for unknown addresses, so this never reveals whether an
+        // account exists. Only a rate limit is worth explaining ("try again in 59 seconds").
+        if(error){ showToast(error.status === 429 && error.message ? error.message : tr('resetFailed')); return; }
+        showToast(tr('resetSent'));
+      }catch(e){ showToast(tr('resetFailed')); }
+    };
     const toSignup = document.getElementById('toSignup'); if(toSignup) toSignup.onclick = ()=>renderAuth('signup');
     const toSignin = document.getElementById('toSignin'); if(toSignin) toSignin.onclick = ()=>renderAuth('signin');
+  }
+
+  // Shown instead of the app when the user arrives from a password-reset email. The link has
+  // already signed them in (that is how updateUser is allowed), so nothing else loads until
+  // they have chosen a password or backed out.
+  function renderSetNewPassword(){
+    app.innerHTML = `
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <h1>Pairings</h1>
+          <div class="auth-sub">${tr('newPasswordSub')}</div>
+          <div class="field"><label>${tr('newPassword')}</label><input id="np_password" type="password" placeholder="••••••••" autocomplete="new-password"/></div>
+          <div class="field"><label>${tr('confirmPassword')}</label><input id="np_confirm" type="password" placeholder="••••••••" autocomplete="new-password"/></div>
+          <button class="btn-primary" id="np_submit" style="width:100%;">${tr('savePassword')}</button>
+          <div class="auth-toggle"><a id="np_cancel">${tr('backToSignIn')}</a></div>
+        </div>
+      </div>`;
+    const btn = document.getElementById('np_submit');
+    btn.onclick = async ()=>{
+      const pw = document.getElementById('np_password').value;
+      const pw2 = document.getElementById('np_confirm').value;
+      if(pw.length < 8){ showToast(tr('passwordTooShort')); return; }
+      if(pw !== pw2){ showToast(tr('passwordsDontMatch')); return; }
+      btn.disabled = true;
+      try{
+        const { error } = await supabaseClient.auth.updateUser({ password: pw });
+        if(error){ showToast(error.message); btn.disabled = false; return; }
+      }catch(e){ showToast(tr('resetFailed')); btn.disabled = false; return; }
+      recoveryPending = false;
+      showToast(tr('passwordUpdated'));
+      await bootstrapApp();
+    };
+    document.getElementById('np_cancel').onclick = async ()=>{
+      recoveryPending = false;
+      await supabaseClient.auth.signOut();   // the auth listener shows the sign-in screen
+    };
   }
 
   // ============================================================
@@ -5799,12 +5876,24 @@
     try{ if((navigator.language||'').toLowerCase().startsWith('es')) currentLang = 'es'; }catch(e){}
     const { data: { session: s } } = await supabaseClient.auth.getSession();
     session = s;
-    if(session) await bootstrapApp(); else renderAuth('signin');
+    // The auth tokens in the address bar are spent now; don't leave them in the URL/history.
+    if(window.location.hash && (recoveryPending || emailLinkError)){
+      try{ history.replaceState(null, '', window.location.pathname + window.location.search); }catch(e){}
+    }
+    if(session && recoveryPending) renderSetNewPassword();
+    else if(session) await bootstrapApp();
+    else { renderAuth('signin'); if(emailLinkError) showToast(tr('emailLinkExpired')); }
     supabaseClient.auth.onAuthStateChange((event, sess)=>{
       const hadSession = !!session;
       session = sess;
-      if(session && !hadSession) bootstrapApp();
-      if(!session){ clearOfflineCache(); renderAuth('signin'); }
+      // PASSWORD_RECOVERY can arrive here instead of (or as well as) the hash check above.
+      if(event === 'PASSWORD_RECOVERY' && sess){
+        recoveryPending = true;
+        if(!document.getElementById('np_submit')) renderSetNewPassword();
+        return;
+      }
+      if(session && !hadSession && !recoveryPending) bootstrapApp();
+      if(!session){ recoveryPending = false; clearOfflineCache(); renderAuth('signin'); }
     });
   })();
 })();
