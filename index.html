@@ -265,7 +265,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.9.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.9.2'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -4929,6 +4929,21 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     const body = overlay.querySelector('#delBody');
 
+    // The server only deletes accounts that signed in recently (it can't be undone,
+    // so a leftover session isn't enough). Explain and offer to sign out.
+    function showSignInAgain(){
+      body.innerHTML = `<div class="modal-sub">For your security, please sign out and sign back in, then open Delete account again. Deleting an account can't be undone, so we only allow it right after a fresh sign-in.</div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="delClose" style="flex:1;">${tr('close')}</button>
+          <button class="btn-danger" id="delSignOut" style="flex:1;">Sign out</button>
+        </div>`;
+      body.querySelector('#delClose').onclick = ()=>overlay.remove();
+      body.querySelector('#delSignOut').onclick = async ()=>{
+        await supabaseClient.auth.signOut();
+        window.location.href = baseAppUrl();
+      };
+    }
+
     let preview = null;
     try{
       const res = await fetch(FUNCTIONS_URL + '/delete-account', {
@@ -4937,6 +4952,7 @@
         body: JSON.stringify({ preview: true })
       });
       preview = await res.json();
+      if(preview.code === 'recent_login_required'){ showSignInAgain(); return; }
       if(preview.error) throw new Error(preview.error);
     }catch(e){
       body.innerHTML = `<div class="modal-sub">Couldn't reach the deletion service. If this keeps happening, email beeftcg@gmail.com and it can be done manually.</div>
@@ -4980,6 +4996,7 @@
           body: JSON.stringify({ confirm: true })
         });
         const out = await res.json();
+        if(out.code === 'recent_login_required'){ showSignInAgain(); return; }
         if(out.error) throw new Error(out.error);
         overlay.remove();
         alert(tr('deleteAcctDone'));
