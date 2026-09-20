@@ -27,6 +27,7 @@
     --panel:#181528;
     --panel-2:#1f1b33;
     --line:#2c2745;
+    --field-border:#726a96;   /* form-field outline: 3.3:1 on the panels (WCAG non-text contrast needs 3:1; --line is 1.3:1) */
     --text:#eeeaf7;
     --text-dim:#a49bc4;
     --rift:#8b5cf6;
@@ -60,7 +61,7 @@
   .head-actions{display:flex;gap:6px;flex-wrap:wrap;}
 
   .btn{border:none;border-radius:10px;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;min-height:40px;}
-  .add-btn{background:linear-gradient(135deg,var(--rift),#6d28d9);color:#fff;padding:9px 14px;box-shadow:0 6px 18px rgba(139,92,246,0.35);white-space:nowrap;}
+  .add-btn{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;padding:9px 14px;box-shadow:0 6px 18px rgba(139,92,246,0.35);white-space:nowrap;}
   .add-btn:hover{filter:brightness(1.08);}
   .icon-pill{background:var(--panel);border:1px solid var(--line) !important;color:var(--text);padding:9px 12px;position:relative;white-space:nowrap;}
   .icon-pill:hover{border-color:var(--teal) !important;}
@@ -164,7 +165,7 @@
   .modal .modal-sub{color:var(--text-dim);font-size:12px;margin-bottom:14px;}
   .field{margin-bottom:12px;}
   .field label{display:block;font-size:11.5px;color:var(--text-dim);margin-bottom:5px;font-weight:600;}
-  .field input,.field select,.field textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+  .field input,.field select,.field textarea{width:100%;background:var(--panel-2);border:1px solid var(--field-border);border-radius:8px;
     padding:10px 11px;color:var(--text);font-size:16px;font-family:inherit;}
   .field textarea{resize:vertical;min-height:60px;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -175,7 +176,7 @@
     color:var(--text);padding:9px;font-size:13px;font-family:inherit;}
   .parse-btn{margin-top:8px;background:var(--rift);color:#fff;border:none;border-radius:7px;padding:8px 13px;font-size:12.5px;font-weight:700;cursor:pointer;min-height:36px;}
   .modal-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
-  .btn-primary{flex:1;min-width:120px;background:linear-gradient(135deg,var(--rift),#6d28d9);color:#fff;border:none;border-radius:9px;padding:12px;font-weight:700;font-family:'Space Grotesk',sans-serif;cursor:pointer;min-height:44px;}
+  .btn-primary{flex:1;min-width:120px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:9px;padding:12px;font-weight:700;font-family:'Space Grotesk',sans-serif;cursor:pointer;min-height:44px;}
   .btn-secondary{background:var(--panel-2);color:var(--text-dim);border:1px solid var(--line);border-radius:9px;padding:12px 16px;cursor:pointer;min-height:44px;}
   .btn-danger{background:none;color:var(--rose);border:1px solid rgba(240,103,138,0.4);border-radius:9px;padding:12px 16px;cursor:pointer;min-height:44px;}
   .hint{font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
@@ -226,6 +227,23 @@
   .auth-toggle{text-align:center;margin-top:14px;font-size:13px;color:var(--text-dim);}
   .auth-toggle a{color:var(--teal);cursor:pointer;text-decoration:underline;}
 
+  .trend-chart{margin:4px 0 12px;}
+  .matrix-wrap{overflow-x:auto;margin:4px 0 6px;border:1px solid var(--border, rgba(255,255,255,.14));border-radius:10px;}
+  .matrix{border-collapse:collapse;font-size:12px;width:100%;}
+  .matrix th,.matrix td{padding:6px 8px;border:1px solid var(--border, rgba(255,255,255,.10));text-align:center;white-space:nowrap;}
+  .matrix thead th{max-width:96px;overflow:hidden;text-overflow:ellipsis;font-weight:600;}
+  .matrix tbody th{text-align:left;max-width:120px;overflow:hidden;text-overflow:ellipsis;font-weight:600;position:sticky;left:0;background:var(--panel, #161a2b);}
+  .matrix .mx-rec{font-weight:600;} .matrix .mx-pct{font-size:11px;opacity:.8;} .matrix .mx-empty{opacity:.4;}
+  /* Keyboard focus must be visible. The teal ring is 9:1 on the panels. */
+  :focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+  .field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{outline-offset:0;}
+  .modal:focus{outline:none;}   /* the dialog itself takes focus only so it is announced */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important;}
+  }
+  .sync-pill{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;max-width:calc(100vw - 32px);
+    background:var(--panel-2);color:var(--text);border:1px solid var(--border, rgba(255,255,255,.18));
+    border-radius:999px;padding:6px 14px;font-size:12.5px;box-shadow:0 4px 14px rgba(0,0,0,.35);text-align:center;}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel-2);
     border:1px solid var(--line);color:var(--text);padding:10px 18px;border-radius:20px;font-size:13px;z-index:70;
     box-shadow:0 8px 24px rgba(0,0,0,0.4);max-width:90vw;text-align:center;}
@@ -265,7 +283,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.9.3'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.11.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
@@ -290,6 +308,33 @@
   const LINK_PARAMS = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
   let recoveryPending = LINK_PARAMS.get('type') === 'recovery';   // show "choose a new password"
   const emailLinkError = LINK_PARAMS.get('error_code') || LINK_PARAMS.get('error');
+
+  // Tapping a push notification opens the app at /?open=notifications (see sw.js), or messages
+  // the already-open page. Only these names are honoured; anything else in the URL is ignored.
+  const OPEN_TARGETS = { notifications: ()=>openNotificationsModal() };
+  const isOpenTarget = (name)=>typeof name === 'string' && Object.prototype.hasOwnProperty.call(OPEN_TARGETS, name);
+  let pendingOpen = null;
+  // A store's check-in QR opens the app at /?checkin=<store event id>. Only a UUID is accepted.
+  let pendingCheckin = null;
+  try{
+    const qs = new URLSearchParams(window.location.search);
+    if(qs.has('checkin')){
+      const id = qs.get('checkin');
+      if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '')) pendingCheckin = id.toLowerCase();
+      qs.delete('checkin');
+      const rest = qs.toString();
+      history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+    }
+  }catch(e){}
+  try{
+    const qs = new URLSearchParams(window.location.search);
+    if(qs.has('open')){
+      if(isOpenTarget(qs.get('open'))) pendingOpen = qs.get('open');
+      qs.delete('open');   // don't leave it in the address bar / bookmarks
+      const rest = qs.toString();
+      history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+    }
+  }catch(e){}
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const FUNCTIONS_URL = SUPABASE_URL + '/functions/v1';
 
@@ -313,6 +358,52 @@
       passwordUpdated: "Password updated — you're signed in.",
       emailLinkExpired: 'That email link has expired or was already used. Try signing in, or use "Forgot password?" to get a new one.',
       backToSignIn: 'Back to sign in',
+      changePassword: 'Change password', passwordChanged: 'Password changed.',
+      syncOffline: 'Offline — changes are saved on this device', syncWaiting: 'Changes waiting to sync',
+      offlineShowingCopy: "Offline — showing your last synced list. Changes you make are saved on this device and sync when you reconnect.",
+      savedOnDevice: 'Saved on this device — will sync when you reconnect.',
+      saveQueued: "Couldn't reach the server — your change is saved on this device and will sync automatically.",
+      syncedOffline: 'Synced your changes.',
+      someone: 'Someone', friendSearchPlaceholder: '@username, name, or email', enterUsernameOrEmail: 'Enter a username or email',
+      severalPeople: 'Several people use that name — try their username instead: {names}', couldNotAccept: 'Could not accept request',
+      couldNotUpdateFriends: 'Could not update friends', couldNotDeleteRetry: 'Could not delete — try again',
+      couldNotUpdateInvite: 'Could not update invitation', inviteAlreadyResponded: 'This invitation was already responded to',
+      inviteAcceptedHadIt: 'Accepted — but you already had this event on your calendar', notifFriendRequest: '{name} sent you a friend request',
+      notifFriendAccepted: '{name} accepted your friend request', notifGoingSame: '{name} is also going to {event}',
+      notifGoingNear: '{name} is attending an event near you: {event}', notifInvite: '{name} invited you to {event}',
+      notifStoreEvent: '{name} posted a new event: {event}', notifLogReminder: 'Don\'t forget to log your result for {event}!',
+      notifEventSoon: '🎯 {event} starts in about 2 hours!', notifPlaygroupGoing: '{name} (playgroup) is going to {event}',
+      notifPlaygroupShared: '{name} shared an event with {group}: {event}', eventAttended1: '{n} event attended',
+      eventsAttendedN: '{n} events attended', gamesCount1: '({n} game)', gamesCountN: '({n} games)',
+      statsEmptyBody: 'Mark some events as "Going" and log a result or two, and your stats will show up here.', inProgressBadge: '⏳ in progress',
+      yourStatsForGame: 'Your stats for this game', theirStatsForGame: '{name}\'s stats for this game', vs: 'vs', friendStatsTitle: '{name}\'s stats',
+      loadingDots: 'Loading…',
+      friendStatsLoadFail: 'Couldn\'t load their stats — they may need to be on the latest version of the app for this to work.',
+      friendNoResults: '{name} hasn\'t logged any results.', theyPlayGames: 'Games they play — tap for the full breakdown',
+      theyPlayMost: 'Where they play most', theyBeatMost: 'What they beat the most', theyLoseMost: 'What they lose to the most',
+      deletedDeck: 'Deleted deck', legendLabel: 'Legend', deckCards: '{n} cards', viewOnPiltover: 'View on Piltover Archive ↗', editArrow: 'Edit ↗',
+      importFromPiltover: 'Import from Piltover Archive', importBtn: 'Import',
+      importPltHint: 'Pulls in the deck\'s name, legend, and a direct edit link automatically.', orAddManually: 'Or add one manually',
+      gameOptional: 'Game (optional)', importing: 'Importing…', resync: 'Re-sync', pasteDeckLink: 'Paste a Piltover Archive deck link first',
+      cantReadDeck: 'Couldn\'t read that deck page — try adding it manually instead', importedDeckDefault: 'Imported deck',
+      deckImported: 'Deck imported from Piltover Archive', couldNotImportDeck: 'Could not import that deck', giveDeckName: 'Give the deck a name',
+      deckAdded: 'Deck added', cantReadDeckNow: 'Couldn\'t read that deck page right now', deckSynced: 'Deck synced from Piltover Archive',
+      couldNotSync: 'Could not sync — try again', renameDeck: 'Rename deck', nameEmpty: 'Name cannot be empty',
+      deckRenamed: 'Deck renamed — updates everywhere it was used automatically', deckCurrent: 'Deck marked current', deckRetired: 'Deck retired',
+      confirmDeleteDeck: 'Delete this deck? Past results logged with it will show as "Deleted deck" instead of losing their win/loss data.',
+      deckDeleted: 'Deck deleted',
+      dialogLabel: 'Dialog',
+      playMode: 'Played in person or online',
+      noAccountFound: 'No account found with that username, display name or email', thatsYou: "That's you!", friendRequestSent: 'Friend request sent',
+      couldNotSendRequest: 'Could not send request', inviteDeclined: 'Invitation declined', couldNotRespondInvite: 'Could not respond to invitation',
+      checkedIn: "You're checked in to {name}.", checkedInBasic: "You're marked as going to {name}.",
+      checkinInvalid: "That check-in link isn't valid.", checkinCancelled: 'That event was cancelled.',
+      checkinWrongDay: "Check-in only works on the day of the event.", checkinFailed: "Couldn't check you in — please try again.",
+      winRateByMonth: 'Win rate by month', trendHint: 'Log results across a few months to see a trend.',
+      streaks: 'Streaks', streakWinning: 'Winning streak (events)', streakLosing: 'Losing streak (events)',
+      streakNone: 'No streak right now', streakBest: 'Best winning streak (events)',
+      matchupMatrix: 'Matchup matrix', matrixHint: 'Rows are your decks, columns are what you played against. Wins-losses, then win rate.',
+      reauthNeeded: 'For security, sign out and sign back in, then change your password.',
       searchPlaceholder: 'Search name, store, notes…',
       upcoming: 'Upcoming', past: 'Past', all: 'All',
       friends: 'Friends', stats: '📊 Stats', account: 'Account', share: 'Share', addBtn: '+ Add',
@@ -416,6 +507,55 @@
       passwordUpdated: 'Contraseña actualizada — ya iniciaste sesión.',
       emailLinkExpired: 'Ese enlace del correo venció o ya se usó. Intenta iniciar sesión, o usa "¿Olvidaste tu contraseña?" para pedir uno nuevo.',
       backToSignIn: 'Volver a iniciar sesión',
+      changePassword: 'Cambiar contraseña', passwordChanged: 'Contraseña cambiada.',
+      syncOffline: 'Sin conexión — los cambios se guardan en este dispositivo', syncWaiting: 'Cambios pendientes de sincronizar',
+      offlineShowingCopy: 'Sin conexión — mostrando tu última lista sincronizada. Los cambios que hagas se guardan en este dispositivo y se sincronizan al reconectar.',
+      savedOnDevice: 'Guardado en este dispositivo — se sincronizará al reconectar.',
+      saveQueued: 'No pudimos conectar con el servidor — tu cambio está guardado en este dispositivo y se sincronizará solo.',
+      syncedOffline: 'Cambios sincronizados.',
+      someone: 'Alguien', friendSearchPlaceholder: '@usuario, nombre o correo', enterUsernameOrEmail: 'Escribe un nombre de usuario o un correo',
+      severalPeople: 'Varias personas usan ese nombre — prueba con su nombre de usuario: {names}', couldNotAccept: 'No se pudo aceptar la solicitud',
+      couldNotUpdateFriends: 'No se pudieron actualizar tus amigos', couldNotDeleteRetry: 'No se pudo eliminar — inténtalo de nuevo',
+      couldNotUpdateInvite: 'No se pudo actualizar la invitación', inviteAlreadyResponded: 'Ya respondiste a esta invitación',
+      inviteAcceptedHadIt: 'Aceptada — pero ya tenías este evento en tu calendario', notifFriendRequest: '{name} te envió una solicitud de amistad',
+      notifFriendAccepted: '{name} aceptó tu solicitud de amistad', notifGoingSame: '{name} también va a {event}',
+      notifGoingNear: '{name} asistirá a un evento cerca de ti: {event}', notifInvite: '{name} te invitó a {event}',
+      notifStoreEvent: '{name} publicó un evento nuevo: {event}', notifLogReminder: '¡No olvides registrar tu resultado de {event}!',
+      notifEventSoon: '🎯 ¡{event} empieza en unas 2 horas!', notifPlaygroupGoing: '{name} (grupo de juego) va a {event}',
+      notifPlaygroupShared: '{name} compartió un evento con {group}: {event}', eventAttended1: '{n} evento asistido',
+      eventsAttendedN: '{n} eventos asistidos', gamesCount1: '({n} partida)', gamesCountN: '({n} partidas)',
+      statsEmptyBody: 'Marca algunos eventos como "Voy" y registra uno o dos resultados, y tus estadísticas aparecerán aquí.',
+      inProgressBadge: '⏳ en curso', yourStatsForGame: 'Tus estadísticas de este juego', theirStatsForGame: 'Estadísticas de {name} en este juego',
+      vs: 'contra', friendStatsTitle: 'Estadísticas de {name}', loadingDots: 'Cargando…',
+      friendStatsLoadFail: 'No pudimos cargar sus estadísticas — quizá necesite la última versión de la app para que funcione.',
+      friendNoResults: '{name} aún no ha registrado resultados.', theyPlayGames: 'Juegos que juega — toca para ver el detalle',
+      theyPlayMost: 'Dónde juega más', theyBeatMost: 'A qué le gana más', theyLoseMost: 'Contra qué pierde más', deletedDeck: 'Mazo eliminado',
+      legendLabel: 'Leyenda', deckCards: '{n} cartas', viewOnPiltover: 'Ver en Piltover Archive ↗', editArrow: 'Editar ↗',
+      importFromPiltover: 'Importar desde Piltover Archive', importBtn: 'Importar',
+      importPltHint: 'Trae automáticamente el nombre del mazo, la leyenda y un enlace directo para editarlo.',
+      orAddManually: 'O agrega uno manualmente', gameOptional: 'Juego (opcional)', importing: 'Importando…', resync: 'Volver a sincronizar',
+      pasteDeckLink: 'Primero pega un enlace de un mazo de Piltover Archive',
+      cantReadDeck: 'No pudimos leer esa página del mazo — intenta agregarlo manualmente', importedDeckDefault: 'Mazo importado',
+      deckImported: 'Mazo importado desde Piltover Archive', couldNotImportDeck: 'No se pudo importar ese mazo',
+      giveDeckName: 'Ponle un nombre al mazo', deckAdded: 'Mazo agregado', cantReadDeckNow: 'No pudimos leer esa página del mazo en este momento',
+      deckSynced: 'Mazo sincronizado desde Piltover Archive', couldNotSync: 'No se pudo sincronizar — inténtalo de nuevo',
+      renameDeck: 'Cambiar nombre del mazo', nameEmpty: 'El nombre no puede estar vacío',
+      deckRenamed: 'Mazo renombrado — se actualiza automáticamente donde se usó', deckCurrent: 'Mazo marcado como actual',
+      deckRetired: 'Mazo retirado',
+      confirmDeleteDeck: '¿Eliminar este mazo? Los resultados pasados registrados con él aparecerán como "Mazo eliminado" en lugar de perder sus datos de victorias y derrotas.',
+      deckDeleted: 'Mazo eliminado',
+      dialogLabel: 'Diálogo',
+      playMode: 'Se juega en persona o en línea',
+      noAccountFound: 'No se encontró ninguna cuenta con ese nombre de usuario, nombre o correo', thatsYou: '¡Ese eres tú!', friendRequestSent: 'Solicitud de amistad enviada',
+      couldNotSendRequest: 'No se pudo enviar la solicitud', inviteDeclined: 'Invitación rechazada', couldNotRespondInvite: 'No se pudo responder a la invitación',
+      checkedIn: 'Ya hiciste check-in en {name}.', checkedInBasic: 'Quedaste como asistente a {name}.',
+      checkinInvalid: 'Ese enlace de check-in no es válido.', checkinCancelled: 'Ese evento fue cancelado.',
+      checkinWrongDay: 'El check-in solo funciona el día del evento.', checkinFailed: 'No pudimos hacer tu check-in — inténtalo de nuevo.',
+      winRateByMonth: 'Porcentaje de victorias por mes', trendHint: 'Registra resultados durante varios meses para ver una tendencia.',
+      streaks: 'Rachas', streakWinning: 'Racha de victorias (eventos)', streakLosing: 'Racha de derrotas (eventos)',
+      streakNone: 'Sin racha por ahora', streakBest: 'Mejor racha de victorias (eventos)',
+      matchupMatrix: 'Matriz de enfrentamientos', matrixHint: 'Las filas son tus mazos, las columnas contra qué jugaste. Victorias-derrotas, y luego porcentaje.',
+      reauthNeeded: 'Por seguridad, cierra sesión y vuelve a iniciarla, y luego cambia tu contraseña.',
       searchPlaceholder: 'Buscar nombre, tienda, notas…',
       upcoming: 'Próximos', past: 'Pasados', all: 'Todos',
       friends: 'Amigos', stats: '📊 Estadísticas', account: 'Cuenta', share: 'Compartir', addBtn: '+ Agregar',
@@ -507,6 +647,38 @@
   };
   function tr(key){
     return (TRANSLATIONS[currentLang] && TRANSLATIONS[currentLang][key]) || TRANSLATIONS.en[key] || key;
+  }
+  // tr() with {placeholders} filled in: trf('checkedIn', { name })
+  function trf(key, vars){
+    return tr(key).replace(/\{(\w+)\}/g, (m, k)=> (vars && k in vars) ? vars[k] : m);
+  }
+  // Dates follow the language chosen in the app, not the browser's (an English browser with the app
+  // set to Spanish used to get English weekday names).
+  const dateLocale = ()=> currentLang === 'es' ? 'es' : undefined;
+
+  // Notification messages are written in English by database triggers and stored as text. For
+  // Spanish they are matched by shape and re-rendered from their parts; anything that does not
+  // match (or a store's own announcement text) is shown exactly as stored.
+  const NOTIF_PATTERNS = {
+    friend_request:         { re: /^(.+) sent you a friend request$/,                          key: 'notifFriendRequest',  vars: ['name'] },
+    friend_accepted:        { re: /^(.+) accepted your friend request$/,                       key: 'notifFriendAccepted', vars: ['name'] },
+    friend_going_same:      { re: /^(.+) is also going to (.+)$/,                              key: 'notifGoingSame',      vars: ['name', 'event'] },
+    friend_going_near:      { re: /^(.+) is attending an event near you: (.+)$/,               key: 'notifGoingNear',      vars: ['name', 'event'] },
+    event_invite:           { re: /^(.+) invited you to (.+)$/,                                key: 'notifInvite',         vars: ['name', 'event'] },
+    store_new_event:        { re: /^(.+) posted a new event: (.+)$/,                           key: 'notifStoreEvent',     vars: ['name', 'event'] },
+    log_reminder:           { re: /^Don't forget to log your result for (.+)!$/,               key: 'notifLogReminder',    vars: ['event'] },
+    event_soon:             { re: /^🎯 (.+) starts in about 2 hours!$/,                         key: 'notifEventSoon',      vars: ['event'] },
+    playgroup_going:        { re: /^(.+) \(playgroup\) is going to (.+)$/,                     key: 'notifPlaygroupGoing', vars: ['name', 'event'] },
+    playgroup_shared_event: { re: /^(.+?) shared an event with (.+?): (.+)$/,                  key: 'notifPlaygroupShared', vars: ['name', 'group', 'event'] },
+  };
+  function localizeNotification(n){
+    const raw = (n && n.message) || '';
+    if(currentLang === 'en') return raw;
+    const p = NOTIF_PATTERNS[n.type];
+    const m = p && raw.match(p.re);
+    if(!m) return raw;
+    const vars = {}; p.vars.forEach((v, i)=>{ vars[v] = m[i + 1]; });
+    return trf(p.key, vars);
   }
 
   // Player IDs shown on the Player Card. Free-form storage (JSONB) so
@@ -800,7 +972,7 @@
     if(!result) return null;
     if(result.deckId){
       const d = decks.find(x=>x.id===result.deckId);
-      return d ? d.name : 'Deleted deck';
+      return d ? d.name : tr('deletedDeck');
     }
     if(result.deck) return result.deck; // legacy free-text entries from before decks existed
     return null;
@@ -870,30 +1042,168 @@
     const btn = document.createElement('button');
     btn.className = 'modal-x';
     btn.type = 'button';
-    btn.title = 'Close';
+    btn.title = tr('close');
+    btn.setAttribute('aria-label', tr('close'));   // the visible text is just an ✕
     btn.textContent = '✕';
     btn.onclick = (e)=>{ e.stopPropagation(); overlay.remove(); };
     modalEl.insertBefore(btn, modalEl.firstChild);
   }
+  // ---------- Accessibility layer ----------
+  // Applied centrally, for the same reason as the close button above: ~20 dialogs and every
+  // form are built from template strings, and doing this per dialog would miss the next one.
+  //  - dialogs get role="dialog", aria-modal and a name (their heading)
+  //  - focus moves into a dialog, is kept inside it (Tab / Shift+Tab), Escape closes it, and
+  //    focus goes back to what opened it; everything behind an open dialog is inert
+  //  - every form control gets an accessible name (its <label>, its row title, or its placeholder)
+  //  - anything clickable that is not a button becomes keyboard-operable
+  //  - <html lang> follows the app language; toasts are announced
+  const A11Y_FOCUSABLE = 'a[href],button,input:not([type=hidden]),select,textarea,[tabindex]';
+  let a11ySeq = 0;
+  const a11yId = prefix => prefix + '-' + (++a11ySeq);
+  const overlayOpeners = new WeakMap();
+  function isShown(el){
+    for(let n = el; n && n.nodeType === 1; n = n.parentElement){
+      if(n.hidden) return false;
+      const cs = window.getComputedStyle(n);
+      if(cs.display === 'none' || cs.visibility === 'hidden') return false;
+    }
+    return true;
+  }
+  function focusablesIn(root){
+    return [...root.querySelectorAll(A11Y_FOCUSABLE)].filter(el=> !el.disabled && el.getAttribute('tabindex') !== '-1' && isShown(el));
+  }
+  function hasAccessibleName(el){
+    if(el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || (el.getAttribute('title') || '').trim()) return true;
+    return !!(el.labels && el.labels.length);   // <label for=…> or a wrapping <label>
+  }
+  function describeDialog(modal){
+    if(modal.getAttribute('role')) return;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    const heading = modal.querySelector('h1,h2,h3');
+    if(heading && heading.textContent.trim()){
+      if(!heading.id) heading.id = a11yId('dlg-title');
+      modal.setAttribute('aria-labelledby', heading.id);
+    } else {
+      modal.setAttribute('aria-label', tr('dialogLabel'));
+    }
+  }
+  function labelControls(root){
+    root.querySelectorAll('input:not([type=hidden]),select,textarea').forEach(el=>{
+      if(hasAccessibleName(el)) return;
+      const field = el.closest('.field');
+      // The nearest plain-text <label> before it in the same field. Never one that wraps a control
+      // (that label already names its own checkbox, and setting `for` would take it away) and never
+      // one that already points somewhere.
+      const label = field && [...field.querySelectorAll('label')].reverse().find(l=>
+        !l.htmlFor && !l.querySelector('input,select,textarea') &&
+        (l.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING));
+      if(label){
+        if(!el.id) el.id = a11yId('fld');
+        label.htmlFor = el.id;
+        return;
+      }
+      const row = el.closest('.list-item');                       // a settings row: its title names the control
+      const title = row && row.querySelector('.n');
+      if(title){ if(!title.id) title.id = a11yId('row'); el.setAttribute('aria-labelledby', title.id); return; }
+      const ph = el.getAttribute('placeholder');
+      if(ph) el.setAttribute('aria-label', ph);
+    });
+  }
+  function makeClickablesKeyboardOperable(root){
+    const candidates = [...root.querySelectorAll('div,span,li,td,p,img')];
+    if(root.matches && root.matches('div,span,li,td,p,img')) candidates.unshift(root);   // the added node itself, not just what is inside it
+    candidates.forEach(el=>{
+      if(!el.onclick || el.classList.contains('overlay') || el.getAttribute('role') || el.hasAttribute('tabindex')) return;
+      if(el.querySelector(A11Y_FOCUSABLE)) return;                // a container of real controls is not itself a button
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      el.addEventListener('keydown', e=>{
+        if(e.target === el && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); el.click(); }
+      });
+    });
+  }
+  function enhanceA11y(root){
+    if(!root || root.nodeType !== 1 || (root.classList && root.classList.contains('toast'))) return;
+    if(root.matches && root.matches('.modal')) describeDialog(root);
+    root.querySelectorAll('.modal').forEach(describeDialog);
+    labelControls(root.matches && root.matches('input,select,textarea') ? root.parentElement || root : root);
+    makeClickablesKeyboardOperable(root);
+    root.querySelectorAll('img:not([alt])').forEach(img=>img.setAttribute('alt', ''));
+  }
+  // What is open decides what is reachable: only the topmost dialog is interactive.
+  function syncOverlayStack(){
+    const overlays = [...document.querySelectorAll('.overlay')];
+    const top = overlays[overlays.length - 1];
+    const setInert = (el, on)=>{
+      if(!el) return;
+      el.toggleAttribute('inert', on);
+      if(on) el.setAttribute('aria-hidden', 'true'); else el.removeAttribute('aria-hidden');
+    };
+    setInert(document.getElementById('app'), overlays.length > 0);
+    overlays.forEach(o=>setInert(o, o !== top));
+  }
+  function moveFocusIntoDialog(overlay){
+    const modal = overlay.querySelector('.modal');
+    if(!modal || overlay.contains(document.activeElement)) return;   // the dialog already focused a field itself
+    if(!overlayOpeners.has(overlay)) overlayOpeners.set(overlay, document.activeElement);
+    modal.setAttribute('tabindex', '-1');
+    try{ modal.focus({ preventScroll: true }); }catch(e){}
+  }
+  function restoreFocus(overlay){
+    const opener = overlayOpeners.get(overlay);
+    if(opener && document.contains(opener) && !opener.closest('[inert]') && typeof opener.focus === 'function'){
+      try{ opener.focus({ preventScroll: true }); return; }catch(e){}
+    }
+    const fallback = document.getElementById('openMenu') || document.getElementById('app');
+    if(fallback && !fallback.closest('[inert]')){ try{ fallback.focus({ preventScroll: true }); }catch(e){} }
+  }
+  document.addEventListener('keydown', e=>{
+    const overlays = document.querySelectorAll('.overlay');
+    const top = overlays[overlays.length - 1];
+    if(!top) return;
+    if(e.key === 'Escape'){ e.preventDefault(); top.remove(); return; }   // same as the close button
+    if(e.key !== 'Tab') return;
+    const modal = top.querySelector('.modal');
+    if(!modal) return;
+    const items = focusablesIn(modal);
+    if(!items.length){ e.preventDefault(); modal.focus(); return; }
+    const first = items[0], last = items[items.length - 1], active = document.activeElement;
+    if(!modal.contains(active)){ e.preventDefault(); first.focus(); }
+    else if(e.shiftKey && (active === first || active === modal)){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && active === last){ e.preventDefault(); first.focus(); }
+  });
   new MutationObserver(muts=>{
+    document.documentElement.setAttribute('lang', currentLang);
+    syncOverlayStack();   // first: focus can only go back to something that is no longer inert
     muts.forEach(m=>{
+      m.removedNodes.forEach(node=>{
+        if(node.nodeType === 1 && node.classList && node.classList.contains('overlay')) restoreFocus(node);
+      });
       m.addedNodes.forEach(node=>{
         if(node.nodeType !== 1) return;
         if(node.classList && node.classList.contains('overlay')){
           node.querySelectorAll('.modal').forEach(attachModalCloseButton);
         }
         if(node.classList && node.classList.contains('modal')) attachModalCloseButton(node);
+        enhanceA11y(node);
       });
     });
+    syncOverlayStack();
+    const overlays = document.querySelectorAll('.overlay');
+    if(overlays.length) moveFocusIntoDialog(overlays[overlays.length - 1]);
   }).observe(document.body, { childList:true, subtree:true });
 
   function showToast(msg){
     document.querySelectorAll('.toast').forEach(t=>t.remove());
     const t = document.createElement('div');
     t.className = 'toast';
+    t.setAttribute('role', 'status');          // read out by screen readers without taking focus
+    t.setAttribute('aria-live', 'polite');
     t.textContent = msg;
     document.body.appendChild(t);
-    setTimeout(()=>t.remove(), 2600);
+    // 2.6 s is too short for a sentence: allow time proportional to its length.
+    setTimeout(()=>t.remove(), Math.min(8000, 2600 + Math.max(0, String(msg).length - 40) * 45));
   }
 
   function copyText(str){
@@ -955,17 +1265,17 @@
   function fmtDateParts(dateStr){
     const d = new Date(dateStr + 'T00:00:00');
     if(isNaN(d)) return {dow:'--',dom:'--'};
-    return { dow: d.toLocaleDateString(undefined,{weekday:'short'}), dom: d.getDate() };
+    return { dow: d.toLocaleDateString(dateLocale(),{weekday:'short'}), dom: d.getDate() };
   }
   function fmtMonthYear(dateStr){
     const d = new Date(dateStr + 'T00:00:00');
     if(isNaN(d)) return 'Undated';
-    return d.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+    return d.toLocaleDateString(dateLocale(),{month:'long',year:'numeric'});
   }
   function fmtFriendly(dateStr, time){
     const d = new Date(dateStr + 'T00:00:00');
     if(isNaN(d)) return '';
-    let s = d.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'});
+    let s = d.toLocaleDateString(dateLocale(),{weekday:'long', month:'short', day:'numeric'});
     if(time) s += ' · ' + time;
     return s;
   }
@@ -1116,7 +1426,9 @@
               });
               incomingDecks.forEach(d=>{
                 if(decks.some(x=>x.name === d.name && x.game === d.game)) return;
-                decks.push({ ...d, id: d.id || deckUid() });
+                const deck = { ...d, id: d.id || deckUid() };
+                reviveIds('decks', deck.id);   // restoring a deck you once deleted must not be refused
+                decks.push(deck);
               });
               await saveTournaments();
               await saveDecks();
@@ -1125,8 +1437,16 @@
             } },
           { label: 'Replace everything', danger:true, action: async ()=>{
               if(!confirm('This will DELETE all your current events and decks and replace them with the file. Are you sure?')) return;
-              tournaments = incoming.map(e=>({ ...e, id: e.id || uid() }));
-              decks = incomingDecks.map(d=>({ ...d, id: d.id || deckUid() }));
+              const newTournaments = incoming.map(e=>({ ...e, id: e.id || uid() }));
+              const newDecks = incomingDecks.map(d=>({ ...d, id: d.id || deckUid() }));
+              // What is being replaced counts as deleted (so other devices do not bring it back);
+              // what the file contains counts as alive again, even if its ids were deleted before.
+              markDeleted('tournaments', tournaments.map(x=>x.id).filter(id=>!newTournaments.some(n=>n.id===id)));
+              markDeleted('decks', decks.map(x=>x.id).filter(id=>!newDecks.some(n=>n.id===id)));
+              reviveIds('tournaments', newTournaments.map(x=>x.id));
+              reviveIds('decks', newDecks.map(x=>x.id));
+              tournaments = newTournaments;
+              decks = newDecks;
               await saveTournaments();
               await saveDecks();
               render();
@@ -1171,13 +1491,118 @@
   // running against an older database — and saves fall back to a plain upsert.
   let userDataVersion = null;
 
+  // What this account has deleted, so a deletion is not undone when another device that still
+  // has the item saves (the old id-based merge kept items that exist on only one side). Shape:
+  //   { tournaments: { id: deletedAtMs }, decks: { id: deletedAtMs } }
+  // Stored in user_data.deleted, NOT inside the arrays: an older cached copy of the app
+  // renders every array item as an event. A deletion always beats a stale copy elsewhere.
+  // Only takes effect once the database has the column (deletedSupported), so the app still
+  // works if the newest SQL has not been run.
+  let deleted = { tournaments: {}, decks: {} };
+  let deletedSupported = false;
+  // ids brought back on purpose (an import) since the last successful save; a server-side
+  // record of the same id must not win over them when a conflict is merged.
+  const revived = { tournaments: new Set(), decks: new Set() };
+  const DELETED_KEEP_MS = 60 * 24 * 60 * 60 * 1000;   // after this, a device that never synced could bring the item back
+  const isDeleted = (kind, id)=> id != null && Object.prototype.hasOwnProperty.call(deleted[kind], String(id));
+  const dropDeleted = (kind, arr)=> (arr || []).filter(x=> !(x && isDeleted(kind, x.id)));
+  function markDeleted(kind, ids){
+    const now = Date.now();
+    [].concat(ids).forEach(id=>{ if(id != null){ deleted[kind][String(id)] = now; revived[kind].delete(String(id)); } });
+  }
+  function reviveIds(kind, ids){
+    [].concat(ids).forEach(id=>{ if(id != null){ delete deleted[kind][String(id)]; revived[kind].add(String(id)); } });
+  }
+  // Accepts whatever the server sent (or nothing) and returns a clean {tournaments, decks} pair of maps.
+  function normalizeDeleted(raw){
+    const out = { tournaments: {}, decks: {} };
+    ['tournaments', 'decks'].forEach(kind=>{
+      const m = raw && typeof raw === 'object' && raw[kind];
+      if(m && typeof m === 'object' && !Array.isArray(m)){
+        Object.keys(m).forEach(id=>{ const ts = Number(m[id]); if(Number.isFinite(ts)) out[kind][id] = ts; });
+      }
+    });
+    return out;
+  }
+  // Union of what the server knows and what we know (latest time wins), minus anything we
+  // deliberately brought back. Used when a save conflicts and the server copy is merged in.
+  function mergeDeleted(serverRaw){
+    const server = normalizeDeleted(serverRaw);
+    ['tournaments', 'decks'].forEach(kind=>{
+      Object.keys(server[kind]).forEach(id=>{
+        if(revived[kind].has(id)) return;
+        if(!(id in deleted[kind]) || server[kind][id] > deleted[kind][id]) deleted[kind][id] = server[kind][id];
+      });
+    });
+  }
+  function pruneDeleted(){
+    const cutoff = Date.now() - DELETED_KEEP_MS;
+    ['tournaments', 'decks'].forEach(kind=>{
+      Object.keys(deleted[kind]).forEach(id=>{ if(deleted[kind][id] < cutoff) delete deleted[kind][id]; });
+    });
+    return deleted;
+  }
+
+  // ---- Offline edits ------------------------------------------------------------------
+  // Changes made while the server can't be reached are kept on this device and sent later.
+  //   baseSnapshot  the lists as of the last successful load/save; the common ancestor for merging
+  //   pendingSync   which lists have changes the server has not confirmed
+  //   offlineMode   the app opened from the local copy because the server was unreachable
+  // Syncing merges THREE ways, item by item (base vs ours vs the server's), so a day offline never
+  // reverts something you did not touch that another device changed meanwhile.
+  let baseSnapshot = { tournaments: [], decks: [] };
+  let offlineMode = false;
+  const pendingSync = { tournaments: false, decks: false };
+  let syncing = false, syncTimer = null;
+  const SYNC_RETRY_MS = 30000;
+  const cloneJSON = x => JSON.parse(JSON.stringify(x));
+  const hasPending = ()=> pendingSync.tournaments || pendingSync.decks;
+  // Key-order-independent text form, so "same content" compares equal after a JSON round trip.
+  function canon(x){
+    if(Array.isArray(x)) return '[' + x.map(canon).join(',') + ']';
+    if(x && typeof x === 'object'){
+      return '{' + Object.keys(x).filter(k=>x[k] !== undefined).sort().map(k=>JSON.stringify(k) + ':' + canon(x[k])).join(',') + '}';
+    }
+    return JSON.stringify(x);
+  }
+  // For each id: something WE changed or added wins; something we left alone takes the server's
+  // copy (which may be newer); something recorded as deleted is dropped; something we deleted
+  // stays deleted; something the server has that we never had is kept. With no base (a copy from
+  // before this existed) every local item counts as changed, which is the old "local wins".
+  function merge3(kind, base, local, server){
+    const byId = arr => { const m = new Map(); (arr || []).forEach(x=>{ if(x && x.id != null) m.set(String(x.id), x); }); return m; };
+    const b = byId(base), l = byId(local), sv = byId(server);
+    const noId = [...(local || []), ...(server || [])].filter(x=>!x || x.id == null);   // very old items with no id can't be matched: keep them all
+    const out = [];
+    new Set([...sv.keys(), ...l.keys()]).forEach(id=>{
+      if(isDeleted(kind, id)) return;
+      const inL = l.has(id), inS = sv.has(id), inB = b.has(id);
+      const changedHere = inL && (!inB || canon(l.get(id)) !== canon(b.get(id)));
+      if(changedHere) out.push(l.get(id));
+      else if(inS) { if(inL || !inB) out.push(sv.get(id)); }   // !inL && inB: we removed it -> stays removed
+      // inL && inB && !inS && untouched: the server removed it elsewhere -> respect that
+    });
+    return out.concat(noId);
+  }
+  function updateSyncPill(){
+    let pill = document.getElementById('syncPill');
+    const show = offlineMode || hasPending();
+    if(!show){ if(pill) pill.remove(); return; }
+    if(!pill){ pill = document.createElement('div'); pill.id = 'syncPill'; pill.className = 'sync-pill'; pill.setAttribute('role', 'status'); document.body.appendChild(pill); }
+    pill.textContent = offlineMode ? tr('syncOffline') : tr('syncWaiting');
+  }
+  function scheduleSync(delay){
+    clearTimeout(syncTimer);
+    if(hasPending()) syncTimer = setTimeout(()=>{ syncPending(); }, delay == null ? SYNC_RETRY_MS : delay);
+  }
+
   // Last successfully loaded events/decks, kept in localStorage purely so the
   // list can still be SHOWN when the network is down (e.g. bad venue wifi).
   // It is never written back to the server: a load that falls back to this
   // leaves userDataLoaded false, which blocks every save. Cleared on sign-out.
   const OFFLINE_CACHE_PREFIX = 'pairings-offline:';
   function writeOfflineCache(){
-    try{ localStorage.setItem(OFFLINE_CACHE_PREFIX + session.user.id, JSON.stringify({ tournaments, decks, at: Date.now() })); }catch(e){}
+    try{ localStorage.setItem(OFFLINE_CACHE_PREFIX + session.user.id, JSON.stringify({ tournaments, decks, deleted, base: baseSnapshot, version: userDataVersion, deletedSupported, dirty: pendingSync, at: Date.now() })); }catch(e){}
   }
   function readOfflineCache(){
     try{
@@ -1191,22 +1616,47 @@
     }catch(e){}
   }
 
+  // Newest column set first; an older database (SQL not run yet) errors on a missing column and
+  // we retry with fewer, so the app works whichever order things were deployed.
+  async function fetchUserDataRow(){
+    const COLUMN_SETS = ['tournaments, decks, version, deleted', 'tournaments, decks, version', 'tournaments, decks'];
+    let res, used = 0;
+    for(; used < COLUMN_SETS.length; used++){
+      res = await supabaseClient.from('user_data').select(COLUMN_SETS[used]).eq('user_id', session.user.id).maybeSingle();
+      if(!(res.error && /version|deleted/i.test(res.error.message || ''))) break;
+    }
+    return { res, supported: used === 0,
+             version: used <= 1 ? ((res.data && typeof res.data.version === 'number') ? res.data.version : (res.data ? null : 0)) : null };
+  }
+
   async function loadTournaments(){
     try{
-      let res = await supabaseClient.from('user_data').select('tournaments, decks, version').eq('user_id', session.user.id).maybeSingle();
-      if(res.error && /version/i.test(res.error.message || '')){
-        // Database predates the versioned-save migration; load without it.
-        res = await supabaseClient.from('user_data').select('tournaments, decks').eq('user_id', session.user.id).maybeSingle();
-        userDataVersion = null;
-      } else if(!res.error){
-        userDataVersion = (res.data && typeof res.data.version === 'number') ? res.data.version : (res.data ? null : 0);
-      }
+      const previous = readOfflineCache();   // read BEFORE it is overwritten below: may hold unsynced changes
+      const { res, supported, version } = await fetchUserDataRow();
+      deletedSupported = supported;
+      if(!res.error) userDataVersion = version;
       if(res.error) throw res.error;
       const data = res.data;
-      tournaments = (data && data.tournaments) || [];
-      decks = (data && data.decks) || [];
+      deleted = normalizeDeleted(deletedSupported && data ? data.deleted : null);
+      revived.tournaments.clear(); revived.decks.clear();
+      // Drop anything recorded as deleted that is still in the arrays (an older app version on
+      // another device can write a deleted item back); the next save removes it from the server.
+      tournaments = dropDeleted('tournaments', (data && data.tournaments) || []);
+      decks = dropDeleted('decks', (data && data.decks) || []);
+      baseSnapshot = { tournaments: cloneJSON(tournaments), decks: cloneJSON(decks) };
       userDataLoaded = true;
+      offlineMode = false;
+      // Changes from a previous visit that never reached the server: fold them into what we just
+      // loaded (three-way) and send them.
+      if(previous && previous.dirty && (previous.dirty.tournaments || previous.dirty.decks) && Array.isArray(previous.tournaments)){
+        if(deletedSupported) mergeDeleted(previous.deleted);
+        tournaments = dropDeleted('tournaments', merge3('tournaments', (previous.base || {}).tournaments, previous.tournaments, tournaments));
+        decks = dropDeleted('decks', merge3('decks', (previous.base || {}).decks, previous.decks || [], decks));
+        pendingSync.tournaments = !!previous.dirty.tournaments; pendingSync.decks = !!previous.dirty.decks;
+        scheduleSync(0);
+      }
       writeOfflineCache();
+      updateSyncPill();
     }catch(e){
       // Deliberately do NOT clear tournaments/decks here — a failed load is
       // not evidence that the user has no data. Leaving userDataLoaded false
@@ -1216,26 +1666,25 @@
       console.error('loadTournaments failed:', e);
       const cached = (!tournaments.length && !decks.length) ? readOfflineCache() : null;
       if(cached && Array.isArray(cached.tournaments)){
-        tournaments = cached.tournaments;
-        decks = Array.isArray(cached.decks) ? cached.decks : [];
-        showToast('Offline — showing your last synced list (read-only until you reconnect)');
+        deleted = normalizeDeleted(cached.deleted);
+        tournaments = dropDeleted('tournaments', cached.tournaments);
+        decks = dropDeleted('decks', Array.isArray(cached.decks) ? cached.decks : []);
+        // Resume from the local copy. Edits are allowed and queued: they are merged into the
+        // server's copy (three-way) when the connection comes back.
+        baseSnapshot = cached.base && typeof cached.base === 'object' ? { tournaments: cached.base.tournaments || [], decks: cached.base.decks || [] }
+                                                                       : { tournaments: cloneJSON(tournaments), decks: cloneJSON(decks) };
+        userDataVersion = typeof cached.version === 'number' ? cached.version : null;
+        deletedSupported = !!cached.deletedSupported;
+        pendingSync.tournaments = !!(cached.dirty && cached.dirty.tournaments);
+        pendingSync.decks = !!(cached.dirty && cached.dirty.decks);
+        offlineMode = true;
+        scheduleSync();
+        updateSyncPill();
+        showToast(tr('offlineShowingCopy'));
       } else {
         showToast('Could not load your data — not saving changes until this reconnects');
       }
     }
-  }
-
-  // Merge two lists of {id, ...} items. Local wins for ids present in both
-  // (that's the edit being saved); items that exist on only one side are kept.
-  // The trade-off: something deleted on one device while another device still
-  // has it comes back rather than being lost — recoverable beats silent loss.
-  function mergeById(serverArr, localArr){
-    const byId = new Map();
-    // Items with no id (very old data) can't be matched, so each is kept as-is.
-    const key = x => (x && x.id != null) ? x.id : Symbol('no-id');
-    (serverArr || []).forEach(x=>byId.set(key(x), x));
-    (localArr || []).forEach(x=>byId.set(key(x), x));
-    return [...byId.values()];
   }
 
   // Saves are serialized: two overlapping saves would both carry the same
@@ -1251,31 +1700,48 @@
   // from the live variables when the save actually runs, not when queued.
   async function doPersistUserData(fields){
     if(!userDataLoaded){
+      if(offlineMode){
+        // Working from the local copy: keep the change here and send it when we are back online.
+        fields.forEach(f=>{ pendingSync[f] = true; });
+        writeOfflineCache(); updateSyncPill(); scheduleSync();
+        showToast(tr('savedOnDevice'));
+        return true;
+      }
       showToast('Not saving — your data has not loaded yet. Try refreshing.');
       return false;
     }
-    const failMsg = fields.includes('decks') && !fields.includes('tournaments')
-      ? 'Could not save decks — check your connection'
-      : 'Could not save — check your connection';
+    // Recorded before the attempt, so a change is never lost if the page closes or the network drops.
+    fields.forEach(f=>{ pendingSync[f] = true; });
+    writeOfflineCache();
     try{
       if(userDataVersion !== null){
         for(let attempt = 0; attempt < 2; attempt++){
           const args = { p_expected_version: userDataVersion };
           if(fields.includes('tournaments')) args.p_tournaments = tournaments;
           if(fields.includes('decks')) args.p_decks = decks;
+          if(deletedSupported) args.p_deleted = pruneDeleted();
           const { data, error } = await supabaseClient.rpc('save_user_data', args);
           if(error){
             // PGRST202 / 42883: function not found — migration not run yet.
             if(error.code === 'PGRST202' || error.code === '42883'){ userDataVersion = null; break; }
             throw error;
           }
-          if(typeof data === 'number' && data >= 0){ userDataVersion = data; writeOfflineCache(); return true; }
+          if(typeof data === 'number' && data >= 0){
+            userDataVersion = data; revived.tournaments.clear(); revived.decks.clear();
+            fields.forEach(f=>{ pendingSync[f] = false; baseSnapshot[f] = cloneJSON(f === 'tournaments' ? tournaments : decks); });
+            writeOfflineCache(); updateSyncPill();
+            return true;
+          }
           // Version conflict: another device saved since we loaded. Pull its
           // copy, merge our changes onto it, and try once more.
-          const { data: fresh, error: freshErr } = await supabaseClient.from('user_data').select('tournaments, decks, version').eq('user_id', session.user.id).maybeSingle();
+          const { data: fresh, error: freshErr } = await supabaseClient.from('user_data').select(deletedSupported ? 'tournaments, decks, version, deleted' : 'tournaments, decks, version').eq('user_id', session.user.id).maybeSingle();
           if(freshErr || !fresh) throw (freshErr || new Error('reload after conflict failed'));
-          tournaments = fields.includes('tournaments') ? mergeById(fresh.tournaments, tournaments) : (fresh.tournaments || []);
-          decks = fields.includes('decks') ? mergeById(fresh.decks, decks) : (fresh.decks || []);
+          // Learn what the other device deleted first: a deletion wins over our stale copy of the item.
+          if(deletedSupported) mergeDeleted(fresh.deleted);
+          tournaments = dropDeleted('tournaments', fields.includes('tournaments') ? merge3('tournaments', baseSnapshot.tournaments, tournaments, fresh.tournaments) : (fresh.tournaments || []));
+          decks = dropDeleted('decks', fields.includes('decks') ? merge3('decks', baseSnapshot.decks, decks, fresh.decks) : (fresh.decks || []));
+          // The server's copy is the new common ancestor for the retry (and for anything not saved here).
+          baseSnapshot = { tournaments: cloneJSON(fresh.tournaments || []), decks: cloneJSON(fresh.decks || []) };
           userDataVersion = fresh.version;
           if(attempt === 1) throw new Error('save conflict persisted after merge');
           showToast('Merged changes made on another device');
@@ -1288,14 +1754,51 @@
       const row = { user_id: session.user.id, updated_at: new Date().toISOString() };
       if(fields.includes('tournaments')) row.tournaments = tournaments;
       if(fields.includes('decks')) row.decks = decks;
+      if(deletedSupported) row.deleted = pruneDeleted();
       const { error } = await supabaseClient.from('user_data').upsert(row, { onConflict: 'user_id' });
       if(error) throw error;
-      writeOfflineCache();
+      revived.tournaments.clear(); revived.decks.clear();
+      fields.forEach(f=>{ pendingSync[f] = false; baseSnapshot[f] = cloneJSON(f === 'tournaments' ? tournaments : decks); });
+      writeOfflineCache(); updateSyncPill();
       return true;
     }catch(e){
       console.error('save failed:', e);
-      showToast(failMsg);
+      // The change is already recorded on this device (see above); retry automatically.
+      writeOfflineCache(); updateSyncPill(); scheduleSync();
+      showToast(tr('saveQueued'));
       return false;
+    }
+  }
+
+  // Sends changes that never reached the server: fold the server's current copy into ours
+  // (three-way, item by item), then save the result. Runs on reconnect, on returning to the
+  // tab, and on a timer while anything is waiting.
+  async function syncPending(){
+    if(syncing || !session || !hasPending()) return;
+    syncing = true;
+    const wasOffline = offlineMode;
+    try{
+      const { res, supported, version } = await fetchUserDataRow();
+      if(res.error) throw res.error;               // still unreachable: try again later
+      const server = res.data || { tournaments: [], decks: [] };
+      deletedSupported = supported;
+      if(supported) mergeDeleted(server.deleted);
+      tournaments = dropDeleted('tournaments', merge3('tournaments', baseSnapshot.tournaments, tournaments, server.tournaments || []));
+      decks = dropDeleted('decks', merge3('decks', baseSnapshot.decks, decks, server.decks || []));
+      baseSnapshot = { tournaments: cloneJSON(server.tournaments || []), decks: cloneJSON(server.decks || []) };
+      userDataVersion = version;
+      userDataLoaded = true; offlineMode = false;
+      const ok = await persistUserData(['tournaments', 'decks']);
+      if(ok){ showToast(tr('syncedOffline')); }
+      else if(wasOffline){ userDataLoaded = false; offlineMode = true; }
+      render();
+    }catch(e){
+      console.error('sync failed:', e);
+      if(wasOffline){ userDataLoaded = false; offlineMode = true; }
+    }finally{
+      syncing = false;
+      updateSyncPill();
+      scheduleSync();
     }
   }
   function saveTournaments(){ return persistUserData(['tournaments']); }
@@ -1362,8 +1865,8 @@
 
   function friendLabel(userId){
     const p = profilesById[userId];
-    if(!p) return 'Someone';
-    return p.display_name || (p.username ? '@'+p.username : 'Someone');
+    if(!p) return tr('someone');
+    return p.display_name || (p.username ? '@'+p.username : tr('someone'));
   }
   function friendSubLabel(userId){
     const p = profilesById[userId];
@@ -1421,32 +1924,32 @@
       if(ambiguous.length){
         // Display names aren't unique — don't guess which person they meant.
         const names = ambiguous.map(p=>p.username ? '@'+p.username : (p.display_name||'someone')).join(', ');
-        showToast(`Several people use that name — try their username instead: ${names}`);
+        showToast(trf('severalPeople', { names }));
         return false;
       }
       if(!target){
-        showToast('No account found with that username, display name or email');
+        showToast(tr('noAccountFound'));
         return false;
       }
-      if(target.id === session.user.id){ showToast("That's you!"); return false; }
+      if(target.id === session.user.id){ showToast(tr('thatsYou')); return false; }
 
       const { error } = await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: target.id, status: 'pending' });
       if(error){
         showToast(error.code === '23505' ? 'Already friends or a request is pending' : 'Could not send request');
         return false;
       }
-      showToast('Friend request sent');
+      showToast(tr('friendRequestSent'));
       await loadFriendsData();
       return true;
-    }catch(e){ showToast('Could not send request'); return false; }
+    }catch(e){ showToast(tr('couldNotSendRequest')); return false; }
   }
   async function acceptFriend(friendshipId){
     try{ await supabaseClient.from('friendships').update({ status:'accepted' }).eq('id', friendshipId); await loadFriendsData(); }
-    catch(e){ showToast('Could not accept request'); }
+    catch(e){ showToast(tr('couldNotAccept')); }
   }
   async function removeFriendship(friendshipId){
     try{ await supabaseClient.from('friendships').delete().eq('id', friendshipId); await loadFriendsData(); }
-    catch(e){ showToast('Could not update friends'); }
+    catch(e){ showToast(tr('couldNotUpdateFriends')); }
   }
 
   async function loadNotifications(){
@@ -1472,7 +1975,7 @@
     notifications = notifications.filter(n=>n.id!==id); // update immediately, don't wait on the network
     try{
       await supabaseClient.from('notifications').delete().eq('id', id).eq('user_id', session.user.id);
-    }catch(e){ showToast('Could not delete — try again'); }
+    }catch(e){ showToast(tr('couldNotDeleteRetry')); }
   }
 
   let realtimeSubscribed = false;
@@ -1483,7 +1986,7 @@
     realtimeChannel = supabaseClient.channel('notif-' + session.user.id)
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`user_id=eq.${session.user.id}` }, payload=>{
         notifications.unshift(payload.new);
-        showToast('🔔 ' + payload.new.message);
+        showToast('🔔 ' + localizeNotification(payload.new));
         render();
       })
       .subscribe();
@@ -1538,6 +2041,11 @@
   function registerServiceWorker(){
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('/sw.js').catch(()=>{ /* non-fatal — push just won't be available */ });
+      // A notification was tapped while the app was already open (see sw.js).
+      navigator.serviceWorker.addEventListener('message', (ev)=>{
+        const d = ev && ev.data;
+        if(d && d.type === 'open' && isOpenTarget(d.name) && session && !bootstrapping) OPEN_TARGETS[d.name]();
+      });
     }
   }
 
@@ -1628,19 +2136,73 @@
       client.requestCode();
     });
   }
+  // [calendar-timing:start]
+  // Reads a start time (and, for a range, a duration) out of the event's free-text time:
+  //   "6:00 PM", "6pm", "7:30 p.m.", "18:00", "6:00 PM - 9:30 PM"  ->  { startTime:'18:00', durationMinutes }
+  // Anything unclear returns null and the event stays all-day: a bare "6:00" could be
+  // morning or evening, and a wrong time on someone's calendar is worse than none.
+  const DEFAULT_EVENT_MINUTES = 180;   // most local events run about three hours
+  function eventTiming(t){
+    const s = String((t && t.time) || '');
+    // No lookbehind (older iOS Safari can't even parse the page if one appears): a leading
+    // group stops "1:30" from matching inside "11:30".
+    const re = /(^|[^\d:])(\d{1,2})(?::([0-5]\d))?\s*([ap])\.?m\b\.?|(^|[^\d:])(\d{1,2}):([0-5]\d)(?!\s*[ap]\.?m\b)(?![\d:])/gi;
+    const found = [];
+    let m;
+    while((m = re.exec(s))){
+      let h, min, hourText;
+      const lead = (m[1] !== undefined ? m[1] : m[5]) || '';
+      if(m[4]){                                   // 12-hour, with am/pm
+        h = +m[2]; min = m[3] ? +m[3] : 0;
+        if(h < 1 || h > 12) continue;
+        h = (h % 12) + (m[4].toLowerCase() === 'p' ? 12 : 0);
+      } else {                                    // 24-hour, no am/pm
+        hourText = m[6]; h = +hourText; min = +m[7];
+        if(h > 23) continue;
+        // 1:00-11:59 without a leading zero is ambiguous (morning or evening?) -> not usable
+        if(h >= 1 && h <= 11 && hourText.length === 1) return null;
+      }
+      found.push({ h, min, index: m.index + lead.length, end: m.index + m[0].length });
+    }
+    if(!found.length) return null;
+    const startMin = found[0].h * 60 + found[0].min;
+    let minutes = DEFAULT_EVENT_MINUTES;
+    if(found[1] && /^\s*(?:-|–|—|to|until|till)\s*$/i.test(s.slice(found[0].end, found[1].index))){
+      let d = found[1].h * 60 + found[1].min - startMin;
+      if(d <= 0) d += 24 * 60;                    // "9:00 PM - 1:00 AM" runs past midnight
+      if(d >= 15 && d <= 24 * 60) minutes = d;
+    }
+    return { startTime: String(found[0].h).padStart(2,'0') + ':' + String(found[0].min).padStart(2,'0'), durationMinutes: minutes };
+  }
+  // Wall-clock start/end as YYYYMMDDTHHMMSS (no zone), plain arithmetic, so it runs past midnight correctly.
+  function timedRangeCompact(date, timing){
+    const [y, mo, d] = date.split('-').map(Number);
+    const [h, mi] = timing.startTime.split(':').map(Number);
+    const startMs = Date.UTC(y, mo - 1, d, h, mi);
+    const fmt = ms => new Date(ms).toISOString().slice(0, 19).replace(/[-:]/g, '');
+    return { start: fmt(startMs), end: fmt(startMs + timing.durationMinutes * 60000) };
+  }
+  function userTimeZone(){
+    try{ const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; if(tz) return tz; }catch(e){}
+    return (profile && profile.timezone && profile.timezone !== 'UTC') ? profile.timezone : null;
+  }
+  // [calendar-timing:end]
   async function syncEventToGoogle(t, date){
     const occ = getOcc(t, date);
+    // A readable start time makes a timed event; otherwise it stays all-day, as before.
+    const timing = eventTiming(t), tz = userTimeZone();
+    const timed = timing && tz ? { startTime: timing.startTime, durationMinutes: timing.durationMinutes, timeZone: tz } : {};
     try{
       const res = await fetch(FUNCTIONS_URL + '/sync-calendar-event', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
-        body: JSON.stringify({ action:'upsert', event:{
+        body: JSON.stringify({ action:'upsert', event:Object.assign({
           googleEventId: occ.googleEventId || null,
           summary: t.name,
           description: [t.fee?('Entry: '+t.fee):'', t.notes].filter(Boolean).join('\n\n'),
           location: t.address || t.store || '',
           date, time: t.time
-        }})
+        }, timed)})
       });
       const json = await res.json();
       if(json.error){ showToast(json.error); return; }
@@ -1651,13 +2213,20 @@
     }catch(e){ showToast('Could not sync to Google Calendar'); }
   }
   function gcalQuickLink(t, date){
-    const start = date.replace(/-/g,'');
-    const nd = new Date(date+'T00:00:00'); nd.setDate(nd.getDate()+1);
-    const end = dateToStr(nd).replace(/-/g,'');
-    const text = encodeURIComponent(t.name + (t.time ? ' — ' + t.time : ''));
+    const timing = eventTiming(t);
+    let start, end, zone = '';
+    if(timing){
+      ({ start, end } = timedRangeCompact(date, timing));
+      const tz = userTimeZone(); if(tz) zone = '&ctz=' + encodeURIComponent(tz);
+    } else {
+      start = date.replace(/-/g,'');
+      const nd = new Date(date+'T00:00:00'); nd.setDate(nd.getDate()+1);
+      end = dateToStr(nd).replace(/-/g,'');
+    }
+    const text = encodeURIComponent(timing ? t.name : t.name + (t.time ? ' — ' + t.time : ''));
     const details = encodeURIComponent([t.fee?('Entry: '+t.fee):'', t.notes, t.link].filter(Boolean).join('\n\n'));
     const location = encodeURIComponent(t.address || t.store || '');
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}&details=${details}&location=${location}`;
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${start}/${end}${zone}&details=${details}&location=${location}`;
   }
 
   // Works with Apple Calendar, Outlook, and any other app that accepts .ics files —
@@ -1666,12 +2235,21 @@
     return String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
   }
   function downloadIcs(t, date){
-    const start = date.replace(/-/g,'');
-    const nd = new Date(date+'T00:00:00'); nd.setDate(nd.getDate()+1);
-    const end = dateToStr(nd).replace(/-/g,'');
+    // Timed events use "floating" local times (no zone), so they show at the same clock
+    // time wherever the file is opened; all-day events use dates, as before.
+    const timing = eventTiming(t);
+    let dtStart, dtEnd;
+    if(timing){
+      const r = timedRangeCompact(date, timing);
+      dtStart = 'DTSTART:' + r.start; dtEnd = 'DTEND:' + r.end;
+    } else {
+      const nd = new Date(date+'T00:00:00'); nd.setDate(nd.getDate()+1);
+      dtStart = 'DTSTART;VALUE=DATE:' + date.replace(/-/g,'');
+      dtEnd = 'DTEND;VALUE=DATE:' + dateToStr(nd).replace(/-/g,'');
+    }
     const stamp = new Date().toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
     const uidStr = (t.id||uid()) + '-' + date + '@pairings';
-    const summary = t.name + (t.time ? ' — ' + t.time : '');
+    const summary = timing ? t.name : t.name + (t.time ? ' — ' + t.time : '');
     const description = [t.fee?('Entry: '+t.fee):'', t.notes, t.link].filter(Boolean).join('\n\n');
     const location = t.address || t.store || '';
     const lines = [
@@ -1679,8 +2257,8 @@
       'BEGIN:VEVENT',
       'UID:' + uidStr,
       'DTSTAMP:' + stamp,
-      'DTSTART;VALUE=DATE:' + start,
-      'DTEND;VALUE=DATE:' + end,
+      dtStart,
+      dtEnd,
       'SUMMARY:' + icsEscape(summary),
       'DESCRIPTION:' + icsEscape(description),
       'LOCATION:' + icsEscape(location),
@@ -1810,6 +2388,8 @@
     const matchupStats = {};
     const deckStats = {};
     const allResults = [];
+    const trendRows = [];    // finished events with a readable record: feeds the monthly trend and streaks
+    const matchRows = [];    // individual matches with an opponent: feeds the deck-vs-opponent matrix
     let totalWins = 0, totalLosses = 0, totalDraws = 0;
 
     function accumulate(t, date, occ){
@@ -1834,9 +2414,12 @@
           deckStats[deckKey] = deckStats[deckKey] || {w:0,l:0,d:0};
           deckStats[deckKey].w += rec.w; deckStats[deckKey].l += rec.l; deckStats[deckKey].d += rec.d;
         }
+        // An event still in progress has a partial record; it would distort a trend or a streak.
+        if(rec && !occ.result.inProgress) trendRows.push({ date, name: t.name, w: rec.w, l: rec.l, d: rec.d });
         (occ.result.matches||[]).forEach(m=>{
           const key = (m.opponent||'').trim();
           if(!key || !m.outcome) return;
+          if(deckKey) matchRows.push({ deckKey, opponent: key, outcome: m.outcome });
           matchupStats[key] = matchupStats[key] || {w:0,l:0,d:0};
           if(m.outcome==='W') matchupStats[key].w++;
           else if(m.outcome==='L') matchupStats[key].l++;
@@ -1879,7 +2462,7 @@
     function resolveDeckKeyName(key){
       if(key.startsWith('id:')){
         const d = decksArr.find(x=>x.id===key.slice(3));
-        return d ? d.name : 'Deleted deck';
+        return d ? d.name : tr('deletedDeck');
       }
       return key.slice('legacy:'.length);
     }
@@ -1902,7 +2485,46 @@
       other: deckEntries.filter(d=>d.status==='other').slice(0,8)
     };
 
+    // Win rate by calendar month (from event records), oldest first, at most the last 12 months.
+    const monthly = {};
+    trendRows.forEach(r=>{
+      const k = r.date.slice(0, 7);
+      const m = monthly[k] = monthly[k] || { w:0, l:0, d:0 };
+      m.w += r.w; m.l += r.l; m.d += r.d;
+    });
+    const timeline = Object.keys(monthly).sort().slice(-12).map(k=>{
+      const m = monthly[k], decided = m.w + m.l;
+      return { month: k, ...m, total: decided + m.d, winRate: decided > 0 ? Math.round((m.w / decided) * 100) : null };
+    }).filter(m=>m.winRate != null);
+
+    // Streaks over events, oldest first. An event is a win if it has more wins than losses, a
+    // loss if more losses than wins, otherwise even (which ends a winning streak).
+    const eventKind = r => r.w > r.l ? 'W' : (r.l > r.w ? 'L' : 'D');
+    const ordered = trendRows.slice().sort((a,b)=> a.date.localeCompare(b.date) || String(a.name).localeCompare(String(b.name)));
+    let bestWin = 0, run = 0;
+    ordered.forEach(r=>{ if(eventKind(r) === 'W'){ run++; bestWin = Math.max(bestWin, run); } else run = 0; });
+    let currentType = null, currentLength = 0;
+    if(ordered.length){
+      currentType = eventKind(ordered[ordered.length - 1]);
+      for(let i = ordered.length - 1; i >= 0 && eventKind(ordered[i]) === currentType; i--) currentLength++;
+    }
+    const streaks = { events: ordered.length, currentType, currentLength, bestWin };
+
+    // Your decks (rows) against what you played (columns): the six decks and eight opponents
+    // with the most games, each cell a win-loss-draw count.
+    const cellMap = {}, deckGames = {}, oppGames = {};
+    matchRows.forEach(m=>{
+      const name = resolveDeckKeyName(m.deckKey);
+      const c = (cellMap[name] = cellMap[name] || {})[m.opponent] = (cellMap[name][m.opponent] || {w:0,l:0,d:0});
+      if(m.outcome === 'W') c.w++; else if(m.outcome === 'L') c.l++; else if(m.outcome === 'D') c.d++;
+      deckGames[name] = (deckGames[name] || 0) + 1;
+      oppGames[m.opponent] = (oppGames[m.opponent] || 0) + 1;
+    });
+    const rank = obj => Object.keys(obj).sort((a,b)=> obj[b] - obj[a] || a.localeCompare(b));
+    const matrix = { decks: rank(deckGames).slice(0, 6), opponents: rank(oppGames).slice(0, 8), cells: cellMap };
+
     return {
+      timeline, streaks, matrix,
       attended: attendedSet.size,
       resultsLogged: allResults.length,
       totalWins, totalLosses, totalDraws, winRate,
@@ -2233,6 +2855,7 @@
     }
     if(!isRepeating(t)){
       if(!confirm('Delete this tournament?')) return;
+      markDeleted('tournaments', id);
       tournaments = tournaments.filter(x=>x.id!==id);
       saveTournaments(); render();
       showToast('Deleted');
@@ -2243,7 +2866,7 @@
       message: `"${t.name}" repeats ${(REPEATS.find(r=>r.v===t.repeat)||{}).l||''}. What would you like to remove?`,
       choices: [
         { label: `Just ${fmtFriendly(date)}`, action: ()=>{ setOcc(t, date, {skip:true}); saveTournaments(); render(); showToast('That date removed'); } },
-        { label: 'Entire series', danger:true, action: ()=>{ tournaments = tournaments.filter(x=>x.id!==id); saveTournaments(); render(); showToast('Series deleted'); } }
+        { label: 'Entire series', danger:true, action: ()=>{ markDeleted('tournaments', id); tournaments = tournaments.filter(x=>x.id!==id); saveTournaments(); render(); showToast('Series deleted'); } }
       ]
     });
   }
@@ -2312,7 +2935,7 @@
           </label>
           <div id="casualFields" style="display:${t.isCasual?'block':'none'};margin-top:10px;">
             <div class="row2">
-              <select id="f_onlinemode">
+              <select id="f_onlinemode" aria-label="${escapeAttr(tr('playMode'))}">
                 <option value="physical" ${t.onlineMode!=='online'?'selected':''}>In person</option>
                 <option value="online" ${t.onlineMode==='online'?'selected':''}>Online</option>
               </select>
@@ -2654,7 +3277,7 @@
     };
     overlay.querySelector('#createDeckInlineBtn').onclick = async ()=>{
       const name = overlay.querySelector('#newDeckNameInline').value.trim();
-      if(!name){ showToast('Give the deck a name'); return; }
+      if(!name){ showToast(tr('giveDeckName')); return; }
       const newDeck = { id: deckUid(), name, game: t.game||'', notes:'', active:true, createdAt: Date.now() };
       decks.push(newDeck);
       await saveDecks();
@@ -2713,7 +3336,7 @@
           <label>${tr('addFriendLabel')}</label>
           <div class="hint" style="margin-bottom:6px;">${tr('addFriendHint')}</div>
           <div style="display:flex;gap:8px;">
-            <input id="friendEmail" placeholder="@username, name, or email" style="flex:1;"/>
+            <input id="friendEmail" placeholder="${escapeAttr(tr('friendSearchPlaceholder'))}" style="flex:1;"/>
             <button class="mini-btn" id="sendReqBtn">${tr('send')}</button>
           </div>
         </div>
@@ -2743,7 +3366,7 @@
       `;
       body.querySelector('#sendReqBtn').onclick = async ()=>{
         const identifier = body.querySelector('#friendEmail').value;
-        if(!identifier.trim()){ showToast('Enter a username or email'); return; }
+        if(!identifier.trim()){ showToast(tr('enterUsernameOrEmail')); return; }
         const ok = await sendFriendRequest(identifier);
         if(ok) draw();
       };
@@ -2776,10 +3399,10 @@
       return `
       <div class="notif-item ${n.read?'':'unread'}">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
-          <div style="flex:1;">${escapeHtml(n.message)}</div>
-          <button class="icon-btn" data-del-notif="${n.id}" title="Delete" style="flex:none;">✕</button>
+          <div style="flex:1;">${escapeHtml(localizeNotification(n))}</div>
+          <button class="icon-btn" data-del-notif="${n.id}" title="${escapeAttr(tr('delete'))}" aria-label="${escapeAttr(tr('delete'))}" style="flex:none;">✕</button>
         </div>
-        <div class="t">${new Date(n.created_at).toLocaleString()}</div>
+        <div class="t">${new Date(n.created_at).toLocaleString(dateLocale())}</div>
         ${isInvite && inviteStatus === 'pending' ? `
           <div class="rsvp-row" style="margin-top:8px;">
             <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">${tr('accept')}</button>
@@ -2885,20 +3508,26 @@
           ${rangeChipsHtml}
           <div class="empty-state">
             <div class="big">${tr('nothingToShow')}</div>
-            <div>Mark some events as "Going" and log a result or two, and your stats will show up here.</div>
+            <div>${tr('statsEmptyBody')}</div>
           </div>
-          <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">${tr('close')}</button></div>
+          <div class="modal-actions">
+            <button class="btn-secondary" id="openDecksFromStats" style="flex:1;">${tr('manageDecks')}</button>
+            <button class="btn-secondary" id="closeStats" style="flex:1;">${tr('close')}</button>
+          </div>
         </div>`;
       document.body.appendChild(overlay);
       overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
       overlay.querySelector('#closeStats').onclick = ()=>overlay.remove();
+      // Decks used to be reachable only from the populated Stats screen, so nobody could add or
+      // manage a deck before logging a result.
+      overlay.querySelector('#openDecksFromStats').onclick = ()=>{ overlay.remove(); openDecksModal(); };
       wireRangeChips();
       return;
     }
 
     const gameRows = s.topGames.map(([name,count])=>`
       <div class="list-item">
-        <div class="info"><div class="n">${gameIcon(name)} ${escapeHtml(name)}</div><div class="m">${count} event${count===1?'':'s'} attended</div></div>
+        <div class="info"><div class="n">${gameIcon(name)} ${escapeHtml(name)}</div><div class="m">${trf(count===1?'eventAttended1':'eventsAttendedN',{n:count})}</div></div>
         <button class="mini-btn" data-game-details="${escapeAttr(name)}">${tr('details')}</button>
       </div>`).join('');
 
@@ -2912,7 +3541,7 @@
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
         </div>
         <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
@@ -2920,14 +3549,14 @@
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
         </div>
         <div class="p" style="color:var(--teal);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
 
     const recentRows = s.recentResults.slice(0,5).map(r=>`
       <div class="result-row">
-        <div>          <div class="n">${escapeHtml(r.name)}${r.result.inProgress ? ' <span style="color:var(--gold,#f5b942);font-size:11px;">⏳ in progress</span>' : ''}</div>
+        <div>          <div class="n">${escapeHtml(r.name)}${r.result.inProgress ? ' <span style="color:var(--gold,#f5b942);font-size:11px;">' + tr('inProgressBadge') + '</span>' : ''}</div>
           <div class="m">${fmtFriendly(r.date)}${r.store ? ' · '+escapeHtml(r.store) : ''}</div>
         </div>
         <div class="p">${escapeHtml([r.result.placement, r.result.record].filter(Boolean).join(' · ') || '—')}</div>
@@ -2945,6 +3574,8 @@
         </div>
         <div class="modal-actions" style="margin-top:0;"><button class="btn-secondary" id="openDecksFromStats" style="flex:1;">${tr('manageDecks')}</button></div>
 
+        ${s.timeline.length ? `<div class="section-label">${tr('winRateByMonth')}</div>${trendChartHtml(s.timeline)}` : ''}
+        ${s.streaks.events ? `<div class="section-label">${tr('streaks')}</div>${streaksHtml(s.streaks)}` : ''}
         ${gameRows ? `<div class="section-label">${tr('gamesYouPlay')}</div>${gameRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">${tr('whereYouPlay')}</div>${storeBars}` : ''}
         ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
@@ -2963,6 +3594,62 @@
     wireRangeChips();
   }
 
+  // ---------- Trend, streak and matrix sections (shared by the stats screens) ----------
+  function monthLabel(ym){
+    try{ return new Date(ym + '-01T00:00:00').toLocaleDateString(dateLocale(), { month: 'short' }); }
+    catch(e){ return ym; }
+  }
+  // Bars of win rate per month. The text alternative lists every value, because a bar chart is
+  // no use to a screen reader, and each bar has a tooltip with the record behind it.
+  function trendChartHtml(timeline){
+    if(!timeline || !timeline.length) return '';
+    const W = 320, H = 130, top = 16, bottom = 22, left = 4, right = 4;
+    const plotH = H - top - bottom, slot = (W - left - right) / timeline.length, barW = Math.min(34, slot * 0.7);
+    const y = pct => top + plotH * (1 - pct / 100);
+    const bars = timeline.map((m, i)=>{
+      const cx = left + slot * i + slot / 2, h = Math.max(2, plotH * m.winRate / 100);
+      const rec = m.w + '-' + m.l + (m.d ? '-' + m.d : '');
+      return `<g><title>${escapeHtml(monthLabel(m.month))} ${escapeHtml(m.month.slice(0,4))}: ${m.winRate}% (${rec})</title>
+        <rect x="${(cx - barW/2).toFixed(1)}" y="${(top + plotH - h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${m.winRate >= 50 ? 'var(--teal)' : 'var(--rose)'}" opacity="0.9"/>
+        <text x="${cx.toFixed(1)}" y="${(top + plotH - h - 4).toFixed(1)}" text-anchor="middle" font-size="10" fill="currentColor">${m.winRate}%</text>
+        <text x="${cx.toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.7">${escapeHtml(monthLabel(m.month))}</text></g>`;
+    }).join('');
+    const summary = timeline.map(m=>`${monthLabel(m.month)} ${m.month.slice(0,4)} ${m.winRate}%`).join(', ');
+    return `<div class="trend-chart"><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${escapeAttr(tr('winRateByMonth') + ': ' + summary)}" style="color:var(--text-dim);display:block;">
+        <line x1="${left}" x2="${W - right}" y1="${y(50).toFixed(1)}" y2="${y(50).toFixed(1)}" stroke="currentColor" stroke-dasharray="3 4" opacity="0.5"/>
+        ${bars}</svg>
+      ${timeline.length < 2 ? `<div class="hint">${tr('trendHint')}</div>` : ''}</div>`;
+  }
+  function streaksHtml(st){
+    if(!st || !st.events) return '';
+    const cur = st.currentType === 'W' ? { v: st.currentLength, l: tr('streakWinning') }
+              : st.currentType === 'L' ? { v: st.currentLength, l: tr('streakLosing') }
+              : { v: '—', l: tr('streakNone') };
+    return `<div class="stat-grid">
+        <div class="stat-card"><div class="val">${st.currentType === 'W' ? '🔥 ' : ''}${cur.v}</div><div class="lbl">${cur.l}</div></div>
+        <div class="stat-card"><div class="val">${st.bestWin || '—'}</div><div class="lbl">${tr('streakBest')}</div></div>
+      </div>`;
+  }
+  // Rows are your decks, columns are the opponents. Colour follows win rate, but every cell also
+  // states its numbers, so colour is never the only signal.
+  function matrixHtml(mx){
+    if(!mx || !mx.decks.length || !mx.opponents.length) return '';
+    const cell = (deck, opp)=>{
+      const c = (mx.cells[deck] || {})[opp];
+      if(!c) return '<td class="mx-empty">·</td>';
+      const decided = c.w + c.l, rate = decided ? Math.round(c.w / decided * 100) : null;
+      const bg = rate == null ? 'transparent'
+        : rate >= 50 ? `rgba(45,217,193,${(0.10 + (rate - 50) / 50 * 0.40).toFixed(2)})`
+        : `rgba(240,103,138,${(0.10 + (50 - rate) / 50 * 0.40).toFixed(2)})`;
+      const rec = c.w + '-' + c.l + (c.d ? '-' + c.d : '');
+      return `<td style="background:${bg};" title="${escapeAttr(deck + ' ' + tr('vs') + ' ' + opp + ': ' + rec + (rate != null ? ' (' + rate + '%)' : ''))}"><div class="mx-rec">${rec}</div>${rate != null ? `<div class="mx-pct">${rate}%</div>` : ''}</td>`;
+    };
+    return `<div class="matrix-wrap" tabindex="0" role="region" aria-label="${escapeAttr(tr('matchupMatrix'))}">
+      <table class="matrix"><thead><tr><th scope="col"></th>${mx.opponents.map(o=>`<th scope="col" title="${escapeAttr(o)}">${escapeHtml(o)}</th>`).join('')}</tr></thead>
+      <tbody>${mx.decks.map(d=>`<tr><th scope="row" title="${escapeAttr(d)}">${escapeHtml(d)}</th>${mx.opponents.map(o=>cell(d, o)).join('')}</tr>`).join('')}</tbody></table></div>
+      <div class="hint">${tr('matrixHint')}</div>`;
+  }
+
   // ---------- Per-game detailed stats (opened from the general stats page) ----------
   function openGameStatsModal(game, tournamentsArr, decksArr, ownerLabel){
     const s = computeStats(tournamentsArr, decksArr, game, getStatsRangeCutoff());
@@ -2979,7 +3666,7 @@
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
         </div>
         <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`;
@@ -2991,7 +3678,7 @@
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
         </div>
         <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
@@ -2999,7 +3686,7 @@
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
         </div>
         <div class="p" style="color:var(--teal);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
@@ -3015,7 +3702,7 @@
     overlay.innerHTML = `
       <div class="modal">
         <h2>${gameIcon(game)} ${escapeHtml(game)}</h2>
-        <div class="modal-sub">${escapeHtml(ownerLabel)} stats for this game</div>
+        <div class="modal-sub">${ownerLabel === 'Your' ? tr('yourStatsForGame') : trf('theirStatsForGame', { name: ownerLabel })}</div>
         <div class="stat-grid">
           <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">${tr('eventsAttended')}</div></div>
           <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">${tr('resultsLogged')}</div></div>
@@ -3023,6 +3710,8 @@
           <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">${tr('overallRecord')}</div></div>
         </div>
 
+        ${s.timeline.length ? `<div class="section-label">${tr('winRateByMonth')}</div>${trendChartHtml(s.timeline)}` : ''}
+        ${s.streaks.events ? `<div class="section-label">${tr('streaks')}</div>${streaksHtml(s.streaks)}` : ''}
         ${s.topFormats.length ? `<div class="section-label">${tr('formatsPlayed')}</div>${formatBars}` : ''}
         ${currentDeckRows ? `<div class="section-label">${tr('winCurrentDecks')}</div>${currentDeckRows}` : ''}
         ${pastDeckRows ? `<div class="section-label">${tr('winPastDecks')}</div>${pastDeckRows}` : ''}
@@ -3030,6 +3719,7 @@
         ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
         ${matchupRows ? `<div class="section-label">${tr('allMatchups')}</div>${matchupRows}` : ''}
+        ${s.matrix.decks.length && s.matrix.opponents.length ? `<div class="section-label">${tr('matchupMatrix')}</div>${matrixHtml(s.matrix)}` : ''}
         ${recentRows ? `<div class="section-label">${tr('recentResults')}</div>${recentRows}` : ''}
 
         <div class="modal-actions"><button class="btn-secondary" id="closeGameStats" style="flex:1;">${tr('close')}</button></div>
@@ -3043,14 +3733,14 @@
   async function openFriendStatsModal(friendUserId, friendName){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2><div class="modal-sub">Loading…</div></div>`;
+    overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(trf('friendStatsTitle', { name: friendName }))}</h2><div class="modal-sub">${tr('loadingDots')}</div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
 
     try{
       const { data: friendProfile } = await supabaseClient.from('profiles').select('share_stats_with_friends').eq('id', friendUserId).maybeSingle();
       if(friendProfile && friendProfile.share_stats_with_friends === false){
-        overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2>
+        overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(trf('friendStatsTitle', { name: friendName }))}</h2>
           <div class="empty-state"><div class="big">${tr('statsPrivate')}</div><div>${escapeHtml(friendName)} ${tr('statsPrivateBody')}</div></div>
           <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">${tr('close')}</button></div></div>`;
         overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
@@ -3065,26 +3755,26 @@
       friendTournaments = (data && data.tournaments) || [];
       friendDecks = (data && data.decks) || [];
     }catch(e){
-      overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2>
-        <div class="modal-sub">Couldn't load their stats — they may need to be on the latest version of the app for this to work.</div>
-        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">Close</button></div></div>`;
+      overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(trf('friendStatsTitle', { name: friendName }))}</h2>
+        <div class="modal-sub">${tr('friendStatsLoadFail')}</div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">${tr('close')}</button></div></div>`;
       overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
       return;
     }
 
     const s = computeStats(friendTournaments, friendDecks, null, getStatsRangeCutoff());
     if(s.attended === 0 && s.resultsLogged === 0){
-      overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(friendName)}'s stats</h2>
-        <div class="empty-state"><div class="big">Nothing to show yet</div><div>${escapeHtml(friendName)} hasn't logged any results.</div></div>
-        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">Close</button></div></div>`;
+      overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(trf('friendStatsTitle', { name: friendName }))}</h2>
+        <div class="empty-state"><div class="big">${tr('nothingToShow')}</div><div>${escapeHtml(trf('friendNoResults', { name: friendName }))}</div></div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">${tr('close')}</button></div></div>`;
       overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
       return;
     }
 
     const gameRows = s.topGames.map(([name,count])=>`
       <div class="list-item">
-        <div class="info"><div class="n">${gameIcon(name)} ${escapeHtml(name)}</div><div class="m">${count} event${count===1?'':'s'} attended</div></div>
-        <button class="mini-btn" data-friend-game-details="${escapeAttr(name)}">Details →</button>
+        <div class="info"><div class="n">${gameIcon(name)} ${escapeHtml(name)}</div><div class="m">${trf(count===1?'eventAttended1':'eventsAttendedN',{n:count})}</div></div>
+        <button class="mini-btn" data-friend-game-details="${escapeAttr(name)}">${tr('details')}</button>
       </div>`).join('');
 
     const storeBars = s.topStores.map(([name,count])=>`
@@ -3097,7 +3787,7 @@
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
         </div>
         <div class="p" style="color:var(--rose);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
@@ -3105,14 +3795,14 @@
       <div class="result-row">
         <div>
           <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} (${m.total} game${m.total===1?'':'s'})</div>
+          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
         </div>
         <div class="p" style="color:var(--teal);">${m.winRate != null ? m.winRate+'%' : '—'}</div>
       </div>`).join('');
 
     overlay.innerHTML = `
       <div class="modal">
-        <h2>${escapeHtml(friendName)}'s stats</h2>
+        <h2>${escapeHtml(trf('friendStatsTitle', { name: friendName }))}</h2>
         <div class="stat-grid">
           <div class="stat-card"><div class="val">${s.attended}</div><div class="lbl">${tr('eventsAttended')}</div></div>
           <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">${tr('resultsLogged')}</div></div>
@@ -3120,10 +3810,10 @@
           <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">${tr('overallRecord')}</div></div>
         </div>
 
-        ${gameRows ? `<div class="section-label">Games they play — tap for the full breakdown</div>${gameRows}` : ''}
-        ${s.topStores.length ? `<div class="section-label">Where they play most</div>${storeBars}` : ''}
-        ${bestRows ? `<div class="section-label">What they beat the most</div>${bestRows}` : ''}
-        ${toughRows ? `<div class="section-label">What they lose to the most</div>${toughRows}` : ''}
+        ${gameRows ? `<div class="section-label">${tr('theyPlayGames')}</div>${gameRows}` : ''}
+        ${s.topStores.length ? `<div class="section-label">${tr('theyPlayMost')}</div>${storeBars}` : ''}
+        ${bestRows ? `<div class="section-label">${tr('theyBeatMost')}</div>${bestRows}` : ''}
+        ${toughRows ? `<div class="section-label">${tr('theyLoseMost')}</div>${toughRows}` : ''}
 
         <div class="modal-actions"><button class="btn-secondary" id="closeFriendStats" style="flex:1;">${tr('close')}</button></div>
       </div>`;
@@ -3373,6 +4063,89 @@
   // event — usernames, not just a count. Only works for events belonging
   // to a store the viewer owns (enforced by the "attendances select store
   // owner" RLS policy — this isn't just a UI-level restriction).
+  // ---- Check-in ------------------------------------------------------------------
+  // The QR a store shows opens /?checkin=<store event id>. It only works on a day the event
+  // actually happens (so a link shared afterwards is useless) and only for the signed-in person
+  // themself: it records their own attendance row with checked_in_at, which the store owner can
+  // already see (owners may read attendance for their own events).
+  async function performCheckin(eventId){
+    try{
+      const { data: ev, error } = await supabaseClient.from('store_events').select('id, name, date, time, repeat, cancelled, store_id').eq('id', eventId).maybeSingle();
+      if(error) throw error;
+      if(!ev){ showToast(tr('checkinInvalid')); return false; }
+      if(ev.cancelled){ showToast(tr('checkinCancelled')); return false; }
+      const today = todayStr();
+      // getOccurrenceDates returns a one-off event's own date whatever window it is given, so the
+      // date has to be compared, not just counted.
+      if(!getOccurrenceDates(ev, today, today).includes(today)){ showToast(tr('checkinWrongDay')); return false; }
+      const { data: store } = await supabaseClient.from('stores').select('name').eq('id', ev.store_id).maybeSingle();
+      const row = { user_id: session.user.id, occurrence_key: 'store:' + ev.id + '::' + today, event_name: ev.name, event_date: today,
+                    time: ev.time || null, store: (store && store.name) || null, checked_in_at: new Date().toISOString() };
+      let up = await supabaseClient.from('attendances').upsert(row, { onConflict: 'user_id,occurrence_key' });
+      let recorded = true;
+      if(up.error && /checked_in_at/.test(up.error.message || '')){
+        // Database without the newest SQL: still mark them as going, just without the check-in time.
+        delete row.checked_in_at; recorded = false;
+        up = await supabaseClient.from('attendances').upsert(row, { onConflict: 'user_id,occurrence_key' });
+      }
+      if(up.error) throw up.error;
+      // Keep their own list in step: a followed copy of this event becomes "going".
+      const copy = tournaments.find(x=>x.storeEventId === ev.id);
+      if(copy && userDataLoaded){ setOcc(copy, today, { rsvp: 'going' }); saveTournaments(); render(); }
+      showToast(tr(recorded ? 'checkedIn' : 'checkedInBasic').replace('{name}', ev.name));
+      return true;
+    }catch(e){
+      console.error('check-in failed:', e);
+      showToast(tr('checkinFailed'));
+      return false;
+    }
+  }
+
+  // ---- CSV ------------------------------------------------------------------------
+  // A cell that starts with = + - @ (or a tab/CR) is run as a formula by spreadsheet apps, and
+  // names come from other people, so those are prefixed with an apostrophe.
+  function csvCell(v){
+    let x = v == null ? '' : String(v);
+    if(/^[=+\-@\t\r]/.test(x)) x = "'" + x;
+    return /[",\n\r]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x;
+  }
+  function toCsv(rows){ return '\ufeff' + rows.map(r=>r.map(csvCell).join(',')).join('\r\n') + '\r\n'; }
+  function downloadText(filename, text, type){
+    const blob = new Blob([text], { type: type || 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }
+
+  // Printable check-in QR for one store event.
+  function openCheckinQrModal(ev){
+    const url = baseAppUrl() + '?checkin=' + ev.id;
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal" style="text-align:center;">
+      <h2>📱 Check-in QR</h2>
+      <div class="modal-sub"><strong>${escapeHtml(ev.name)}</strong><br>${escapeHtml(fmtFriendly(ev.date, ev.time))}${isRepeating({repeat:ev.repeat}) ? ' · ' + escapeHtml('repeats: works on the day of each event') : ''}</div>
+      <div id="checkinQrHolder" style="display:flex;justify-content:center;margin:12px 0;background:#fff;padding:12px;border-radius:12px;width:fit-content;margin-left:auto;margin-right:auto;"></div>
+      <div class="hint">Players scan this with their phone camera. It only works on the day of the event, and records that they're there.</div>
+      <div class="share-link" style="margin:10px 0;word-break:break-all;">${escapeHtml(url)}</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="copyCheckinLink" style="flex:1;">Copy link</button>
+        <button class="btn-secondary" id="closeCheckinQr" style="flex:1;">${tr('close')}</button>
+      </div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeCheckinQr').onclick = ()=>overlay.remove();
+    overlay.querySelector('#copyCheckinLink').onclick = ()=>showToast(copyText(url) ? 'Link copied' : 'Could not copy');
+    loadQrLib().then(()=>{
+      const holder = overlay.querySelector('#checkinQrHolder');
+      if(holder) new QRCode(holder, { text: url, width: 220, height: 220 });
+    }).catch(()=>{ /* non-fatal: the link is shown as text */ });
+  }
+
+  // Everyone who RSVP'd or checked in, grouped by the date they are going for (a recurring event
+  // has one group per date), with a spreadsheet download for the store owner.
   async function openAttendeesModal(storeEventId, eventName){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -3380,22 +4153,46 @@
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     const body = overlay.querySelector('#attendeesBody');
+    const closeBtn = `<button class="btn-secondary" id="closeAttendees" style="flex:1;">${tr('close')}</button>`;
     try{
-      const { data: rows, error } = await supabaseClient.from('attendances').select('user_id').like('occurrence_key', `store:${storeEventId}::%`);
-      if(error) throw error;
-      const userIds = [...new Set((rows||[]).map(r=>r.user_id))];
+      let res = await supabaseClient.from('attendances').select('user_id, occurrence_key, checked_in_at').like('occurrence_key', `store:${storeEventId}::%`);
+      if(res.error && /checked_in_at/.test(res.error.message || '')){
+        res = await supabaseClient.from('attendances').select('user_id, occurrence_key').like('occurrence_key', `store:${storeEventId}::%`);
+      }
+      if(res.error) throw res.error;
+      const rows = res.data || [];
+      const userIds = [...new Set(rows.map(r=>r.user_id))];
       if(userIds.length === 0){
-        body.innerHTML = `<div class="modal-sub">No one has RSVP'd yet.</div><div class="modal-actions"><button class="btn-secondary" id="closeAttendees" style="flex:1;">${tr('close')}</button></div>`;
+        body.innerHTML = `<div class="modal-sub">No one has RSVP'd yet.</div><div class="modal-actions">${closeBtn}</div>`;
       } else {
         const { data: profiles } = await supabaseClient.from('profiles').select('id, username, display_name').in('id', userIds);
-        const rowsHtml = (profiles||[]).map(p=>`
-          <div class="list-item"><div class="info"><div class="n">${escapeHtml(p.display_name || p.username || 'Player')}</div>${p.username ? `<div class="m">@${escapeHtml(p.username)}</div>` : ''}</div></div>
-        `).join('');
-        body.innerHTML = `<div class="modal-sub" style="margin-bottom:8px;">${userIds.length} going</div>${rowsHtml}
-          <div class="modal-actions"><button class="btn-secondary" id="closeAttendees" style="flex:1;">${tr('close')}</button></div>`;
+        const who = {}; (profiles || []).forEach(p=>{ who[p.id] = p; });
+        const nameOf = id => (who[id] && (who[id].display_name || who[id].username)) || 'Player';
+        // occurrence_key is  store:<event id>::<date>
+        const byDate = {};
+        rows.forEach(r=>{ const d = (r.occurrence_key.split('::')[1] || '').slice(0, 10); (byDate[d] = byDate[d] || []).push(r); });
+        const dates = Object.keys(byDate).sort();
+        const sections = dates.map(d=>{
+          const list = byDate[d].slice().sort((a,b)=> nameOf(a.user_id).localeCompare(nameOf(b.user_id)));
+          const here = list.filter(r=>r.checked_in_at).length;
+          return `<div class="section-label">${escapeHtml(d ? fmtFriendly(d) : 'Date unknown')} · ${list.length} going${here ? ' · ' + here + ' checked in' : ''}</div>
+            ${list.map(r=>{ const p = who[r.user_id] || {}; return `
+              <div class="list-item"><div class="info"><div class="n">${escapeHtml(nameOf(r.user_id))}${r.checked_in_at ? ' <span title="Checked in" aria-label="Checked in" style="color:var(--teal);">✅</span>' : ''}</div>${p.username ? `<div class="m">@${escapeHtml(p.username)}</div>` : ''}</div></div>`; }).join('')}`;
+        }).join('');
+        body.innerHTML = `${sections}
+          <div class="modal-actions"><button class="btn-secondary" id="downloadAttendees" style="flex:1;">⬇️ Download CSV</button>${closeBtn}</div>`;
+        body.querySelector('#downloadAttendees').onclick = ()=>{
+          const table = [['Date', 'Name', 'Username', 'Checked in', 'Checked in at']];
+          dates.forEach(d=>byDate[d].slice().sort((a,b)=> nameOf(a.user_id).localeCompare(nameOf(b.user_id))).forEach(r=>{
+            const p = who[r.user_id] || {};
+            table.push([d, nameOf(r.user_id), p.username || '', r.checked_in_at ? 'Yes' : 'No', r.checked_in_at || '']);
+          }));
+          const slug = String(eventName || 'event').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').slice(0, 50) || 'event';
+          downloadText('attendees_' + slug + '.csv', toCsv(table));
+        };
       }
     }catch(e){
-      body.innerHTML = `<div class="modal-sub">Could not load attendees.</div><div class="modal-actions"><button class="btn-secondary" id="closeAttendees" style="flex:1;">${tr('close')}</button></div>`;
+      body.innerHTML = `<div class="modal-sub">Could not load attendees.</div><div class="modal-actions">${closeBtn}</div>`;
     }
     overlay.querySelector('#closeAttendees').onclick = ()=>overlay.remove();
   }
@@ -3660,7 +4457,7 @@
         const newName = prompt('Playgroup name', group.name);
         if(newName === null) return;
         const trimmed = newName.trim();
-        if(!trimmed){ showToast('Name cannot be empty'); return; }
+        if(!trimmed){ showToast(tr('nameEmpty')); return; }
         const newDesc = prompt('Description (leave blank for none)', group.description || '');
         if(newDesc === null) return;
         (async ()=>{
@@ -3700,7 +4497,7 @@
           try{
             const { error } = await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: btn.dataset.pgFriend, status:'pending' });
             if(error) throw error;
-            showToast('Friend request sent');
+            showToast(tr('friendRequestSent'));
             btn.textContent = tr('friendPending');
             // Refresh so friendState() reflects reality if this view redraws.
             await loadFriendsData();
@@ -4092,15 +4889,16 @@
         }catch(e){}
 
         let prefillEvent = null; // set by the Duplicate button
+        let editingEvent = null; // set by the Edit button: the form then updates this event instead of adding one
 
         function eventFormHtml(){
-          const pf = prefillEvent || {};
+          const pf = editingEvent || prefillEvent || {};
           return `
             <div class="field" style="margin-top:10px;">
-              <label>${prefillEvent ? 'Duplicate event (edit and save as new)' : 'Add an event'}</label>
+              <label>${editingEvent ? 'Edit event' : prefillEvent ? 'Duplicate event (edit and save as new)' : 'Add an event'}</label>
               <input id="se_name" placeholder="Event name" value="${escapeAttr(pf.name||'')}" style="margin-bottom:6px;"/>
               <div class="row2">
-                <input id="se_date" type="date" value=""/>
+                <input id="se_date" type="date" value="${editingEvent ? escapeAttr(pf.date||'') : ''}"/>
                 <input id="se_time" placeholder="Time, e.g. 6:30 PM" value="${escapeAttr(pf.time||'')}"/>
               </div>
               <div class="row2">
@@ -4115,8 +4913,8 @@
                 <input id="se_fee" placeholder="Entry cost (optional), e.g. $10" value="${escapeAttr(pf.fee||'')}"/>
                 <input id="se_prizing" placeholder="Prizing (optional)" value="${escapeAttr(pf.prizing||'')}"/>
               </div>
-              <button class="mini-btn" id="addStoreEventBtn" style="margin-top:8px;">${prefillEvent ? '+ Publish duplicate' : '+ Add event'}</button>
-              ${prefillEvent ? `<button class="mini-btn" id="cancelDuplicateBtn" style="margin-top:8px;margin-left:6px;">Cancel</button>` : ''}
+              <button class="mini-btn" id="addStoreEventBtn" style="margin-top:8px;">${editingEvent ? 'Save changes' : prefillEvent ? '+ Publish duplicate' : '+ Add event'}</button>
+              ${prefillEvent || editingEvent ? `<button class="mini-btn" id="cancelDuplicateBtn" style="margin-top:8px;margin-left:6px;">Cancel</button>` : ''}
             </div>`;
         }
 
@@ -4129,6 +4927,8 @@
                 <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · repeats':''} · ${going}${e.capacity?'/'+e.capacity:''} going</div></div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
                 ${going ? `<button class="mini-btn" data-view-attendees="${e.id}" data-event-name="${escapeAttr(e.name)}">👥 Attendees</button>` : ''}
+                <button class="mini-btn" data-qr-se="${e.id}">📱 Check-in QR</button>
+                <button class="mini-btn" data-edit-se="${e.id}">✏️ Edit</button>
                 <button class="mini-btn" data-dup-se="${e.id}">📋 Duplicate</button>
                 <button class="mini-btn" data-cancel-se="${e.id}">${e.cancelled?'Un-cancel':'Cancel'}</button>
                 <button class="mini-btn decline" data-del-se="${e.id}">Delete</button>
@@ -4199,33 +4999,53 @@
             const name = body.querySelector('#se_name').value.trim();
             const date = body.querySelector('#se_date').value;
             if(!name || !date){ showToast('Name and date are required'); return; }
-            const isDupe = myEvents.some(e => e.date === date && (e.name||'').trim().toLowerCase() === name.toLowerCase());
+            const isDupe = myEvents.some(e => (!editingEvent || e.id !== editingEvent.id) && e.date === date && (e.name||'').trim().toLowerCase() === name.toLowerCase());
             if(isDupe){ showToast('You already have an event with this name on this date'); return; }
             const capVal = body.querySelector('#se_capacity').value;
+            const fields = {
+              name, date,
+              time: body.querySelector('#se_time').value.trim(),
+              game: body.querySelector('#se_game').value.trim(),
+              format: body.querySelector('#se_format').value.trim(),
+              repeat: body.querySelector('#se_repeat').value,
+              capacity: capVal ? parseInt(capVal,10) : null,
+              fee: body.querySelector('#se_fee').value.trim(),
+              prizing: body.querySelector('#se_prizing').value.trim()
+            };
             try{
-              await supabaseClient.from('store_events').insert({
-                store_id: myStore.id, name, date,
-                time: body.querySelector('#se_time').value.trim(),
-                game: body.querySelector('#se_game').value.trim(),
-                format: body.querySelector('#se_format').value.trim(),
-                repeat: body.querySelector('#se_repeat').value,
-                capacity: capVal ? parseInt(capVal,10) : null,
-                fee: body.querySelector('#se_fee').value.trim(),
-                prizing: body.querySelector('#se_prizing').value.trim()
-              });
-              showToast('Event published — your followers will see it');
-              prefillEvent = null;
+              // supabase-js returns { error } instead of throwing, so it has to be checked or a
+              // refused save would still say "published".
+              const { error } = editingEvent
+                ? await supabaseClient.from('store_events').update(fields).eq('id', editingEvent.id).eq('store_id', myStore.id)
+                : await supabaseClient.from('store_events').insert({ store_id: myStore.id, ...fields });
+              if(error) throw error;
+              showToast(editingEvent ? 'Event updated — followers see the change next time they open the app' : 'Event published — your followers will see it');
+              prefillEvent = null; editingEvent = null;
               drawManageStore(myStore);
-            }catch(e){ showToast('Could not publish event'); }
+            }catch(e){ showToast(editingEvent ? 'Could not save changes' : 'Could not publish event'); }
           };
           const cancelDupBtn = body.querySelector('#cancelDuplicateBtn');
-          if(cancelDupBtn) cancelDupBtn.onclick = ()=>{ prefillEvent = null; render(); };
+          if(cancelDupBtn) cancelDupBtn.onclick = ()=>{ prefillEvent = null; editingEvent = null; render(); };
+
+          body.querySelectorAll('[data-qr-se]').forEach(btn=>{
+            btn.onclick = ()=>{ const ev = myEvents.find(x=>x.id===btn.dataset.qrSe); if(ev) openCheckinQrModal(ev); };
+          });
+          body.querySelectorAll('[data-edit-se]').forEach(btn=>{
+            btn.onclick = ()=>{
+              const ev = myEvents.find(x=>x.id===btn.dataset.editSe);
+              if(!ev) return;
+              editingEvent = ev; prefillEvent = null;
+              render();
+              const nameField = body.querySelector('#se_name');
+              if(nameField) nameField.scrollIntoView({behavior:'smooth', block:'center'});
+            };
+          });
 
           body.querySelectorAll('[data-dup-se]').forEach(btn=>{
             btn.onclick = ()=>{
               const ev = myEvents.find(x=>x.id===btn.dataset.dupSe);
               if(!ev) return;
-              prefillEvent = ev;
+              prefillEvent = ev; editingEvent = null;
               render();
               const nameField = body.querySelector('#se_name');
               if(nameField) nameField.scrollIntoView({behavior:'smooth', block:'center'});
@@ -4237,14 +5057,14 @@
           body.querySelectorAll('[data-cancel-se]').forEach(btn=>{
             btn.onclick = async ()=>{
               const ev = myEvents.find(x=>x.id===btn.dataset.cancelSe);
-              try{ await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); drawManageStore(myStore); }
+              try{ const { error } = await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); if(error) throw error; drawManageStore(myStore); }
               catch(e){ showToast('Could not update'); }
             };
           });
           body.querySelectorAll('[data-del-se]').forEach(btn=>{
             btn.onclick = async ()=>{
               if(!confirm('Delete this event? Followers will no longer see it.')) return;
-              try{ await supabaseClient.from('store_events').delete().eq('id', btn.dataset.delSe); drawManageStore(myStore); }
+              try{ const { error } = await supabaseClient.from('store_events').delete().eq('id', btn.dataset.delSe); if(error) throw error; drawManageStore(myStore); }
               catch(e){ showToast('Could not delete'); }
             };
           });
@@ -4566,20 +5386,20 @@
 
     function deckRow(d){
       const metaBits = [d.game || 'No game set'];
-      if(d.legend) metaBits.push('Legend: '+d.legend);
-      if(d.cardCount) metaBits.push(d.cardCount+' cards');
+      if(d.legend) metaBits.push(tr('legendLabel')+': '+d.legend);
+      if(d.cardCount) metaBits.push(trf('deckCards', { n: d.cardCount }));
       return `
         <div class="list-item" id="deckrow-${d.id}">
           <div class="info">
             <div class="n" data-view="${d.id}">${escapeHtml(d.name)}</div>
             <div class="m">${escapeHtml(metaBits.join(' · '))}</div>
             ${(d.viewLink || d.editLink) ? `<div style="margin-top:4px;display:flex;gap:10px;">
-              ${safeUrl(d.viewLink) ? `<a href="${safeHref(d.viewLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">View on Piltover Archive ↗</a>` : ''}
-              ${safeUrl(d.editLink) ? `<a href="${safeHref(d.editLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">Edit ↗</a>` : ''}
+              ${safeUrl(d.viewLink) ? `<a href="${safeHref(d.viewLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">${tr('viewOnPiltover')}</a>` : ''}
+              ${safeUrl(d.editLink) ? `<a href="${safeHref(d.editLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">${tr('editArrow')}</a>` : ''}
             </div>` : ''}
           </div>
           <div style="display:flex;gap:6px;">
-            ${d.viewLink ? `<button class="mini-btn" data-resync="${d.id}">🔄 Re-sync</button>` : ''}
+            ${d.viewLink ? `<button class="mini-btn" data-resync="${d.id}">🔄 ${tr('resync')}</button>` : ''}
             <button class="mini-btn" data-rename="${d.id}">${tr('rename')}</button>
             <button class="mini-btn" data-toggle="${d.id}">${d.active ? tr('retire') : tr('reactivate')}</button>
             <button class="mini-btn decline" data-delete="${d.id}">${tr('delete')}</button>
@@ -4612,18 +5432,18 @@
       const past = decks.filter(d=>!d.active);
       body.innerHTML = `
         <div class="paste-box">
-          <div class="lbl">🔗 Import from Piltover Archive</div>
+          <div class="lbl">🔗 ${tr('importFromPiltover')}</div>
           <div style="display:flex;gap:8px;">
             <input id="pltDeckLink" placeholder="https://piltoverarchive.com/decks/view/…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
-            <button class="parse-btn" id="pltImportBtn" type="button" style="margin-top:0;white-space:nowrap;">Import</button>
+            <button class="parse-btn" id="pltImportBtn" type="button" style="margin-top:0;white-space:nowrap;">${tr('importBtn')}</button>
           </div>
-          <div class="hint">Pulls in the deck's name, legend, and a direct edit link automatically.</div>
+          <div class="hint">${tr('importPltHint')}</div>
         </div>
         <div class="field">
-          <label>Or add one manually</label>
+          <label>${tr('orAddManually')}</label>
           <div class="row2">
             <input id="newDeckName" placeholder="${tr('deckName')}" list="legendOptionsGlobal"/>
-            <input id="newDeckGame" list="gameOptions" placeholder="Game (optional)"/>
+            <input id="newDeckGame" list="gameOptions" placeholder="${escapeAttr(tr('gameOptional'))}"/>
           </div>
           <datalist id="gameOptions">${GAMES.map(g=>`<option value="${escapeAttr(g)}">`).join('')}</datalist>
           <datalist id="legendOptionsGlobal">${RIFTBOUND_LEGENDS.map(l=>`<option value="${escapeAttr(l)}">`).join('')}</datalist>
@@ -4638,10 +5458,10 @@
 
       body.querySelector('#pltImportBtn').onclick = async ()=>{
         const url = body.querySelector('#pltDeckLink').value.trim();
-        if(!url){ showToast('Paste a Piltover Archive deck link first'); return; }
+        if(!url){ showToast(tr('pasteDeckLink')); return; }
         const btn = body.querySelector('#pltImportBtn');
         btn.disabled = true;
-        btn.textContent = 'Importing…';
+        btn.textContent = tr('importing');
         try{
           const res = await fetch(FUNCTIONS_URL + '/fetch-piltover-deck', {
             method: 'POST',
@@ -4650,28 +5470,28 @@
           });
           const p = await res.json();
           if(p.error){ showToast(p.error); return; }
-          if(!p.foundAnything){ showToast("Couldn't read that deck page — try adding it manually instead"); return; }
+          if(!p.foundAnything){ showToast(tr('cantReadDeck')); return; }
           decks.push({
-            id: deckUid(), name: p.name || 'Imported deck', game: 'Riftbound',
+            id: deckUid(), name: p.name || tr('importedDeckDefault'), game: 'Riftbound',
             legend: p.legend || '', colors: p.colors || [], cardCount: p.cardCount || null,
             viewLink: p.viewLink || url, editLink: p.editLink || '',
             notes: '', active: true, createdAt: Date.now()
           });
           await saveDecks();
           draw();
-          showToast('Deck imported from Piltover Archive');
-        }catch(e){ showToast('Could not import that deck'); }
-        finally{ btn.disabled = false; btn.textContent = 'Import'; }
+          showToast(tr('deckImported'));
+        }catch(e){ showToast(tr('couldNotImportDeck')); }
+        finally{ btn.disabled = false; btn.textContent = tr('importBtn'); }
       };
 
       body.querySelector('#addDeckBtn').onclick = async ()=>{
         const name = body.querySelector('#newDeckName').value.trim();
         const game = body.querySelector('#newDeckGame').value.trim();
-        if(!name){ showToast('Give the deck a name'); return; }
+        if(!name){ showToast(tr('giveDeckName')); return; }
         decks.push({ id: deckUid(), name, game, notes:'', active:true, createdAt: Date.now() });
         await saveDecks();
         draw();
-        showToast('Deck added');
+        showToast(tr('deckAdded'));
       };
       body.querySelectorAll('[data-resync]').forEach(btn=>{
         btn.onclick = async ()=>{
@@ -4686,8 +5506,8 @@
               body: JSON.stringify({ url: d.viewLink })
             });
             const p = await res.json();
-            if(p.error){ showToast(p.error); btn.disabled=false; btn.textContent='🔄 Re-sync'; return; }
-            if(!p.foundAnything){ showToast("Couldn't read that deck page right now"); btn.disabled=false; btn.textContent='🔄 Re-sync'; return; }
+            if(p.error){ showToast(p.error); btn.disabled=false; btn.textContent='🔄 ' + tr('resync'); return; }
+            if(!p.foundAnything){ showToast(tr('cantReadDeckNow')); btn.disabled=false; btn.textContent='🔄 ' + tr('resync'); return; }
             if(p.name) d.name = p.name;
             d.legend = p.legend || d.legend || '';
             d.colors = p.colors || d.colors || [];
@@ -4695,22 +5515,22 @@
             if(p.editLink) d.editLink = p.editLink;
             await saveDecks();
             draw();
-            showToast('Deck synced from Piltover Archive');
-          }catch(e){ showToast('Could not sync — try again'); btn.disabled=false; btn.textContent='🔄 Re-sync'; }
+            showToast(tr('deckSynced'));
+          }catch(e){ showToast(tr('couldNotSync')); btn.disabled=false; btn.textContent='🔄 ' + tr('resync'); }
         };
       });
       body.querySelectorAll('[data-rename]').forEach(btn=>{
         btn.onclick = async ()=>{
           const d = decks.find(x=>x.id===btn.dataset.rename);
           if(!d) return;
-          const newName = prompt('Rename deck', d.name);
+          const newName = prompt(tr('renameDeck'), d.name);
           if(newName === null) return;
           const trimmed = newName.trim();
-          if(!trimmed){ showToast('Name cannot be empty'); return; }
+          if(!trimmed){ showToast(tr('nameEmpty')); return; }
           d.name = trimmed;
           await saveDecks();
           draw();
-          showToast('Deck renamed — updates everywhere it was used automatically');
+          showToast(tr('deckRenamed'));
         };
       });
       body.querySelectorAll('[data-toggle]').forEach(btn=>{
@@ -4719,17 +5539,18 @@
           if(!d) return;
           d.active = !d.active;
           draw();
-          showToast(d.active ? 'Deck marked current' : 'Deck retired');
+          showToast(d.active ? tr('deckCurrent') : tr('deckRetired'));
           await saveDecks();
         };
       });
       body.querySelectorAll('[data-delete]').forEach(btn=>{
         btn.onclick = async ()=>{
-          if(!confirm('Delete this deck? Past results logged with it will show as "Deleted deck" instead of losing their win/loss data.')) return;
+          if(!confirm(tr('confirmDeleteDeck'))) return;
+          markDeleted('decks', btn.dataset.delete);
           decks = decks.filter(x=>x.id!==btn.dataset.delete);
           await saveDecks();
           draw();
-          showToast('Deck deleted');
+          showToast(tr('deckDeleted'));
         };
       });
       body.querySelector('#closeDecks').onclick = ()=>overlay.remove();
@@ -4994,6 +5815,42 @@
     draw();
   }
 
+  // Signed-in password change. Supabase can be set to demand a recent sign-in for this
+  // ("secure password change"); if it refuses for that reason, say what to do about it.
+  function openChangePasswordModal(){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal">
+      <h2>🔑 ${tr('changePassword')}</h2>
+      <div class="modal-sub">${tr('newPasswordSub')}</div>
+      <div class="field"><label>${tr('newPassword')}</label><input id="cp_password" type="password" autocomplete="new-password" placeholder="••••••••"/></div>
+      <div class="field"><label>${tr('confirmPassword')}</label><input id="cp_confirm" type="password" autocomplete="new-password" placeholder="••••••••"/></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cp_cancel" style="flex:1;">${tr('cancel')}</button>
+        <button class="btn-primary" id="cp_save" style="flex:1;">${tr('savePassword')}</button>
+      </div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#cp_cancel').onclick = ()=>overlay.remove();
+    const save = overlay.querySelector('#cp_save');
+    save.onclick = async ()=>{
+      const pw = overlay.querySelector('#cp_password').value;
+      const pw2 = overlay.querySelector('#cp_confirm').value;
+      if(pw.length < 8){ showToast(tr('passwordTooShort')); return; }
+      if(pw !== pw2){ showToast(tr('passwordsDontMatch')); return; }
+      save.disabled = true;
+      try{
+        const { error } = await supabaseClient.auth.updateUser({ password: pw });
+        if(error){
+          showToast(/reauth|recent|nonce/i.test(error.message || '') ? tr('reauthNeeded') : error.message);
+          save.disabled = false; return;
+        }
+      }catch(e){ showToast(tr('resetFailed')); save.disabled = false; return; }
+      overlay.remove();
+      showToast(tr('passwordChanged'));
+    };
+  }
+
   // Account deletion. Deliberately a few steps: shows exactly what will be
   // lost (including anything that affects OTHER people, like a store or
   // playgroup they own), nudges toward exporting first, and requires typing
@@ -5100,6 +5957,7 @@
           </div>
         </div>
         <div class="modal-sub">${escapeHtml(profile.email)}</div>
+        <div style="margin:-6px 0 12px;"><button class="mini-btn" id="changePwBtn" type="button">🔑 ${tr('changePassword')}</button></div>
         <div class="field">
           <label>${tr('language')}</label>
           <div class="chip-row" style="display:flex;gap:8px;">
@@ -5248,6 +6106,7 @@
         }catch(e){ /* non-fatal — falls back to single-guess geocoding on save */ }
       }, 350);
     };
+    overlay.querySelector('#changePwBtn').onclick = ()=>openChangePasswordModal();
     overlay.querySelector('#saveProfileBtn').onclick = async ()=>{
       let username = overlay.querySelector('#acc_username').value.trim().replace(/^@/,'');
       if(username && !/^[a-zA-Z0-9_]{3,24}$/.test(username)){
@@ -5329,7 +6188,7 @@
       const payload = await fetchSharePayload(code);
       if(!payload || !payload.events || payload.events.length===0){
         body.innerHTML = `<div class="modal-sub">This link has expired or doesn't exist.</div>
-          <div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">Close</button></div>`;
+          <div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">${tr('close')}</button></div>`;
         body.querySelector('#closeShared').onclick = ()=>overlay.remove();
         return;
       }
@@ -5339,7 +6198,7 @@
           <div class="m">${fmtFriendly(e.date, e.time)}${e.store ? ' · '+escapeHtml(e.store) : ''}</div></div>
           <button class="mini-btn" data-idx="${idx}">Add to mine</button>
         </div>`).join('') +
-        `<div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">Close</button></div>`;
+        `<div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">${tr('close')}</button></div>`;
       body.querySelectorAll('[data-idx]').forEach(btn=>{
         btn.onclick = async ()=>{
           const e = payload.events[parseInt(btn.dataset.idx,10)];
@@ -5365,7 +6224,7 @@
       body.querySelector('#closeShared').onclick = ()=>overlay.remove();
     }catch(e){
       body.innerHTML = `<div class="modal-sub">Could not load this shared link.</div>
-        <div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">Close</button></div>`;
+        <div class="modal-actions"><button class="btn-secondary" id="closeShared" style="flex:1;">${tr('close')}</button></div>`;
       body.querySelector('#closeShared').onclick = ()=>overlay.remove();
     }
   }
@@ -5384,7 +6243,7 @@
         <h2>Invite a friend</h2>
         <div class="modal-sub">${escapeHtml(t.name)} · ${fmtFriendly(date, t.time)}</div>
         ${friendsAccepted.length ? friendRows : `<div class="modal-sub">You don't have any friends added yet — add one first from the Friends button.</div>`}
-        <div class="modal-actions"><button class="btn-secondary" id="closeInvite" style="flex:1;">Close</button></div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeInvite" style="flex:1;">${tr('close')}</button></div>
       </div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
@@ -5420,9 +6279,9 @@
         .select()
         .maybeSingle();
 
-      if(error){ showToast('Could not update invitation'); return; }
+      if(error){ showToast(tr('couldNotUpdateInvite')); return; }
       if(!updated){
-        showToast('This invitation was already responded to');
+        showToast(tr('inviteAlreadyResponded'));
         invitationStatusById[invitationId] = invitationStatusById[invitationId] || 'accepted';
         render();
         return;
@@ -5440,7 +6299,7 @@
 
       async function addAsTournament(e, repeatValue){
         if(isDuplicateEvent(e)){
-          showToast('Accepted — but you already had this event on your calendar');
+          showToast(tr('inviteAcceptedHadIt'));
           await finish();
           return;
         }
@@ -5473,10 +6332,10 @@
           return;
         }
       } else {
-        showToast('Invitation declined');
+        showToast(tr('inviteDeclined'));
       }
       await finish();
-    }catch(e){ showToast('Could not respond to invitation'); }
+    }catch(e){ showToast(tr('couldNotRespondInvite')); }
   }
 
   // ---------- Share modal ----------
@@ -5757,8 +6616,17 @@
         const code = pendingShareCode;
         pendingShareCode = null;
         openSharedEventModal(code);
+      } else if(pendingCheckin){
+        const id = pendingCheckin;
+        pendingCheckin = null;
+        await performCheckin(id);
+        if(profile && profile.onboarded === false) openWelcomeModal();
       } else if(profile && profile.onboarded === false){
         openWelcomeModal();
+      } else if(pendingOpen){
+        const name = pendingOpen;
+        pendingOpen = null;
+        OPEN_TARGETS[name]();
       } else {
         checkForAnnouncement();
       }
@@ -5883,6 +6751,9 @@
     if(session && recoveryPending) renderSetNewPassword();
     else if(session) await bootstrapApp();
     else { renderAuth('signin'); if(emailLinkError) showToast(tr('emailLinkExpired')); }
+    // Try to send queued changes as soon as the connection or the tab comes back.
+    window.addEventListener('online', ()=>{ syncPending(); });
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) syncPending(); });
     supabaseClient.auth.onAuthStateChange((event, sess)=>{
       const hadSession = !!session;
       session = sess;
@@ -5893,7 +6764,7 @@
         return;
       }
       if(session && !hadSession && !recoveryPending) bootstrapApp();
-      if(!session){ recoveryPending = false; clearOfflineCache(); renderAuth('signin'); }
+      if(!session){ recoveryPending = false; clearOfflineCache(); offlineMode = false; pendingSync.tournaments = pendingSync.decks = false; clearTimeout(syncTimer); updateSyncPill(); renderAuth('signin'); }
     });
   })();
 })();
