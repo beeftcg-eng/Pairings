@@ -241,6 +241,8 @@
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important;}
   }
+  .profile-warn{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px;padding:10px 14px;border-radius:10px;
+    background:rgba(245,182,86,0.14);border:1px solid rgba(245,182,86,0.45);color:var(--text);font-size:13px;}
   .sync-pill{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;max-width:calc(100vw - 32px);
     background:var(--panel-2);color:var(--text);border:1px solid var(--border, rgba(255,255,255,.18));
     border-radius:999px;padding:6px 14px;font-size:12.5px;box-shadow:0 4px 14px rgba(0,0,0,.35);text-align:center;}
@@ -283,7 +285,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.13.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.14.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -398,7 +400,10 @@
       bhLoadFailed: 'Couldn\'t load your Brewhouse decks', bhRetry: 'Try again', bhNoDecks: 'No decks in Brewhouse yet — build one there first.',
       bhAllLinked: 'Every Brewhouse deck is already in your list.', bhImported: 'Deck imported from Brewhouse', bhSynced: 'Deck updated from Brewhouse',
       bhGone: 'That deck isn\'t in Brewhouse anymore', bhSignInFirst: 'Connect Brewhouse first, at the top of this list',
-      bhSignInFailed: 'Couldn\'t log in to Brewhouse', bhOpen: 'Open in Brewhouse ↗', bhGet: 'Get Brewhouse ↗', renameDeck: 'Rename deck', nameEmpty: 'Name cannot be empty',
+      bhSignInFailed: 'Couldn\'t log in to Brewhouse', bhOpen: 'Open in Brewhouse ↗', bhGet: 'Get Brewhouse ↗',
+      bhAutoSyncedOne: 'Updated 1 deck from Brewhouse', bhAutoSyncedMany: 'Updated {n} decks from Brewhouse',
+      profileLoadFailed: 'Couldn\'t load your profile, so your name, settings and admin tools are hidden for now.', profileRetry: 'Try again',
+      profileNotLoadedSave: 'Your profile didn\'t load, so saving now would overwrite it with blanks. Tap “Try again” at the top first.', renameDeck: 'Rename deck', nameEmpty: 'Name cannot be empty',
       deckRenamed: 'Deck renamed — updates everywhere it was used automatically', deckCurrent: 'Deck marked current', deckRetired: 'Deck retired',
       confirmDeleteDeck: 'Delete this deck? Past results logged with it will show as "Deleted deck" instead of losing their win/loss data.',
       deckDeleted: 'Deck deleted',
@@ -752,6 +757,9 @@
       bhAllLinked: 'Todos tus mazos de Brewhouse ya están en tu lista.', bhImported: 'Mazo importado desde Brewhouse', bhSynced: 'Mazo actualizado desde Brewhouse',
       bhGone: 'Ese mazo ya no está en Brewhouse', bhSignInFirst: 'Primero conecta Brewhouse, arriba en esta lista',
       bhSignInFailed: 'No se pudo iniciar sesión en Brewhouse', bhOpen: 'Abrir en Brewhouse ↗', bhGet: 'Obtener Brewhouse ↗',
+      bhAutoSyncedOne: 'Se actualizó 1 mazo desde Brewhouse', bhAutoSyncedMany: 'Se actualizaron {n} mazos desde Brewhouse',
+      profileLoadFailed: 'No pudimos cargar tu perfil, así que tu nombre, tus ajustes y las herramientas de administración están ocultos por ahora.', profileRetry: 'Reintentar',
+      profileNotLoadedSave: 'Tu perfil no se cargó, así que guardar ahora lo sobrescribiría con campos vacíos. Primero toca “Reintentar” arriba.',
       renameDeck: 'Cambiar nombre del mazo', nameEmpty: 'El nombre no puede estar vacío',
       deckRenamed: 'Mazo renombrado — se actualiza automáticamente donde se usó', deckCurrent: 'Mazo marcado como actual',
       deckRetired: 'Mazo retirado',
@@ -1295,6 +1303,18 @@
   ];
   function normalizeGameKey(s){
     return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+  }
+  // TurnZero pre-fills its "New timer" form from ?label=&game= (its GAME_PRESETS keys). Pokémon is
+  // left for the judge to pick, since TurnZero has separate Bo1 and Bo3 presets.
+  const TURNZERO_GAMES = [['riftbound', 'riftbound'], ['one piece', 'onepiece'], ['yu gi oh', 'yugioh'], ['yugioh', 'yugioh'], ['magic', 'mtg'], ['mtg', 'mtg']];
+  function turnZeroUrlFor(t){
+    const qs = new URLSearchParams();
+    if(t && t.name) qs.set('label', String(t.name).slice(0, 80));
+    const norm = normalizeGameKey(t && t.game);
+    const hit = TURNZERO_GAMES.find(([k])=>norm.includes(k));
+    if(hit) qs.set('game', hit[1]);
+    const q = qs.toString();
+    return TURNZERO_URL + (q ? '?' + q : '');
   }
   function gameIcon(game){
     if(!game) return '';
@@ -3188,7 +3208,7 @@
               ${safeUrl(t.storeLink) ? `<a class="card-link" href="${safeHref(t.storeLink)}" target="_blank" rel="noopener">${tr('xStorePage')}</a>` : ''}
               ${safeUrl(t.simulatorLink) ? `<a class="card-link" href="${safeHref(t.simulatorLink)}" target="_blank" rel="noopener">${tr('xJoinOnline')}</a>` : ''}
               ${t.contactInfo ? `<span class="card-link" style="cursor:default;">✉ ${escapeHtml(t.contactInfo)}</span>` : ''}
-              <a class="card-link" href="${TURNZERO_URL}" target="_blank" rel="noopener">${tr('xStartARoundTimer')}</a>
+              <a class="card-link" href="${escapeAttr(turnZeroUrlFor(t))}" target="_blank" rel="noopener">${tr('xStartARoundTimer')}</a>
               <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">${tr('shareWithFriend')}</a>
               <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">${tr('inviteFriend')}</a>
               <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">${tr('addToGCal')}</a>
@@ -3201,6 +3221,7 @@
     }
 
     app.innerHTML = `
+      ${profileLoaded ? '' : `<div class="profile-warn" role="alert"><span>⚠️ ${tr('profileLoadFailed')}</span><button class="mini-btn" id="retryProfile" type="button">${tr('profileRetry')}</button></div>`}
       <div class="head">
         <div class="brand">
           <div class="mark">Pairings</div>
@@ -3234,6 +3255,12 @@
     document.getElementById('openPlaygroups').onclick = ()=>openPlaygroupsModal();
     document.getElementById('openPlayerCard').onclick = ()=>openPlayerCardModal();
     document.getElementById('openMenu').onclick = ()=>openMainMenu();
+    const retryProfile = document.getElementById('retryProfile');
+    if(retryProfile) retryProfile.onclick = async ()=>{
+      retryProfile.disabled = true;
+      await loadProfile();
+      render();
+    };
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
     let searchDebounceTimer = null;
     document.getElementById('searchInput').oninput = (e)=>{
@@ -5871,14 +5898,20 @@
     if(error) throw error;
     return (Array.isArray(data) ? data : []).filter(r=>r && r.id).map(normalizeBrewhouseDeck);
   }
+  // Returns whether anything changed. The name follows Brewhouse unless you renamed the deck here:
+  // `brewhouseName` is the name last copied from Brewhouse, so a different current name is yours.
   function applyBrewhouseDeck(d, b){
+    const before = JSON.stringify([d.name, d.game, d.legend, d.colors, d.cardCount, d.brewhouseFormat]);
+    const renamedHere = d.brewhouseName != null && d.name !== d.brewhouseName;
     d.brewhouseDeckId = b.id;
-    d.name = b.name;
+    if(!renamedHere) d.name = b.name;
+    d.brewhouseName = b.name;
     d.game = b.game;
     d.legend = b.leader;
     d.colors = b.colors;
     d.cardCount = b.cardCount;
     d.brewhouseFormat = b.format;
+    return JSON.stringify([d.name, d.game, d.legend, d.colors, d.cardCount, d.brewhouseFormat]) !== before;
   }
 
   function openDecksModal(){
@@ -5944,6 +5977,20 @@
       bh.email = (sess.user && sess.user.email) || '';
       try{ bh.decks = await fetchBrewhouseDecks(); bh.status = 'ready'; }
       catch(e){ bh.status = 'error'; }
+      if(bh.status === 'ready'){
+        // Linked decks follow their Brewhouse copy without a 🔄 each; one gone from Brewhouse is left as is.
+        let changed = 0;
+        decks.forEach(d=>{
+          const b = d.brewhouseDeckId && bh.decks.find(x=>x.id === d.brewhouseDeckId);
+          if(b && applyBrewhouseDeck(d, b)) changed++;
+        });
+        if(changed){
+          await saveDecks();
+          draw();
+          showToast(changed === 1 ? tr('bhAutoSyncedOne') : trf('bhAutoSyncedMany', { n: changed }));
+          return;
+        }
+      }
       drawBrewhouse();
     }
     function drawBrewhouse(){
@@ -6650,6 +6697,7 @@
     };
     overlay.querySelector('#changePwBtn').onclick = ()=>openChangePasswordModal();
     overlay.querySelector('#saveProfileBtn').onclick = async ()=>{
+      if(!profileLoaded){ showToast(tr('profileNotLoadedSave')); return; }
       let username = overlay.querySelector('#acc_username').value.trim().replace(/^@/,'');
       if(username && !/^[a-zA-Z0-9_]{3,24}$/.test(username)){
         showToast(tr('xUsernamesAre324Characters'));
@@ -6684,6 +6732,7 @@
       chip.onclick = ()=>chip.classList.toggle('active');
     });
     overlay.querySelector('#saveNotifPrefsBtn').onclick = async ()=>{
+      if(!profileLoaded){ showToast(tr('profileNotLoadedSave')); return; }
       const prefs = {};
       NOTIF_PREF_KEYS.forEach(k=>{
         prefs[k.key] = overlay.querySelector(`[data-pref="${k.key}"]`).checked;
@@ -7162,8 +7211,8 @@
         const id = pendingCheckin;
         pendingCheckin = null;
         await performCheckin(id);
-        if(profile && profile.onboarded === false) openWelcomeModal();
-      } else if(profile && profile.onboarded === false){
+        if(profileLoaded && profile && profile.onboarded === false) openWelcomeModal();
+      } else if(profileLoaded && profile && profile.onboarded === false){
         openWelcomeModal();
       } else if(pendingOpen){
         const name = pendingOpen;
