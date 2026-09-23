@@ -283,8 +283,14 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.12.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.13.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
+  // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
+  // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
+  // Keep in step with Brewhouse's src/shared/pawmodoroDefaults.ts and Pawmodoro's cloud_defaults.py.
+  const BREWHOUSE_SUPABASE_URL = CFG.BREWHOUSE_SUPABASE_URL || 'https://cinxclbsgamdprftcbek.supabase.co';
+  const BREWHOUSE_ANON_KEY = CFG.BREWHOUSE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpbnhjbGJzZ2FtZHByZnRjYmVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NTc4OTIsImV4cCI6MjEwNTEzMzg5Mn0.1hpyBV2ZO3MeQUSnx3K5-XG6BbzY-gXb-4uG6Ls7Fr0';
+  const BREWHOUSE_APP_URL = 'https://beeftcg-eng.github.io/deckbuilder/';
 
   const configured = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY.length > 20;
   const app = document.getElementById('app');
@@ -381,14 +387,18 @@
       friendStatsLoadFail: 'Couldn\'t load their stats — they may need to be on the latest version of the app for this to work.',
       friendNoResults: '{name} hasn\'t logged any results.', theyPlayGames: 'Games they play — tap for the full breakdown',
       theyPlayMost: 'Where they play most', theyBeatMost: 'What they beat the most', theyLoseMost: 'What they lose to the most',
-      deletedDeck: 'Deleted deck', legendLabel: 'Legend', deckCards: '{n} cards', viewOnPiltover: 'View on Piltover Archive ↗', editArrow: 'Edit ↗',
-      importFromPiltover: 'Import from Piltover Archive', importBtn: 'Import',
-      importPltHint: 'Pulls in the deck\'s name, legend, and a direct edit link automatically.', orAddManually: 'Or add one manually',
-      gameOptional: 'Game (optional)', importing: 'Importing…', resync: 'Re-sync', pasteDeckLink: 'Paste a Piltover Archive deck link first',
-      cantReadDeck: 'Couldn\'t read that deck page — try adding it manually instead', importedDeckDefault: 'Imported deck',
-      deckImported: 'Deck imported from Piltover Archive', couldNotImportDeck: 'Could not import that deck', giveDeckName: 'Give the deck a name',
-      deckAdded: 'Deck added', cantReadDeckNow: 'Couldn\'t read that deck page right now', deckSynced: 'Deck synced from Piltover Archive',
-      couldNotSync: 'Could not sync — try again', renameDeck: 'Rename deck', nameEmpty: 'Name cannot be empty',
+      deletedDeck: 'Deleted deck', legendLabel: 'Legend', leaderLabel: 'Leader', deckCards: '{n} cards', importBtn: 'Import', orAddManually: 'Or add one manually',
+      gameOptional: 'Game (optional)', importing: 'Importing…', resync: 'Re-sync', importedDeckDefault: 'Imported deck',
+      couldNotImportDeck: 'Could not import that deck', giveDeckName: 'Give the deck a name', deckAdded: 'Deck added',
+      couldNotSync: 'Could not sync — try again',
+      bhTitle: 'Import from Beef\'s Brewhouse', bhAbout: 'Link decks you built in Brewhouse, the deckbuilder: Pairings copies each deck\'s name, game, legend or leader and card count, and Brewhouse shows the deck\'s tournament record from the results you log here.',
+      bhSignInHint: 'Log in with your Brewhouse account (the same login as Pawmodoro). Pairings only reads your deck list.',
+      bhEmail: 'Brewhouse email', bhPassword: 'Brewhouse password', bhConnect: 'Connect Brewhouse', bhConnecting: 'Connecting…',
+      bhConnectedAs: 'Connected to Brewhouse as {email}', bhDisconnect: 'Disconnect', bhLoading: 'Loading your Brewhouse decks…',
+      bhLoadFailed: 'Couldn\'t load your Brewhouse decks', bhRetry: 'Try again', bhNoDecks: 'No decks in Brewhouse yet — build one there first.',
+      bhAllLinked: 'Every Brewhouse deck is already in your list.', bhImported: 'Deck imported from Brewhouse', bhSynced: 'Deck updated from Brewhouse',
+      bhGone: 'That deck isn\'t in Brewhouse anymore', bhSignInFirst: 'Connect Brewhouse first, at the top of this list',
+      bhSignInFailed: 'Couldn\'t log in to Brewhouse', bhOpen: 'Open in Brewhouse ↗', bhGet: 'Get Brewhouse ↗', renameDeck: 'Rename deck', nameEmpty: 'Name cannot be empty',
       deckRenamed: 'Deck renamed — updates everywhere it was used automatically', deckCurrent: 'Deck marked current', deckRetired: 'Deck retired',
       confirmDeleteDeck: 'Delete this deck? Past results logged with it will show as "Deleted deck" instead of losing their win/loss data.',
       deckDeleted: 'Deck deleted',
@@ -478,8 +488,7 @@
       xAQuickLinkToThe: 'A quick link to the store itself — handy for checking if an event got cancelled or postponed.',
       xHttpsTheStoreSOwn: 'https://the store\'s own website or Facebook page',
       xARepeatingLocalShowsUp: 'A repeating local shows up every week/month automatically — RSVP and results are tracked per date.',
-      xStreetCity: 'Street, city', xPlayingRiftbound: 'Playing Riftbound?', xBuildADeckOnPiltover: 'Build a deck on Piltover Archive ↗',
-      xThenPasteTheLinkHere: 'then paste the link here.', xPasteARiftboundEventLink: 'Paste a Riftbound event link first', xFetching: 'Fetching…',
+      xStreetCity: 'Street, city', xPasteARiftboundEventLink: 'Paste a Riftbound event link first', xFetching: 'Fetching…',
       xCouldnTFindEventDetails: 'Couldn\'t find event details on that page — try pasting text instead',
       xFilledWhatWeCouldFind: 'Filled what we could find — the event name still needs typing in', xCouldNotFetchThatPage: 'Could not fetch that page',
       xPasteSomeEventTextFirst: 'Paste some event text first', xFilledWhatWeCouldFind2: 'Filled what we could find — double check before saving',
@@ -731,15 +740,18 @@
       friendStatsLoadFail: 'No pudimos cargar sus estadísticas — quizá necesite la última versión de la app para que funcione.',
       friendNoResults: '{name} aún no ha registrado resultados.', theyPlayGames: 'Juegos que juega — toca para ver el detalle',
       theyPlayMost: 'Dónde juega más', theyBeatMost: 'A qué le gana más', theyLoseMost: 'Contra qué pierde más', deletedDeck: 'Mazo eliminado',
-      legendLabel: 'Leyenda', deckCards: '{n} cartas', viewOnPiltover: 'Ver en Piltover Archive ↗', editArrow: 'Editar ↗',
-      importFromPiltover: 'Importar desde Piltover Archive', importBtn: 'Importar',
-      importPltHint: 'Trae automáticamente el nombre del mazo, la leyenda y un enlace directo para editarlo.',
+      legendLabel: 'Leyenda', leaderLabel: 'Líder', deckCards: '{n} cartas', importBtn: 'Importar',
       orAddManually: 'O agrega uno manualmente', gameOptional: 'Juego (opcional)', importing: 'Importando…', resync: 'Volver a sincronizar',
-      pasteDeckLink: 'Primero pega un enlace de un mazo de Piltover Archive',
-      cantReadDeck: 'No pudimos leer esa página del mazo — intenta agregarlo manualmente', importedDeckDefault: 'Mazo importado',
-      deckImported: 'Mazo importado desde Piltover Archive', couldNotImportDeck: 'No se pudo importar ese mazo',
-      giveDeckName: 'Ponle un nombre al mazo', deckAdded: 'Mazo agregado', cantReadDeckNow: 'No pudimos leer esa página del mazo en este momento',
-      deckSynced: 'Mazo sincronizado desde Piltover Archive', couldNotSync: 'No se pudo sincronizar — inténtalo de nuevo',
+      importedDeckDefault: 'Mazo importado', couldNotImportDeck: 'No se pudo importar ese mazo',
+      giveDeckName: 'Ponle un nombre al mazo', deckAdded: 'Mazo agregado', couldNotSync: 'No se pudo sincronizar — inténtalo de nuevo',
+      bhTitle: 'Importar desde Beef\'s Brewhouse', bhAbout: 'Vincula mazos que armaste en Brewhouse, el constructor de mazos: Pairings copia el nombre, el juego, la leyenda o líder y la cantidad de cartas de cada mazo, y Brewhouse muestra el historial de torneos del mazo con los resultados que registras aquí.',
+      bhSignInHint: 'Inicia sesión con tu cuenta de Brewhouse (la misma que usas en Pawmodoro). Pairings solo lee tu lista de mazos.',
+      bhEmail: 'Correo de Brewhouse', bhPassword: 'Contraseña de Brewhouse', bhConnect: 'Conectar Brewhouse', bhConnecting: 'Conectando…',
+      bhConnectedAs: 'Conectado a Brewhouse como {email}', bhDisconnect: 'Desconectar', bhLoading: 'Cargando tus mazos de Brewhouse…',
+      bhLoadFailed: 'No pudimos cargar tus mazos de Brewhouse', bhRetry: 'Reintentar', bhNoDecks: 'Aún no tienes mazos en Brewhouse — arma uno allí primero.',
+      bhAllLinked: 'Todos tus mazos de Brewhouse ya están en tu lista.', bhImported: 'Mazo importado desde Brewhouse', bhSynced: 'Mazo actualizado desde Brewhouse',
+      bhGone: 'Ese mazo ya no está en Brewhouse', bhSignInFirst: 'Primero conecta Brewhouse, arriba en esta lista',
+      bhSignInFailed: 'No se pudo iniciar sesión en Brewhouse', bhOpen: 'Abrir en Brewhouse ↗', bhGet: 'Obtener Brewhouse ↗',
       renameDeck: 'Cambiar nombre del mazo', nameEmpty: 'El nombre no puede estar vacío',
       deckRenamed: 'Mazo renombrado — se actualiza automáticamente donde se usó', deckCurrent: 'Mazo marcado como actual',
       deckRetired: 'Mazo retirado',
@@ -840,8 +852,7 @@
       xAQuickLinkToThe: 'Un enlace rápido a la tienda — útil para ver si un evento se canceló o se pospuso.',
       xHttpsTheStoreSOwn: 'https://sitio web o página de Facebook de la tienda',
       xARepeatingLocalShowsUp: 'Un evento que se repite aparece automáticamente cada semana o mes — la asistencia y los resultados se registran por fecha.',
-      xStreetCity: 'Calle, ciudad', xPlayingRiftbound: '¿Juegas Riftbound?', xBuildADeckOnPiltover: 'Crea un mazo en Piltover Archive ↗',
-      xThenPasteTheLinkHere: 'y luego pega el enlace aquí.', xPasteARiftboundEventLink: 'Primero pega un enlace de un evento de Riftbound',
+      xStreetCity: 'Calle, ciudad', xPasteARiftboundEventLink: 'Primero pega un enlace de un evento de Riftbound',
       xFetching: 'Buscando…', xCouldnTFindEventDetails: 'No encontramos detalles del evento en esa página — prueba pegando el texto',
       xFilledWhatWeCouldFind: 'Completamos lo que pudimos — el nombre del evento aún hay que escribirlo',
       xCouldNotFetchThatPage: 'No se pudo obtener esa página', xPasteSomeEventTextFirst: 'Primero pega el texto de un evento',
@@ -3388,8 +3399,7 @@
         <div class="field"><label>${tr('eventLink')}</label><input id="f_link" value="${escapeAttr(t.link)}" placeholder="https://…"/></div>
         <div class="field">
           <label>${tr('decklistLink')}</label>
-          <input id="f_decklink" value="${escapeAttr(t.deckLink||'')}" placeholder="https://piltoverarchive.com/decks/…"/>
-          <div class="hint">${tr('xPlayingRiftbound')} <a href="https://piltoverarchive.com/deckbuilder" target="_blank" rel="noopener" style="color:var(--teal);">${tr('xBuildADeckOnPiltover')}</a> ${tr('xThenPasteTheLinkHere')}</div>
+          <input id="f_decklink" value="${escapeAttr(t.deckLink||'')}" placeholder="https://…"/>
         </div>
         <div class="field"><label>${tr('notesLabel')}</label>
           <textarea id="f_notes" placeholder="${escapeAttr(tr('feeDetailExample'))}">${escapeHtml(t.notes)}</textarea>
@@ -5797,6 +5807,80 @@
     draw();
   }
 
+  // ---------- Brewhouse (Beef's Brewhouse, the deckbuilder) ----------
+  // A second Supabase client for Brewhouse's own project, signed in with your Brewhouse account and
+  // used only to read your deck list (deckbuilder_list_decks). A deck imported from there keeps its
+  // Brewhouse id as `brewhouseDeckId`; Brewhouse then reads this app's brewhouse_deck_records() with
+  // your Pairings login to show each deck's tournament record. Its session lives under its own
+  // storage key and is dropped whenever you sign out of Pairings.
+  const BREWHOUSE_STORAGE_KEY = 'pairings-brewhouse-auth';
+  const BREWHOUSE_GAMES = { riftbound: 'Riftbound', onepiece: 'One Piece Card Game', pokemon: 'Pokémon TCG', mtg: 'Magic: The Gathering', yugioh: 'Yu-Gi-Oh!' };
+  let brewhouseClient = null;
+  function getBrewhouseClient(){
+    if(!brewhouseClient){
+      brewhouseClient = window.supabase.createClient(BREWHOUSE_SUPABASE_URL, BREWHOUSE_ANON_KEY, {
+        auth: { storageKey: BREWHOUSE_STORAGE_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      });
+    }
+    return brewhouseClient;
+  }
+  async function brewhouseSession(){
+    try{
+      const { data } = await getBrewhouseClient().auth.getSession();
+      return (data && data.session) || null;
+    }catch(e){ return null; }
+  }
+  async function forgetBrewhouse(){
+    // scope 'local': only this browser's Brewhouse session. The default ('global') would also sign
+    // you out of Brewhouse and Pawmodoro on every other device.
+    if(brewhouseClient){ try{ await brewhouseClient.auth.signOut({ scope: 'local' }); }catch(e){} }
+    try{ localStorage.removeItem(BREWHOUSE_STORAGE_KEY); }catch(e){}
+  }
+  function brewhouseDeckUrl(id){ return BREWHOUSE_APP_URL + '?deck=' + encodeURIComponent(id); }
+  function countBrewhouseCards(data){
+    let n = 0;
+    const zones = data && typeof data.zones === 'object' && data.zones ? data.zones : {};
+    Object.values(zones).forEach(list=>{ (Array.isArray(list) ? list : []).forEach(e=>{ const q = e && Number(e.quantity); if(Number.isFinite(q)) n += q; }); });
+    return n;
+  }
+  // Brewhouse's rows are another app's data: check every field before it goes into ours.
+  function normalizeBrewhouseDeck(row){
+    const data = (row && row.data && typeof row.data === 'object') ? row.data : {};
+    const summary = (data.summary && typeof data.summary === 'object') ? data.summary : {};
+    const count = Number(row.card_count);
+    return {
+      id: String(row.id),
+      game: BREWHOUSE_GAMES[row.game_id] || 'Other',
+      name: (typeof data.name === 'string' && data.name.trim()) || tr('importedDeckDefault'),
+      leader: typeof summary.leader === 'string' ? summary.leader : '',
+      colors: Array.isArray(summary.colors) ? summary.colors.filter(c=>typeof c === 'string') : [],
+      cardCount: Number.isFinite(count) && count > 0 ? count : null,
+      format: typeof summary.formatLabel === 'string' ? summary.formatLabel : '',
+    };
+  }
+  async function fetchBrewhouseDecks(){
+    const client = getBrewhouseClient();
+    let { data, error } = await client.rpc('deckbuilder_list_decks');
+    if(error && (error.code === 'PGRST202' || /deckbuilder_list_decks/.test(error.message || ''))){
+      // Brewhouse's cloud schema not updated yet: the full sync pull has the same decks (and more).
+      const pulled = await client.rpc('deckbuilder_sync_pull');
+      if(pulled.error) throw pulled.error;
+      data = ((pulled.data && pulled.data.decks) || []).map(r=>({ ...r, card_count: countBrewhouseCards(r && r.data) }));
+      error = null;
+    }
+    if(error) throw error;
+    return (Array.isArray(data) ? data : []).filter(r=>r && r.id).map(normalizeBrewhouseDeck);
+  }
+  function applyBrewhouseDeck(d, b){
+    d.brewhouseDeckId = b.id;
+    d.name = b.name;
+    d.game = b.game;
+    d.legend = b.leader;
+    d.colors = b.colors;
+    d.cardCount = b.cardCount;
+    d.brewhouseFormat = b.format;
+  }
+
   function openDecksModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -5806,20 +5890,23 @@
 
     function deckRow(d){
       const metaBits = [d.game || tr('noGameSet')];
-      if(d.legend) metaBits.push(tr('legendLabel')+': '+d.legend);
+      if(d.legend) metaBits.push((d.game && d.game !== 'Riftbound' ? tr('leaderLabel') : tr('legendLabel'))+': '+d.legend);
+      if(d.brewhouseFormat) metaBits.push(d.brewhouseFormat);
       if(d.cardCount) metaBits.push(trf('deckCards', { n: d.cardCount }));
+      // Decks imported from Piltover Archive before that import was removed keep their link.
+      const links = [
+        d.brewhouseDeckId ? `<a href="${safeHref(brewhouseDeckUrl(d.brewhouseDeckId))}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">${tr('bhOpen')}</a>` : '',
+        safeUrl(d.viewLink) ? `<a href="${safeHref(d.viewLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">${tr('xDecklist')}</a>` : '',
+      ].filter(Boolean);
       return `
         <div class="list-item" id="deckrow-${d.id}">
           <div class="info">
             <div class="n" data-view="${d.id}">${escapeHtml(d.name)}</div>
             <div class="m">${escapeHtml(metaBits.join(' · '))}</div>
-            ${(d.viewLink || d.editLink) ? `<div style="margin-top:4px;display:flex;gap:10px;">
-              ${safeUrl(d.viewLink) ? `<a href="${safeHref(d.viewLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">${tr('viewOnPiltover')}</a>` : ''}
-              ${safeUrl(d.editLink) ? `<a href="${safeHref(d.editLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">${tr('editArrow')}</a>` : ''}
-            </div>` : ''}
+            ${links.length ? `<div style="margin-top:4px;display:flex;gap:10px;">${links.join('')}</div>` : ''}
           </div>
           <div style="display:flex;gap:6px;">
-            ${d.viewLink ? `<button class="mini-btn" data-resync="${d.id}">🔄 ${tr('resync')}</button>` : ''}
+            ${d.brewhouseDeckId ? `<button class="mini-btn" data-resync="${d.id}">🔄 ${tr('resync')}</button>` : ''}
             <button class="mini-btn" data-rename="${d.id}">${tr('rename')}</button>
             <button class="mini-btn" data-toggle="${d.id}">${d.active ? tr('retire') : tr('reactivate')}</button>
             <button class="mini-btn decline" data-delete="${d.id}">${tr('delete')}</button>
@@ -5846,19 +5933,87 @@
       `).join('');
     }
 
+    // The Brewhouse box: signed out, loading, failed, or the Brewhouse decks not linked here yet.
+    // Kept apart from draw() so it can fill in when the network answers without redrawing the list.
+    let bh = { status: 'loading', email: '', decks: [] };
+    async function loadBrewhouse(){
+      bh = { status: 'loading', email: '', decks: [] };
+      drawBrewhouse();
+      const sess = await brewhouseSession();
+      if(!sess){ bh = { status: 'signedout', email: '', decks: [] }; drawBrewhouse(); return; }
+      bh.email = (sess.user && sess.user.email) || '';
+      try{ bh.decks = await fetchBrewhouseDecks(); bh.status = 'ready'; }
+      catch(e){ bh.status = 'error'; }
+      drawBrewhouse();
+    }
+    function drawBrewhouse(){
+      const box = overlay.querySelector('#bhBox');
+      if(!box) return;
+      const title = `<div class="lbl">🍺 ${tr('bhTitle')}</div><div class="hint" style="margin-bottom:8px;">${tr('bhAbout')} <a href="${safeHref(BREWHOUSE_APP_URL)}" target="_blank" rel="noopener" style="color:var(--teal);">${tr('bhGet')}</a></div>`;
+      if(bh.status === 'signedout'){
+        box.innerHTML = `${title}
+          <div class="hint" style="margin-bottom:6px;">${tr('bhSignInHint')}</div>
+          <form id="bhForm" style="display:flex;flex-wrap:wrap;gap:8px;">
+            <input id="bhEmail" type="email" autocomplete="email" placeholder="${escapeAttr(tr('bhEmail'))}" style="flex:1 1 160px;"/>
+            <input id="bhPassword" type="password" autocomplete="current-password" placeholder="${escapeAttr(tr('bhPassword'))}" style="flex:1 1 160px;"/>
+            <button class="parse-btn" id="bhConnectBtn" type="submit" style="margin-top:0;white-space:nowrap;">${tr('bhConnect')}</button>
+          </form>`;
+        box.querySelector('#bhForm').onsubmit = async (e)=>{
+          e.preventDefault();
+          const email = box.querySelector('#bhEmail').value.trim();
+          const password = box.querySelector('#bhPassword').value;
+          if(!email || !password) return;
+          const btn = box.querySelector('#bhConnectBtn');
+          btn.disabled = true; btn.textContent = tr('bhConnecting');
+          const { error } = await getBrewhouseClient().auth.signInWithPassword({ email, password });
+          if(error){ showToast(tr('bhSignInFailed') + (error.message ? ': ' + error.message : '')); btn.disabled = false; btn.textContent = tr('bhConnect'); return; }
+          loadBrewhouse();
+        };
+        return;
+      }
+      const account = bh.email ? `<div class="hint" style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">${escapeHtml(trf('bhConnectedAs', { email: bh.email }))} <button class="mini-btn" id="bhDisconnect" type="button">${tr('bhDisconnect')}</button></div>` : '';
+      let list;
+      if(bh.status === 'loading') list = `<div class="modal-sub">${tr('bhLoading')}</div>`;
+      else if(bh.status === 'error') list = `<div class="modal-sub">${tr('bhLoadFailed')} <button class="mini-btn" id="bhRetry" type="button">${tr('bhRetry')}</button></div>`;
+      else {
+        const linked = new Set(decks.map(d=>d.brewhouseDeckId).filter(Boolean));
+        const unlinked = bh.decks.filter(b=>!linked.has(b.id));
+        if(!bh.decks.length) list = `<div class="modal-sub">${tr('bhNoDecks')}</div>`;
+        else if(!unlinked.length) list = `<div class="modal-sub">${tr('bhAllLinked')}</div>`;
+        else list = unlinked.map(b=>`
+          <div class="list-item">
+            <div class="info">
+              <div class="n">${escapeHtml(b.name)}</div>
+              <div class="m">${escapeHtml([b.game, b.leader, b.format, b.cardCount ? trf('deckCards', { n: b.cardCount }) : ''].filter(Boolean).join(' · '))}</div>
+            </div>
+            <button class="mini-btn" data-bh-import="${escapeAttr(b.id)}" type="button">${tr('importBtn')}</button>
+          </div>`).join('');
+      }
+      box.innerHTML = title + account + list;
+      const disc = box.querySelector('#bhDisconnect');
+      if(disc) disc.onclick = async ()=>{ await forgetBrewhouse(); loadBrewhouse(); };
+      const retry = box.querySelector('#bhRetry');
+      if(retry) retry.onclick = ()=>loadBrewhouse();
+      box.querySelectorAll('[data-bh-import]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const b = bh.decks.find(x=>x.id === btn.dataset.bhImport);
+          if(!b || decks.some(d=>d.brewhouseDeckId === b.id)) return;
+          const d = { id: deckUid(), notes: '', active: true, createdAt: Date.now() };
+          applyBrewhouseDeck(d, b);
+          decks.push(d);
+          await saveDecks();
+          draw();
+          showToast(tr('bhImported'));
+        };
+      });
+    }
+
     function draw(){
       const body = overlay.querySelector('#decksBody');
       const current = decks.filter(d=>d.active);
       const past = decks.filter(d=>!d.active);
       body.innerHTML = `
-        <div class="paste-box">
-          <div class="lbl">🔗 ${tr('importFromPiltover')}</div>
-          <div style="display:flex;gap:8px;">
-            <input id="pltDeckLink" placeholder="https://piltoverarchive.com/decks/view/…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
-            <button class="parse-btn" id="pltImportBtn" type="button" style="margin-top:0;white-space:nowrap;">${tr('importBtn')}</button>
-          </div>
-          <div class="hint">${tr('importPltHint')}</div>
-        </div>
+        <div class="paste-box" id="bhBox"></div>
         <div class="field">
           <label>${tr('orAddManually')}</label>
           <div class="row2">
@@ -5875,34 +6030,7 @@
         ${past.length ? renderGroupedDecks(past) : `<div class="modal-sub">${tr('nothingRetired')}</div>`}
         <div class="modal-actions"><button class="btn-secondary" id="closeDecks" style="flex:1;">${tr('close')}</button></div>
       `;
-
-      body.querySelector('#pltImportBtn').onclick = async ()=>{
-        const url = body.querySelector('#pltDeckLink').value.trim();
-        if(!url){ showToast(tr('pasteDeckLink')); return; }
-        const btn = body.querySelector('#pltImportBtn');
-        btn.disabled = true;
-        btn.textContent = tr('importing');
-        try{
-          const res = await fetch(FUNCTIONS_URL + '/fetch-piltover-deck', {
-            method: 'POST',
-            headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
-            body: JSON.stringify({ url })
-          });
-          const p = await res.json();
-          if(p.error){ showToast(p.error); return; }
-          if(!p.foundAnything){ showToast(tr('cantReadDeck')); return; }
-          decks.push({
-            id: deckUid(), name: p.name || tr('importedDeckDefault'), game: 'Riftbound',
-            legend: p.legend || '', colors: p.colors || [], cardCount: p.cardCount || null,
-            viewLink: p.viewLink || url, editLink: p.editLink || '',
-            notes: '', active: true, createdAt: Date.now()
-          });
-          await saveDecks();
-          draw();
-          showToast(tr('deckImported'));
-        }catch(e){ showToast(tr('couldNotImportDeck')); }
-        finally{ btn.disabled = false; btn.textContent = tr('importBtn'); }
-      };
+      drawBrewhouse();
 
       body.querySelector('#addDeckBtn').onclick = async ()=>{
         const name = body.querySelector('#newDeckName').value.trim();
@@ -5916,26 +6044,19 @@
       body.querySelectorAll('[data-resync]').forEach(btn=>{
         btn.onclick = async ()=>{
           const d = decks.find(x=>x.id===btn.dataset.resync);
-          if(!d || !d.viewLink) return;
+          if(!d || !d.brewhouseDeckId) return;
+          if(!(await brewhouseSession())){ showToast(tr('bhSignInFirst')); return; }
           btn.disabled = true;
           btn.textContent = '🔄 …';
           try{
-            const res = await fetch(FUNCTIONS_URL + '/fetch-piltover-deck', {
-              method: 'POST',
-              headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.access_token },
-              body: JSON.stringify({ url: d.viewLink })
-            });
-            const p = await res.json();
-            if(p.error){ showToast(p.error); btn.disabled=false; btn.textContent='🔄 ' + tr('resync'); return; }
-            if(!p.foundAnything){ showToast(tr('cantReadDeckNow')); btn.disabled=false; btn.textContent='🔄 ' + tr('resync'); return; }
-            if(p.name) d.name = p.name;
-            d.legend = p.legend || d.legend || '';
-            d.colors = p.colors || d.colors || [];
-            d.cardCount = p.cardCount || d.cardCount || null;
-            if(p.editLink) d.editLink = p.editLink;
+            const list = await fetchBrewhouseDecks();
+            bh = { status: 'ready', email: bh.email, decks: list };
+            const b = list.find(x=>x.id === d.brewhouseDeckId);
+            if(!b){ showToast(tr('bhGone')); btn.disabled=false; btn.textContent='🔄 ' + tr('resync'); return; }
+            applyBrewhouseDeck(d, b);
             await saveDecks();
             draw();
-            showToast(tr('deckSynced'));
+            showToast(tr('bhSynced'));
           }catch(e){ showToast(tr('couldNotSync')); btn.disabled=false; btn.textContent='🔄 ' + tr('resync'); }
         };
       });
@@ -5976,6 +6097,7 @@
       body.querySelector('#closeDecks').onclick = ()=>overlay.remove();
     }
     draw();
+    loadBrewhouse();
   }
 
   // ---------- Account modal ----------
@@ -7186,7 +7308,7 @@
         return;
       }
       if(session && !hadSession && !recoveryPending) bootstrapApp();
-      if(!session){ recoveryPending = false; clearOfflineCache(); offlineMode = false; pendingSync.tournaments = pendingSync.decks = false; clearTimeout(syncTimer); updateSyncPill(); renderAuth('signin'); }
+      if(!session){ recoveryPending = false; clearOfflineCache(); forgetBrewhouse(); offlineMode = false; pendingSync.tournaments = pendingSync.decks = false; clearTimeout(syncTimer); updateSyncPill(); renderAuth('signin'); }
     });
   })();
 })();
