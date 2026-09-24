@@ -285,7 +285,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.14.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.14.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -5902,7 +5902,9 @@
   // `brewhouseName` is the name last copied from Brewhouse, so a different current name is yours.
   function applyBrewhouseDeck(d, b){
     const before = JSON.stringify([d.name, d.game, d.legend, d.colors, d.cardCount, d.brewhouseFormat]);
-    const renamedHere = d.brewhouseName != null && d.name !== d.brewhouseName;
+    // A deck linked before brewhouseName existed (1.13.0) has no record of the name it was imported
+    // with, so a name that differs from Brewhouse's is treated as yours rather than reverted.
+    const renamedHere = d.brewhouseName != null ? d.name !== d.brewhouseName : (d.name !== b.name && !!d.name);
     d.brewhouseDeckId = b.id;
     if(!renamedHere) d.name = b.name;
     d.brewhouseName = b.name;
