@@ -285,7 +285,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.14.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.15.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -423,6 +423,10 @@
       eventRepeatsTitle: 'This event repeats', addSeriesMsg: '"{name}" repeats {label}. How would you like to add it?',
       justThisOneDate: 'Just this one date', asRepeatingSeries: 'As a repeating series', entryLabel: 'Entry:', addRoundBtn: 'Add round',
       updateRoundsTitle: 'Update your rounds', editYourResult: 'Edit your result', logYourResult: 'Log your result', clearResult: 'Clear result',
+      quickLogBtn: '📝 Log a result', quickLogTitle: 'Log a result', quickLogHint: 'For an event that isn\'t on your calendar, or a testing session. Next you pick your deck and log your rounds.',
+      quickLogKindEvent: '🏆 Event', quickLogKindTesting: '🎲 Testing session', quickLogKindLabel: 'What did you play?',
+      quickLogNameLabel: 'Event or session name', quickLogNamePh: 'e.g. Store Championship, testing with friends', quickLogTestingName: 'Testing session',
+      quickLogNext: 'Next: log the result',
       tourBack: 'Back', tourSkip: 'Skip', tourStart: 'Get started', tourNext: 'Next', qrRepeatsNote: 'repeats: works on the day of each event',
       checkedInLabel: 'Checked in', csvDate: 'Date', csvName: 'Name', csvUsername: 'Username', csvCheckedIn: 'Checked in',
       csvCheckedInAt: 'Checked in at', yesWord: 'Yes', noWord: 'No', uncancel: 'Un-cancel', editEventTitle: 'Edit event',
@@ -782,6 +786,10 @@
       eventRepeatsTitle: 'Este evento se repite', addSeriesMsg: '"{name}" se repite ({label}). ¿Cómo quieres agregarlo?',
       justThisOneDate: 'Solo esta fecha', asRepeatingSeries: 'Como una serie que se repite', entryLabel: 'Entrada:', addRoundBtn: 'Agregar ronda',
       updateRoundsTitle: 'Actualiza tus rondas', editYourResult: 'Edita tu resultado', logYourResult: 'Registra tu resultado',
+      quickLogBtn: '📝 Registrar un resultado', quickLogTitle: 'Registrar un resultado', quickLogHint: 'Para un evento que no está en tu calendario, o una sesión de práctica. Después eliges tu mazo y registras tus rondas.',
+      quickLogKindEvent: '🏆 Evento', quickLogKindTesting: '🎲 Sesión de práctica', quickLogKindLabel: '¿Qué jugaste?',
+      quickLogNameLabel: 'Nombre del evento o sesión', quickLogNamePh: 'p. ej. Store Championship, práctica con amigos', quickLogTestingName: 'Sesión de práctica',
+      quickLogNext: 'Siguiente: registrar el resultado',
       clearResult: 'Borrar resultado', tourBack: 'Atrás', tourSkip: 'Omitir', tourStart: 'Empezar', tourNext: 'Siguiente',
       qrRepeatsNote: 'se repite: funciona el día de cada evento', checkedInLabel: 'Hizo check-in', csvDate: 'Fecha', csvName: 'Nombre',
       csvUsername: 'Usuario', csvCheckedIn: 'Con check-in', csvCheckedInAt: 'Hora de check-in', yesWord: 'Sí', noWord: 'No', uncancel: 'Reactivar',
@@ -3604,8 +3612,12 @@
   }
 
   // ---------- Result modal ----------
-  function openResultModal(id, date){
-    const t = tournaments.find(x=>x.id===id);
+  // opts.draft: an event that isn't in `tournaments` yet (from "Log a result" on the Stats page).
+  // It's only added when a result is saved, so backing out leaves nothing behind.
+  // opts.onSaved runs after a save instead of nothing (the Stats page uses it to refresh).
+  function openResultModal(id, date, opts){
+    opts = opts || {};
+    const t = opts.draft || tournaments.find(x=>x.id===id);
     if(!t) return;
     const occ = getOcc(t, date);
     const r = occ.result || { placement:'', record:'', notes:'', deckId:'', deck:'', matches:[] };
@@ -3766,6 +3778,7 @@
       else if(r.deck) resultObj.deck = r.deck; // keep old free-text entry if you didn't switch it to a tracked deck
       if(markInProgress) resultObj.inProgress = true;
       setOcc(t, date, { result: resultObj });
+      if(opts.draft && !tournaments.includes(t)) tournaments.push(t);
       await saveTournaments();
       // Only tell the "remind me to log results" job to stop nagging once
       // this is actually finished — an in-progress entry should still get
@@ -3773,9 +3786,76 @@
       syncResultLogged(t, date, !markInProgress);
       overlay.remove(); render();
       showToast(markInProgress ? tr('xProgressSavedAddMoreRounds') : tr('xResultSaved'));
+      if(opts.onSaved) opts.onSaved();
     }
     overlay.querySelector('#saveInProgress').onclick = ()=>doSave(true);
     overlay.querySelector('#saveResult').onclick = ()=>doSave(false);
+  }
+
+  // Log a result without an event on the calendar (Stats page): ask for a name (an event, or a
+  // testing session, saved as a casual event), game and date, then hand a draft event to the
+  // normal result form. The event is created only when that result is saved.
+  function openQuickResultModal(onSaved){
+    let testing = false;
+    const recent = tournaments.filter(x=>x.game && (x.result || Object.values(x.occurrences||{}).some(o=>o && o.result)))
+      .sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')))[0];
+    const activeDeck = decks.find(d=>d.active && d.game);
+    const defaultGame = recent ? recent.game : (activeDeck ? activeDeck.game : '');
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:440px;">
+        <h2>${tr('quickLogTitle')}</h2>
+        <div class="hint" style="margin-bottom:14px;">${tr('quickLogHint')}</div>
+        <div class="section-label" style="margin-top:0;">${tr('quickLogKindLabel')}</div>
+        <div class="chip-row" style="margin-bottom:14px;">
+          <button class="chip active" type="button" data-qkind="event" aria-pressed="true">${tr('quickLogKindEvent')}</button>
+          <button class="chip" type="button" data-qkind="testing" aria-pressed="false">${tr('quickLogKindTesting')}</button>
+        </div>
+        <div class="field"><label>${tr('quickLogNameLabel')}</label><input id="q_name" placeholder="${escapeAttr(tr('quickLogNamePh'))}"/></div>
+        <div class="row2">
+          <div class="field"><label>${tr('game')}</label>
+            <input id="q_game" list="quickGameOptions" value="${escapeAttr(defaultGame)}" placeholder="${escapeAttr(tr('xEGOnePieceCard'))}"/>
+            <datalist id="quickGameOptions">${GAMES.map(g=>`<option value="${escapeAttr(g)}">`).join('')}</datalist>
+          </div>
+          <div class="field"><label>${tr('date')}</label><input id="q_date" type="date" value="${todayStr()}"/></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="q_cancel" type="button" style="flex:1;">${tr('cancel')}</button>
+          <button class="btn-primary" id="q_next" type="button" style="flex:1;">${tr('quickLogNext')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#q_cancel').onclick = ()=>overlay.remove();
+    const nameEl = overlay.querySelector('#q_name');
+    overlay.querySelectorAll('[data-qkind]').forEach(b=>b.onclick = ()=>{
+      testing = b.dataset.qkind === 'testing';
+      overlay.querySelectorAll('[data-qkind]').forEach(x=>{
+        const on = x === b;
+        x.classList.toggle('active', on);
+        x.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      // Suggest a name for a testing session, but never overwrite one the user typed.
+      const val = nameEl.value.trim();
+      if(testing && !val) nameEl.value = tr('quickLogTestingName');
+      else if(!testing && val === tr('quickLogTestingName')) nameEl.value = '';
+    });
+    overlay.querySelector('#q_next').onclick = ()=>{
+      const name = nameEl.value.trim();
+      const date = overlay.querySelector('#q_date').value;
+      if(!name){ showToast(tr('giveEventName')); return; }
+      if(!date){ showToast(tr('pickDate')); return; }
+      const draft = {
+        id: uid(), name, game: overlay.querySelector('#q_game').value.trim(), store:'', date, time:'',
+        format:'', fee:'', address:'', city:'', link:'', storeLink:'', deckLink:'', notes:'',
+        isCasual: testing, onlineMode:'', simulatorLink:'', contactInfo:'',
+        repeat:'none', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null
+      };
+      overlay.remove();
+      openResultModal(draft.id, date, { draft, onSaved });
+    };
+    nameEl.focus();
   }
 
   // ---------- Friends modal ----------
@@ -3957,6 +4037,10 @@
         b.onclick = ()=>{ statsRangeFilter = b.dataset.range; overlay.remove(); openStatsModal(); };
       });
     }
+    // The Stats page stays open underneath; after a save it is rebuilt so the new result shows.
+    function wireQuickLog(){
+      overlay.querySelector('#quickLogFromStats').onclick = ()=>openQuickResultModal(()=>{ overlay.remove(); openStatsModal(); });
+    }
 
     if(s.attended === 0 && s.resultsLogged === 0){
       overlay.innerHTML = `
@@ -3968,6 +4052,9 @@
             <div>${tr('statsEmptyBody')}</div>
           </div>
           <div class="modal-actions">
+            <button class="btn-primary" id="quickLogFromStats" style="flex:1;">${tr('quickLogBtn')}</button>
+          </div>
+          <div class="modal-actions" style="margin-top:8px;">
             <button class="btn-secondary" id="openDecksFromStats" style="flex:1;">${tr('manageDecks')}</button>
             <button class="btn-secondary" id="closeStats" style="flex:1;">${tr('close')}</button>
           </div>
@@ -3978,6 +4065,7 @@
       // Decks used to be reachable only from the populated Stats screen, so nobody could add or
       // manage a deck before logging a result.
       overlay.querySelector('#openDecksFromStats').onclick = ()=>{ overlay.remove(); openDecksModal(); };
+      wireQuickLog();
       wireRangeChips();
       return;
     }
@@ -4029,7 +4117,10 @@
           <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">${tr('winRate')}</div></div>
           <div class="stat-card"><div class="val">${s.totalWins}-${s.totalLosses}${s.totalDraws?('-'+s.totalDraws):''}</div><div class="lbl">${tr('overallRecord')}</div></div>
         </div>
-        <div class="modal-actions" style="margin-top:0;"><button class="btn-secondary" id="openDecksFromStats" style="flex:1;">${tr('manageDecks')}</button></div>
+        <div class="modal-actions" style="margin-top:0;">
+          <button class="btn-primary" id="quickLogFromStats" style="flex:1;">${tr('quickLogBtn')}</button>
+          <button class="btn-secondary" id="openDecksFromStats" style="flex:1;">${tr('manageDecks')}</button>
+        </div>
 
         ${s.timeline.length ? `<div class="section-label">${tr('winRateByMonth')}</div>${trendChartHtml(s.timeline)}` : ''}
         ${s.streaks.events ? `<div class="section-label">${tr('streaks')}</div>${streaksHtml(s.streaks)}` : ''}
@@ -4045,6 +4136,7 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeStats').onclick = ()=>overlay.remove();
     overlay.querySelector('#openDecksFromStats').onclick = ()=>{ overlay.remove(); openDecksModal(); };
+    wireQuickLog();
     overlay.querySelectorAll('[data-game-details]').forEach(b=>{
       b.onclick = ()=>{ overlay.remove(); openGameStatsModal(b.dataset.gameDetails, tournaments, decks, 'Your'); };
     });
