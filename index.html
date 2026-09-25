@@ -202,6 +202,7 @@
   .stat-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px;}
   .stat-card .val{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;background:linear-gradient(90deg,var(--rift-2),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent;}
   .stat-card .lbl{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .more-rows summary{cursor:pointer;color:var(--teal);font-size:12.5px;padding:8px 0;}
   .bar-row{margin-bottom:10px;}
   .bar-row .bar-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;}
   .bar-row .bar-top .bn{font-weight:600;}
@@ -285,7 +286,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.16.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.17.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -319,7 +320,8 @@
 
   // Tapping a push notification opens the app at /?open=notifications (see sw.js), or messages
   // the already-open page. Only these names are honoured; anything else in the URL is ignored.
-  const OPEN_TARGETS = { notifications: ()=>openNotificationsModal() };
+  // decks: Brewhouse's "sync this deck" reminder links to /?open=decks (opening Decks syncs linked decks).
+  const OPEN_TARGETS = { notifications: ()=>openNotificationsModal(), decks: ()=>openDecksModal() };
   const isOpenTarget = (name)=>typeof name === 'string' && Object.prototype.hasOwnProperty.call(OPEN_TARGETS, name);
   let pendingOpen = null;
   // A store's check-in QR opens the app at /?checkin=<store event id>. Only a UUID is accepted.
@@ -423,6 +425,15 @@
       eventRepeatsTitle: 'This event repeats', addSeriesMsg: '"{name}" repeats {label}. How would you like to add it?',
       justThisOneDate: 'Just this one date', asRepeatingSeries: 'As a repeating series', entryLabel: 'Entry:', addRoundBtn: 'Add round',
       updateRoundsTitle: 'Update your rounds', editYourResult: 'Edit your result', logYourResult: 'Log your result', clearResult: 'Clear result',
+      turnOrder: 'Going first or second', winRateGoingFirst: 'Win rate going first', winRateGoingSecond: 'Win rate going second',
+      turnOrderHint: 'From rounds where you filled in who went first.', againstEachDeck: 'Your record against each deck', showAllN: 'Show all {n}',
+      allVersions: 'All versions', versionN: 'Version {n}', versionSince: 'since {date}', versionFirst: 'first version',
+      byVersion: 'By version', versionsCount: 'Versions', noResultsThisVersion: 'No results logged with this version yet.',
+      noResultsThisDeck: 'No results logged with this deck yet.', deckVersionsTitle: 'Deck versions',
+      versionsHintBrewhouse: 'A new version starts by itself when you change this deck in Brewhouse (once you\'ve logged a result with the current one). You can also start one here.',
+      versionsHintManual: 'Changed the list? Start a new version so its results are counted apart from the old list.',
+      versionNotePh: 'What changed? (optional, e.g. -2 Nami +2 Robin)', startVersionN: 'Start version {n}', newVersionBtn: 'New version',
+      versionStarted: 'Version {n} started', deckStatsLink: 'Stats & versions', deckVersionLabel: 'Deck version',
       yourLeader: 'Your leader', yourLegend: 'Your legend', leaderFromDeckPh: 'Filled in from your deck, or type it',
       winByLeader: 'Win rate — by leader', winByLegend: 'Win rate — by legend',
       quickLogBtn: '📝 Log a result', quickLogTitle: 'Log a result', quickLogHint: 'For an event that isn\'t on your calendar, or a testing session. Next you pick your deck and log your rounds.',
@@ -788,6 +799,15 @@
       eventRepeatsTitle: 'Este evento se repite', addSeriesMsg: '"{name}" se repite ({label}). ¿Cómo quieres agregarlo?',
       justThisOneDate: 'Solo esta fecha', asRepeatingSeries: 'Como una serie que se repite', entryLabel: 'Entrada:', addRoundBtn: 'Agregar ronda',
       updateRoundsTitle: 'Actualiza tus rondas', editYourResult: 'Edita tu resultado', logYourResult: 'Registra tu resultado',
+      turnOrder: 'Yendo primero o segundo', winRateGoingFirst: 'Victorias yendo primero', winRateGoingSecond: 'Victorias yendo segundo',
+      turnOrderHint: 'De las rondas en que indicaste quién fue primero.', againstEachDeck: 'Tu récord contra cada mazo', showAllN: 'Ver los {n}',
+      allVersions: 'Todas las versiones', versionN: 'Versión {n}', versionSince: 'desde el {date}', versionFirst: 'primera versión',
+      byVersion: 'Por versión', versionsCount: 'Versiones', noResultsThisVersion: 'Aún no hay resultados con esta versión.',
+      noResultsThisDeck: 'Aún no hay resultados con este mazo.', deckVersionsTitle: 'Versiones del mazo',
+      versionsHintBrewhouse: 'Se inicia una versión nueva sola cuando cambias este mazo en Brewhouse (si ya registraste un resultado con la actual). También puedes iniciar una aquí.',
+      versionsHintManual: '¿Cambiaste la lista? Inicia una versión nueva para que sus resultados se cuenten aparte de la lista anterior.',
+      versionNotePh: '¿Qué cambió? (opcional, p. ej. -2 Nami +2 Robin)', startVersionN: 'Iniciar la versión {n}', newVersionBtn: 'Versión nueva',
+      versionStarted: 'Versión {n} iniciada', deckStatsLink: 'Estadísticas y versiones', deckVersionLabel: 'Versión del mazo',
       yourLeader: 'Tu líder', yourLegend: 'Tu leyenda', leaderFromDeckPh: 'Se completa con tu mazo, o escríbelo',
       winByLeader: 'Porcentaje de victorias — por líder', winByLegend: 'Porcentaje de victorias — por leyenda',
       quickLogBtn: '📝 Registrar un resultado', quickLogTitle: 'Registrar un resultado', quickLogHint: 'Para un evento que no está en tu calendario, o una sesión de práctica. Después eliges tu mazo y registras tus rondas.',
@@ -1440,6 +1460,76 @@
     if(!d.brewhouseDeckId) return d.legend;
     return cleanLeaderName(leaderGameKey(d.game), d.legend, d.colors);
   }
+  // ---------- Deck versions ----------
+  // A deck's list changes over time; stats can be split by version so a change can be tested.
+  // `deck.versions` is [{ n, from, cardCount?, note? }], oldest first; a deck without it is one
+  // version (v1). A version starts when a Brewhouse deck's card list changes (its summary.listHash,
+  // see applyBrewhouseDeck) or when you start one yourself. A result records the version it was
+  // logged with as `deckVersion`; one logged before versions existed falls in the version its
+  // date belongs to (`from` is the day a version started; v1's is '' = since the beginning).
+  function deckVersions(d){
+    return d && Array.isArray(d.versions) && d.versions.length ? d.versions : [{ n: 1, from: '' }];
+  }
+  function currentDeckVersion(d){ const vs = deckVersions(d); return vs[vs.length - 1].n; }
+  function versionForDate(d, date){
+    const vs = deckVersions(d);
+    let pick = vs[0].n;
+    vs.forEach(v=>{ if(!v.from || (date && v.from <= date)) pick = v.n; });
+    return pick;
+  }
+  function resultDeckVersion(result, d, date){
+    const n = Number(result && result.deckVersion);
+    return Number.isInteger(n) && n > 0 && deckVersions(d).some(v=>v.n === n) ? n : versionForDate(d, date);
+  }
+  function forEachOwnResult(cb){
+    tournaments.forEach(t=>{
+      if(!isRepeating(t)){ if(t.result) cb(t.result, t.date, t); return; }
+      Object.entries(t.occurrences || {}).forEach(([date, o])=>{ if(o && o.result && !o.skip) cb(o.result, date, t); });
+    });
+  }
+  function deckVersionHasResults(d, n){
+    let found = false;
+    forEachOwnResult((r, date)=>{ if(!found && r.deckId === d.id && resultDeckVersion(r, d, date) === n) found = true; });
+    return found;
+  }
+  // Starts version n+1. Unless `always`, a current version nothing was logged with just takes the
+  // change instead (edits before you've played it are one version). Returns whether one was added.
+  function startDeckVersion(d, extra, always){
+    const vs = deckVersions(d).map(v=>({ ...v }));
+    const cur = vs[vs.length - 1];
+    if(!always && !deckVersionHasResults(d, cur.n)){
+      if(extra && extra.cardCount != null) cur.cardCount = extra.cardCount;
+      d.versions = vs;
+      return false;
+    }
+    vs.push(Object.assign({ n: cur.n + 1, from: todayStr() }, extra || {}));
+    d.versions = vs;
+    return true;
+  }
+  function versionLabel(d, v){
+    const bits = [trf('versionN', { n: v.n })];
+    bits.push(v.from ? trf('versionSince', { date: fmtFriendly(v.from) }) : tr('versionFirst'));
+    if(v.cardCount) bits.push(trf('deckCards', { n: v.cardCount }));
+    if(v.note) bits.push(v.note);
+    return bits.join(' · ');
+  }
+
+  // Past opponents for the round boxes of any game (One Piece and Riftbound also get the full
+  // leader list, below): "mitsurugi" typed once is offered the next time. Same game only, when
+  // the event has one.
+  function opponentSuggestions(game){
+    const g = String(game || '').trim().toLowerCase();
+    const seen = new Set(), out = [];
+    forEachOwnResult((r, date, t)=>{
+      if(g && String(t.game || '').trim().toLowerCase() !== g) return;
+      (r.matches || []).forEach(m=>{
+        const n = String(m.opponent || '').trim(), k = n.toLowerCase();
+        if(n && !seen.has(k)){ seen.add(k); out.push(n); }
+      });
+    });
+    return out.sort((a,b)=>a.localeCompare(b));
+  }
+
   // The list, plus every opponent and leader you've already logged for that game (so your own
   // spellings keep being offered), without case-only duplicates.
   function leaderSuggestions(gameKey, list){
@@ -2949,9 +3039,14 @@
     return { w: parseInt(m[1],10), l: parseInt(m[2],10), d: m[3] ? parseInt(m[3],10) : 0 };
   }
 
-  function computeStats(tournamentsArr, decksArr, gameFilter, sinceDate){
+  // opts.deckId limits everything to results logged with that deck, and opts.version (with deckId)
+  // to one version of it; opts.minMatchupGames is how many games an opponent needs before it can
+  // top "what you beat / lose to" (2 by default, so one fluke doesn't; a single deck has fewer games).
+  function computeStats(tournamentsArr, decksArr, gameFilter, sinceDate, opts){
     tournamentsArr = tournamentsArr || tournaments;
     decksArr = decksArr || decks;
+    opts = opts || {};
+    const minMatchupGames = opts.minMatchupGames || 2;
     const attendedSet = new Set();
     const formatCounts = {};
     const storeCounts = {};
@@ -2964,11 +3059,17 @@
     const trendRows = [];    // finished events with a readable record: feeds the monthly trend and streaks
     const matchRows = [];    // individual matches with an opponent: feeds the deck-vs-opponent matrix
     let totalWins = 0, totalLosses = 0, totalDraws = 0;
+    const opponentSpelling = {};
+    const turnOrder = { first: {w:0,l:0,d:0}, second: {w:0,l:0,d:0} };  // match results by who went first
 
     function accumulate(t, date, occ){
       if(occ.skip) return;
       if(gameFilter && t.game !== gameFilter) return;
       if(sinceDate && date < sinceDate) return;
+      if(opts.deckId){
+        if(!occ.result || occ.result.deckId !== opts.deckId) return;
+        if(opts.version && resultDeckVersion(occ.result, decksArr.find(x=>x.id===opts.deckId), date) !== opts.version) return;
+      }
       if(occ.rsvp === 'going' || occ.result){
         attendedSet.add(t.id + '::' + date);
         if(t.format) formatCounts[t.format] = (formatCounts[t.format]||0) + 1;
@@ -2996,8 +3097,14 @@
         // An event still in progress has a partial record; it would distort a trend or a streak.
         if(rec && !occ.result.inProgress) trendRows.push({ date, name: t.name, w: rec.w, l: rec.l, d: rec.d });
         (occ.result.matches||[]).forEach(m=>{
-          const key = (m.opponent||'').trim();
-          if(!key || !m.outcome) return;
+          const side = m.wentFirst === 'yes' ? turnOrder.first : (m.wentFirst === 'no' ? turnOrder.second : null);
+          if(side && m.outcome){
+            if(m.outcome === 'W') side.w++; else if(m.outcome === 'L') side.l++; else if(m.outcome === 'D') side.d++;
+          }
+          const typed = (m.opponent||'').trim();
+          if(!typed || !m.outcome) return;
+          // Opponents are typed by hand: "mitsurugi" and "Mitsurugi " are one opponent, shown as first typed.
+          const key = opponentSpelling[typed.toLowerCase()] = opponentSpelling[typed.toLowerCase()] || typed;
           if(deckKey) matchRows.push({ deckKey, opponent: key, outcome: m.outcome });
           matchupStats[key] = matchupStats[key] || {w:0,l:0,d:0};
           if(m.outcome==='W') matchupStats[key].w++;
@@ -3018,6 +3125,7 @@
       }
     });
 
+    const withRate = rec => ({ ...rec, total: rec.w+rec.l+rec.d, winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null });
     const decidedGames = totalWins + totalLosses;
     const winRate = decidedGames > 0 ? Math.round((totalWins/decidedGames) * 100) : null;
     const topN = (obj, n) => Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
@@ -3030,11 +3138,11 @@
     const matchups = matchupEntries.slice().sort((a,b)=>b.total-a.total).slice(0, 8);
     // "What you lose to the most" — ranked by loss count first, then by worst win rate,
     // and only among matchups with at least 2 games so one fluke loss doesn't top the list.
-    const toughestMatchups = matchupEntries.filter(m=>m.total>=2)
+    const toughestMatchups = matchupEntries.filter(m=>m.total>=minMatchupGames && m.l > 0)
       .sort((a,b)=> b.l - a.l || (a.winRate||0) - (b.winRate||0))
       .slice(0, 5);
     // "What you beat the most" — the mirror: ranked by win count first, then best win rate.
-    const bestMatchups = matchupEntries.filter(m=>m.total>=2)
+    const bestMatchups = matchupEntries.filter(m=>m.total>=minMatchupGames && m.w > 0)
       .sort((a,b)=> b.w - a.w || (b.winRate||0) - (a.winRate||0))
       .slice(0, 5);
 
@@ -3055,6 +3163,7 @@
     }
     const deckEntries = Object.entries(deckStats).map(([key, rec]) => ({
       name: resolveDeckKeyName(key), status: deckStatusForKey(key), ...rec,
+      deckId: key.startsWith('id:') && decksArr.some(x=>x.id===key.slice(3)) ? key.slice(3) : null,
       total: rec.w+rec.l+rec.d,
       winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null
     })).sort((a,b)=>b.total-a.total);
@@ -3120,6 +3229,9 @@
       bestMatchups,
       deckWinRates,
       leaderWinRates,
+      allMatchups: matchupEntries.slice().sort((a,b)=>b.total-a.total || a.name.localeCompare(b.name)),
+      goingFirst: withRate(turnOrder.first),
+      goingSecond: withRate(turnOrder.second),
       recentResults: allResults.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10),
       maxFormatCount: Math.max(1, ...Object.values(formatCounts), 1),
       maxStoreCount: Math.max(1, ...Object.values(storeCounts), 1),
@@ -3748,8 +3860,8 @@
     const r = occ.result || { placement:'', record:'', notes:'', deckId:'', deck:'', matches:[] };
     let matches = (r.matches || []).map(m=>({...m}));
     const leaderKey = leaderGameKey(t.game);
-    const leaderOptionsHtml = list => leaderSuggestions(leaderKey, list).map(l=>`<option value="${escapeAttr(l)}">`).join('');
-    const legendDatalist = leaderKey ? `<datalist id="legendOptions">${leaderOptionsHtml()}</datalist>` : '';
+    const leaderOptionsHtml = list => (leaderKey ? leaderSuggestions(leaderKey, list) : opponentSuggestions(t.game)).map(l=>`<option value="${escapeAttr(l)}">`).join('');
+    const legendDatalist = `<datalist id="legendOptions">${leaderOptionsHtml()}</datalist>`;
     const leaderWord = leaderKey === 'riftbound' ? tr('yourLegend') : tr('yourLeader');
     const matchingDecks = decks.filter(d => !t.game || !d.game || d.game === t.game).sort((a,b)=>(b.active?1:0)-(a.active?1:0));
     const currentDeckId = r.deckId || '';
@@ -3781,6 +3893,7 @@
           </div>
           ${!r.deckId && r.deck ? `<div class="hint">${trf('freeTextDeckHint', { deck: escapeHtml(r.deck) })}</div>` : ''}
         </div>
+        <div class="field" id="deckVersionField" style="display:none;"><label>${tr('deckVersionLabel')}</label><select id="r_deckVersion"></select></div>
         ${leaderKey ? `<div class="field"><label>${leaderWord}</label><input id="r_leader" list="legendOptions" value="${escapeAttr(initialLeader)}" placeholder="${escapeAttr(tr('leaderFromDeckPh'))}"/></div>` : ''}
         ${legendDatalist}
         <div class="hint" style="margin:-6px 0 12px;">${tr('xRecordFillsInAutomaticallyFrom')}</div>
@@ -3824,7 +3937,7 @@
           <div class="info" style="flex:1;min-width:220px;">
             <div class="n" style="margin-bottom:6px;">${trf('roundN', { n: idx+1 })}</div>
             <div class="row2" style="margin-bottom:6px;">
-              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="${escapeAttr(tr('xOpponentSDeckLeader'))}" style="${inputStyle}" ${leaderKey?'list="legendOptions"':''}/>
+              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="${escapeAttr(tr('xOpponentSDeckLeader'))}" style="${inputStyle}" list="legendOptions"/>
               <select data-m="${idx}" data-f="outcome" style="${inputStyle}">
                 <option value="">${tr('xResult')}</option>
                 <option value="W" ${m.outcome==='W'?'selected':''}>${tr('xWin')}</option>
@@ -3877,9 +3990,23 @@
       const d = decks.find(x=>x.id===deckSelect.value);
       leaderInput.value = deckLeaderName(d) || (d ? '' : r.leader || '');
     }
+    // Which version of the deck this was: shown once a deck has more than one. It starts at the
+    // version this result already has, else the one in use on the event's date.
+    const versionField = overlay.querySelector('#deckVersionField');
+    const versionSelect = overlay.querySelector('#r_deckVersion');
+    function drawVersions(){
+      const d = decks.find(x=>x.id===deckSelect.value);
+      const vs = deckVersions(d);
+      if(!d || vs.length < 2){ versionField.style.display = 'none'; versionSelect.innerHTML = ''; return; }
+      const pick = d.id === r.deckId ? resultDeckVersion(r, d, date) : versionForDate(d, date);
+      versionSelect.innerHTML = vs.slice().reverse().map(v=>`<option value="${v.n}" ${v.n===pick?'selected':''}>${escapeHtml(versionLabel(d, v))}</option>`).join('');
+      versionField.style.display = '';
+    }
+    drawVersions();
     deckSelect.onchange = ()=>{
       newDeckInline.style.display = deckSelect.value === '__new__' ? 'block' : 'none';
       followDeckLeader();
+      drawVersions();
     };
     // The full list arrives in the background (cached for two weeks); fill it in when it does.
     if(leaderKey) ensureLeaderList(leaderKey).then(list=>{
@@ -3920,6 +4047,12 @@
       const resultObj = { placement, record, notes, matches: cleanMatches };
       if(leader) resultObj.leader = leader;
       if(deckId) resultObj.deckId = deckId;
+      if(deckId){
+        const d = decks.find(x=>x.id===deckId);
+        const pickedVersion = parseInt(versionSelect.value, 10);
+        resultObj.deckVersion = pickedVersion > 0 ? pickedVersion
+          : (deckId === r.deckId ? resultDeckVersion(r, d, date) : versionForDate(d, date));
+      }
       else if(r.deck) resultObj.deck = r.deck; // keep old free-text entry if you didn't switch it to a tracked deck
       if(markInProgress) resultObj.inProgress = true;
       setOcc(t, date, { result: resultObj });
@@ -4276,10 +4409,12 @@
 
         ${s.timeline.length ? `<div class="section-label">${tr('winRateByMonth')}</div>${trendChartHtml(s.timeline)}` : ''}
         ${s.streaks.events ? `<div class="section-label">${tr('streaks')}</div>${streaksHtml(s.streaks)}` : ''}
+        ${turnOrderHtml(s)}
         ${gameRows ? `<div class="section-label">${tr('gamesYouPlay')}</div>${gameRows}` : ''}
         ${s.topStores.length ? `<div class="section-label">${tr('whereYouPlay')}</div>${storeBars}` : ''}
         ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
+        ${opponentListHtml(s.allMatchups)}
         ${recentRows ? `<div class="section-label">${tr('recentResults')}</div>${recentRows}` : ''}
 
         <div class="modal-actions"><button class="btn-secondary" id="closeStats" style="flex:1;">${tr('close')}</button></div>
@@ -4351,6 +4486,114 @@
       <div class="hint">${tr('matrixHint')}</div>`;
   }
 
+  // ---------- Pieces shared by the stats screens: turn order, matchup rows, opponent list ----------
+  const recordText = m => `${m.w}-${m.l}${m.d ? '-' + m.d : ''}`;
+  function statRowHtml(m, color, attrs){
+    return `
+      <div class="result-row" ${attrs || ''}>
+        <div>
+          <div class="n">${escapeHtml(m.name)}</div>
+          <div class="m">${recordText(m)} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
+        </div>
+        <div class="p" ${color ? `style="color:var(--${color});"` : ''}>${m.winRate != null ? m.winRate+'%' : '—'}</div>
+      </div>`;
+  }
+  // Win rate going first / second, from rounds where "went first" was filled in.
+  function turnOrderHtml(s){
+    if(!s.goingFirst.total && !s.goingSecond.total) return '';
+    const card = (m, key) => `
+      <div class="stat-card">
+        <div class="val">${m.winRate != null ? m.winRate + '%' : '—'}</div>
+        <div class="lbl">${tr(key)}${m.total ? ' · ' + recordText(m) : ''}</div>
+      </div>`;
+    return `<div class="section-label">${tr('turnOrder')}</div>
+      <div class="stat-grid">${card(s.goingFirst, 'winRateGoingFirst')}${card(s.goingSecond, 'winRateGoingSecond')}</div>
+      <div class="hint" style="margin:0 0 6px;">${tr('turnOrderHint')}</div>`;
+  }
+  // Your record against every opponent deck, most-played first; past ten, the rest fold away.
+  function opponentListHtml(list){
+    if(!list.length) return '';
+    const rowColor = m => m.winRate == null ? '' : (m.winRate >= 50 ? 'teal' : 'rose');
+    const rows = list.map(m=>statRowHtml(m, rowColor(m)));
+    const shown = rows.slice(0, 10).join('');
+    const rest = rows.slice(10);
+    return `<div class="section-label">${tr('againstEachDeck')}</div>${shown}${rest.length ? `
+      <details class="more-rows"><summary>${trf('showAllN', { n: list.length })}</summary>${rest.join('')}</details>` : ''}`;
+  }
+
+  // ---------- Deck stats (one deck, optionally one version of it) ----------
+  function openDeckStatsModal(deckId, version){
+    const d = decks.find(x=>x.id===deckId);
+    if(!d) return;
+    const vs = deckVersions(d);
+    const s = computeStats(tournaments, decks, null, null, { deckId, version, minMatchupGames: 1 });
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const chips = vs.length > 1 ? `
+      <div class="chip-row" style="margin-bottom:14px;">
+        <button class="chip ${!version?'active':''}" type="button" data-dver="" aria-pressed="${!version}">${tr('allVersions')}</button>
+        ${vs.map(v=>`<button class="chip ${version===v.n?'active':''}" type="button" data-dver="${v.n}" aria-pressed="${version===v.n}">${trf('versionN', { n: v.n })}</button>`).join('')}
+      </div>` : '';
+    const byVersion = !version && vs.length > 1 ? `<div class="section-label">${tr('byVersion')}</div>` + vs.slice().reverse().map(v=>{
+      const vsStats = computeStats(tournaments, decks, null, null, { deckId, version: v.n });
+      const m = { name: versionLabel(d, v), w: vsStats.totalWins, l: vsStats.totalLosses, d: vsStats.totalDraws,
+        total: vsStats.totalWins + vsStats.totalLosses + vsStats.totalDraws, winRate: vsStats.winRate };
+      return statRowHtml(m, '', `data-dver="${v.n}"`);
+    }).join('') : '';
+    const current = vs.find(v=>v.n === version);
+    const meta = [d.game || tr('noGameSet'), deckLeaderName(d)].filter(Boolean).join(' · ');
+    const best = s.bestMatchups.map(m=>statRowHtml(m, 'teal')).join('');
+    const tough = s.toughestMatchups.map(m=>statRowHtml(m, 'rose')).join('');
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>${escapeHtml(d.name)}</h2>
+        <div class="modal-sub">${escapeHtml(meta)}${current ? ' · ' + escapeHtml(versionLabel(d, current)) : ''}</div>
+        ${chips}
+        ${s.resultsLogged ? `
+          <div class="stat-grid">
+            <div class="stat-card"><div class="val">${s.resultsLogged}</div><div class="lbl">${tr('resultsLogged')}</div></div>
+            <div class="stat-card"><div class="val">${s.winRate != null ? s.winRate+'%' : '—'}</div><div class="lbl">${tr('winRate')}</div></div>
+            <div class="stat-card"><div class="val">${recordText({ w: s.totalWins, l: s.totalLosses, d: s.totalDraws })}</div><div class="lbl">${tr('overallRecord')}</div></div>
+            <div class="stat-card"><div class="val">${currentDeckVersion(d)}</div><div class="lbl">${tr('versionsCount')}</div></div>
+          </div>
+          ${turnOrderHtml(s)}
+          ${byVersion}
+          ${best ? `<div class="section-label">${tr('whatYouBeat')}</div>${best}` : ''}
+          ${tough ? `<div class="section-label">${tr('whatYouLose')}</div>${tough}` : ''}
+          ${opponentListHtml(s.allMatchups)}`
+        : `<div class="empty-state"><div>${version ? tr('noResultsThisVersion') : tr('noResultsThisDeck')}</div></div>${byVersion}`}
+        <div class="section-label">${tr('deckVersionsTitle')}</div>
+        <div class="hint" style="margin-bottom:8px;">${d.brewhouseDeckId ? tr('versionsHintBrewhouse') : tr('versionsHintManual')}</div>
+        <div id="newVersionForm" style="display:none;margin-bottom:8px;">
+          <input id="newVersionNote" placeholder="${escapeAttr(tr('versionNotePh'))}"/>
+          <button class="mini-btn" id="saveNewVersion" type="button" style="margin-top:6px;">${trf('startVersionN', { n: currentDeckVersion(d) + 1 })}</button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="newVersionBtn" type="button" style="flex:1;">＋ ${tr('newVersionBtn')}</button>
+          <button class="btn-secondary" id="closeDeckStats" type="button" style="flex:1;">${tr('close')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeDeckStats').onclick = ()=>overlay.remove();
+    overlay.querySelectorAll('[data-dver]').forEach(b=>b.onclick = ()=>{
+      overlay.remove();
+      openDeckStatsModal(deckId, b.dataset.dver ? parseInt(b.dataset.dver, 10) : undefined);
+    });
+    overlay.querySelector('#newVersionBtn').onclick = ()=>{
+      overlay.querySelector('#newVersionForm').style.display = 'block';
+      overlay.querySelector('#newVersionNote').focus();
+    };
+    overlay.querySelector('#saveNewVersion').onclick = async ()=>{
+      const note = overlay.querySelector('#newVersionNote').value.trim().slice(0, 120);
+      startDeckVersion(d, Object.assign({}, note ? { note } : {}, d.cardCount ? { cardCount: d.cardCount } : {}), true);
+      await saveDecks();
+      showToast(trf('versionStarted', { n: currentDeckVersion(d) }));
+      overlay.remove();
+      openDeckStatsModal(deckId);
+    };
+  }
+
   // ---------- Per-game detailed stats (opened from the general stats page) ----------
   function openGameStatsModal(game, tournamentsArr, decksArr, ownerLabel){
     const s = computeStats(tournamentsArr, decksArr, game, getStatsRangeCutoff());
@@ -4363,19 +4606,14 @@
         <div class="bar-track"><div class="bar-fill" style="width:${Math.round((count/s.maxFormatCount)*100)}%;"></div></div>
       </div>`).join('');
 
-    const rowOf = m => `
-      <div class="result-row">
-        <div>
-          <div class="n">${escapeHtml(m.name)}</div>
-          <div class="m">${m.w}-${m.l}${m.d?('-'+m.d):''} ${trf(m.total===1?'gamesCount1':'gamesCountN',{n:m.total})}</div>
-        </div>
-        <div class="p">${m.winRate != null ? m.winRate+'%' : '—'}</div>
-      </div>`;
-    const currentDeckRows = s.deckWinRates.current.map(rowOf).join('');
-    const pastDeckRows = s.deckWinRates.past.map(rowOf).join('');
-    const otherDeckRows = s.deckWinRates.other.map(rowOf).join('');
+    const rowOf = m => statRowHtml(m, '');
+    // Your own decks open their deck stats (a friend's decks aren't in your list).
+    const deckRowOf = m => ownerLabel === 'Your' && m.deckId
+      ? statRowHtml({ ...m, name: m.name + ' ›' }, '', `data-deck-stats="${escapeAttr(m.deckId)}"`) : rowOf(m);
+    const currentDeckRows = s.deckWinRates.current.map(deckRowOf).join('');
+    const pastDeckRows = s.deckWinRates.past.map(deckRowOf).join('');
+    const otherDeckRows = s.deckWinRates.other.map(deckRowOf).join('');
     const leaderRows = s.leaderWinRates.map(rowOf).join('');
-    const matchupRows = s.matchups.map(rowOf).join('');
     const toughRows = s.toughestMatchups.map(m=>`
       <div class="result-row">
         <div>
@@ -4414,6 +4652,7 @@
 
         ${s.timeline.length ? `<div class="section-label">${tr('winRateByMonth')}</div>${trendChartHtml(s.timeline)}` : ''}
         ${s.streaks.events ? `<div class="section-label">${tr('streaks')}</div>${streaksHtml(s.streaks)}` : ''}
+        ${turnOrderHtml(s)}
         ${s.topFormats.length ? `<div class="section-label">${tr('formatsPlayed')}</div>${formatBars}` : ''}
         ${currentDeckRows ? `<div class="section-label">${tr('winCurrentDecks')}</div>${currentDeckRows}` : ''}
         ${pastDeckRows ? `<div class="section-label">${tr('winPastDecks')}</div>${pastDeckRows}` : ''}
@@ -4421,7 +4660,7 @@
         ${leaderRows ? `<div class="section-label">${leaderGameKey(game) === 'riftbound' ? tr('winByLegend') : tr('winByLeader')}</div>${leaderRows}` : ''}
         ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
-        ${matchupRows ? `<div class="section-label">${tr('allMatchups')}</div>${matchupRows}` : ''}
+        ${opponentListHtml(s.allMatchups)}
         ${s.matrix.decks.length && s.matrix.opponents.length ? `<div class="section-label">${tr('matchupMatrix')}</div>${matrixHtml(s.matrix)}` : ''}
         ${recentRows ? `<div class="section-label">${tr('recentResults')}</div>${recentRows}` : ''}
 
@@ -4430,6 +4669,7 @@
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeGameStats').onclick = ()=>overlay.remove();
+    overlay.querySelectorAll('[data-deck-stats]').forEach(el=>el.onclick = ()=>openDeckStatsModal(el.dataset.deckStats));
   }
 
   // ---------- Friend stats (read-only view of an accepted friend's stats) ----------
@@ -6129,6 +6369,8 @@
       colors: Array.isArray(summary.colors) ? summary.colors.filter(c=>typeof c === 'string') : [],
       cardCount: Number.isFinite(count) && count > 0 ? count : null,
       format: typeof summary.formatLabel === 'string' ? summary.formatLabel : '',
+      // A fingerprint of the card list (Brewhouse 0.20+); a change starts a new deck version here.
+      listHash: typeof summary.listHash === 'string' ? summary.listHash.slice(0, 64) : '',
     };
   }
   async function fetchBrewhouseDecks(){
@@ -6147,7 +6389,8 @@
   // Returns whether anything changed. The name follows Brewhouse unless you renamed the deck here:
   // `brewhouseName` is the name last copied from Brewhouse, so a different current name is yours.
   function applyBrewhouseDeck(d, b){
-    const before = JSON.stringify([d.name, d.game, d.legend, d.colors, d.cardCount, d.brewhouseFormat]);
+    const snapshot = ()=>JSON.stringify([d.name, d.game, d.legend, d.colors, d.cardCount, d.brewhouseFormat, d.brewhouseHash, d.versions]);
+    const before = snapshot();
     // A deck linked before brewhouseName existed (1.13.0) has no record of the name it was imported
     // with, so a name that differs from Brewhouse's is treated as yours rather than reverted.
     const renamedHere = d.brewhouseName != null ? d.name !== d.brewhouseName : (d.name !== b.name && !!d.name);
@@ -6159,7 +6402,38 @@
     d.colors = b.colors;
     d.cardCount = b.cardCount;
     d.brewhouseFormat = b.format;
-    return JSON.stringify([d.name, d.game, d.legend, d.colors, d.cardCount, d.brewhouseFormat]) !== before;
+    // The card list changed since the last sync: a new version (or, if nothing was logged with the
+    // current one yet, that one takes the change). `brewhouseHash` is also what Brewhouse reads back
+    // (brewhouse_deck_records) to remind you when Pairings hasn't seen your latest edit.
+    if(b.listHash){
+      if(d.brewhouseHash && d.brewhouseHash !== b.listHash) startDeckVersion(d, { cardCount: b.cardCount || undefined });
+      d.brewhouseHash = b.listHash;
+    }
+    return snapshot() !== before;
+  }
+  // Every linked deck follows its Brewhouse copy; one gone from Brewhouse is left as is. Returns how many changed.
+  function applyBrewhouseDecks(list){
+    let changed = 0;
+    decks.forEach(d=>{
+      const b = d.brewhouseDeckId && list.find(x=>x.id === d.brewhouseDeckId);
+      if(b && applyBrewhouseDeck(d, b)) changed++;
+    });
+    return changed;
+  }
+  // At start-up, if you're still logged in to Brewhouse, pick up deck changes (and new versions)
+  // without opening Decks. Quiet: a failure just waits for next time.
+  async function refreshBrewhouseDecksQuietly(){
+    try{
+      if(!userDataLoaded || !decks.some(d=>d.brewhouseDeckId)) return;
+      if(!(await brewhouseSession())) return;
+      const list = await fetchBrewhouseDecks();
+      const changed = applyBrewhouseDecks(list);
+      if(changed){
+        await saveDecks();
+        render();
+        showToast(changed === 1 ? tr('bhAutoSyncedOne') : trf('bhAutoSyncedMany', { n: changed }));
+      }
+    }catch(e){ /* not reachable now; Decks retries when opened */ }
   }
 
   function openDecksModal(){
@@ -6176,6 +6450,7 @@
       if(d.cardCount) metaBits.push(trf('deckCards', { n: d.cardCount }));
       // Decks imported from Piltover Archive before that import was removed keep their link.
       const links = [
+        `<a href="#" data-deck-stats="${d.id}" style="color:var(--teal);font-size:11.5px;">📊 ${tr('deckStatsLink')}${deckVersions(d).length > 1 ? ' · ' + trf('versionN', { n: currentDeckVersion(d) }) : ''}</a>`,
         d.brewhouseDeckId ? `<a href="${safeHref(brewhouseDeckUrl(d.brewhouseDeckId))}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">${tr('bhOpen')}</a>` : '',
         safeUrl(d.viewLink) ? `<a href="${safeHref(d.viewLink)}" target="_blank" rel="noopener" style="color:var(--teal);font-size:11.5px;">${tr('xDecklist')}</a>` : '',
       ].filter(Boolean);
@@ -6226,12 +6501,8 @@
       try{ bh.decks = await fetchBrewhouseDecks(); bh.status = 'ready'; }
       catch(e){ bh.status = 'error'; }
       if(bh.status === 'ready'){
-        // Linked decks follow their Brewhouse copy without a 🔄 each; one gone from Brewhouse is left as is.
-        let changed = 0;
-        decks.forEach(d=>{
-          const b = d.brewhouseDeckId && bh.decks.find(x=>x.id === d.brewhouseDeckId);
-          if(b && applyBrewhouseDeck(d, b)) changed++;
-        });
+        // Linked decks follow their Brewhouse copy without a 🔄 each.
+        const changed = applyBrewhouseDecks(bh.decks);
         if(changed){
           await saveDecks();
           draw();
@@ -6336,6 +6607,7 @@
         draw();
         showToast(tr('deckAdded'));
       };
+      body.querySelectorAll('[data-deck-stats]').forEach(a=>a.onclick = (e)=>{ e.preventDefault(); openDeckStatsModal(a.dataset.deckStats); });
       body.querySelectorAll('[data-resync]').forEach(btn=>{
         btn.onclick = async ()=>{
           const d = decks.find(x=>x.id===btn.dataset.resync);
@@ -7447,6 +7719,7 @@
       subscribeRealtime();
       render();
       ensureTimezoneSaved();
+      refreshBrewhouseDecksQuietly();
       if(pendingPlaygroupCode){
         const pgCode = pendingPlaygroupCode;
         pendingPlaygroupCode = null;
