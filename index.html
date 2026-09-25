@@ -285,7 +285,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.15.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.16.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -423,6 +423,8 @@
       eventRepeatsTitle: 'This event repeats', addSeriesMsg: '"{name}" repeats {label}. How would you like to add it?',
       justThisOneDate: 'Just this one date', asRepeatingSeries: 'As a repeating series', entryLabel: 'Entry:', addRoundBtn: 'Add round',
       updateRoundsTitle: 'Update your rounds', editYourResult: 'Edit your result', logYourResult: 'Log your result', clearResult: 'Clear result',
+      yourLeader: 'Your leader', yourLegend: 'Your legend', leaderFromDeckPh: 'Filled in from your deck, or type it',
+      winByLeader: 'Win rate — by leader', winByLegend: 'Win rate — by legend',
       quickLogBtn: '📝 Log a result', quickLogTitle: 'Log a result', quickLogHint: 'For an event that isn\'t on your calendar, or a testing session. Next you pick your deck and log your rounds.',
       quickLogKindEvent: '🏆 Event', quickLogKindTesting: '🎲 Testing session', quickLogKindLabel: 'What did you play?',
       quickLogNameLabel: 'Event or session name', quickLogNamePh: 'e.g. Store Championship, testing with friends', quickLogTestingName: 'Testing session',
@@ -786,6 +788,8 @@
       eventRepeatsTitle: 'Este evento se repite', addSeriesMsg: '"{name}" se repite ({label}). ¿Cómo quieres agregarlo?',
       justThisOneDate: 'Solo esta fecha', asRepeatingSeries: 'Como una serie que se repite', entryLabel: 'Entrada:', addRoundBtn: 'Agregar ronda',
       updateRoundsTitle: 'Actualiza tus rondas', editYourResult: 'Edita tu resultado', logYourResult: 'Registra tu resultado',
+      yourLeader: 'Tu líder', yourLegend: 'Tu leyenda', leaderFromDeckPh: 'Se completa con tu mazo, o escríbelo',
+      winByLeader: 'Porcentaje de victorias — por líder', winByLegend: 'Porcentaje de victorias — por leyenda',
       quickLogBtn: '📝 Registrar un resultado', quickLogTitle: 'Registrar un resultado', quickLogHint: 'Para un evento que no está en tu calendario, o una sesión de práctica. Después eliges tu mazo y registras tus rondas.',
       quickLogKindEvent: '🏆 Evento', quickLogKindTesting: '🎲 Sesión de práctica', quickLogKindLabel: '¿Qué jugaste?',
       quickLogNameLabel: 'Nombre del evento o sesión', quickLogNamePh: 'p. ej. Store Championship, práctica con amigos', quickLogTestingName: 'Sesión de práctica',
@@ -1341,6 +1345,115 @@
     "Zed","Shen","Akali","Nasus","Renekton","Mel","Ambessa","Jayce","Kennen","Ekko","Dr. Mundo",
     "Master Yi","Lux","Annie","Garen"
   ];
+
+  // ---------- Leader / legend names (One Piece, Riftbound) ----------
+  // Suggestions for "your leader" and each round's opponent on the result form. The full lists come
+  // from the same public card APIs Beef's Brewhouse uses (optcgapi.com, api.riftcodex.com), fetched
+  // at most every two weeks and kept on the device; until then (or offline) Riftbound falls back to
+  // RIFTBOUND_LEGENDS. Names are written the way players say them, so matchups group together:
+  // a Riftbound legend is its champion ("Kai'Sa"), a One Piece leader its name and colours
+  // ("Charlotte Katakuri (Purple)"), with printing tags like "(062)" or "(Alternate Art)" dropped.
+  // Brewhouse decks store the raw card name, which goes through the same cleaning.
+  const LEADER_CACHE_KEY = 'pairings-leaders:v1';
+  const LEADER_CACHE_MS = 14 * 24 * 3600 * 1000;
+  const leaderFetches = {};
+  function leaderGameKey(game){
+    const g = String(game || '').toLowerCase();
+    if(g.includes('riftbound')) return 'riftbound';
+    if(g.includes('one piece')) return 'onepiece';
+    return null;
+  }
+  function cleanLeaderName(gameKey, name, colors){
+    let n = String(name || '').trim();
+    if(!n) return '';
+    if(gameKey === 'riftbound'){
+      n = n.replace(/(\s*\([^)]*\))+\s*$/, '');
+      n = n.split(' - ')[0];
+      if(n.includes(', ')) n = n.split(', ').pop(); // "Yordle, Kennen - Heart of the Tempest"
+      return n.trim();
+    }
+    if(gameKey === 'onepiece'){
+      // Two leaders with one name and colour are the same matchup, so " / " (a two-card identity) stays.
+      n = n.replace(/\s*-\s*[A-Z]{1,4}\d{0,2}-\d{3}.*$/, '').replace(/(\s*\([^)]*\))+\s*$/, '').trim();
+      const cols = (Array.isArray(colors) ? colors : String(colors || '').split(/[\s/]+/)).map(c=>String(c).trim()).filter(Boolean);
+      return cols.length ? `${n} (${cols.join('/')})` : n;
+    }
+    return n;
+  }
+  function readLeaderCache(){
+    try{ return JSON.parse(localStorage.getItem(LEADER_CACHE_KEY) || '{}') || {}; }catch(e){ return {}; }
+  }
+  function cachedLeaders(gameKey){
+    const entry = readLeaderCache()[gameKey];
+    if(entry && Array.isArray(entry.names) && entry.names.length) return entry.names;
+    return gameKey === 'riftbound' ? RIFTBOUND_LEGENDS : [];
+  }
+  async function fetchLeaderNames(gameKey){
+    const getJson = async url => {
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    };
+    const names = [];
+    if(gameKey === 'riftbound'){
+      const page = p => getJson(`https://api.riftcodex.com/cards?size=100&page=${p}`);
+      const first = await page(1);
+      const rest = [];
+      for(let p = 2; p <= Math.min(first.pages || 1, 60); p++) rest.push(page(p));
+      [first, ...(await Promise.all(rest))].forEach(r => (r.items || []).forEach(c=>{
+        if(c && c.classification && c.classification.type === 'Legend' && / - /.test(c.name || '')) names.push(cleanLeaderName('riftbound', c.name));
+      }));
+    } else if(gameKey === 'onepiece'){
+      const lists = await Promise.all(['allSetCards', 'allSTCards', 'allPromos']
+        .map(k => getJson(`https://www.optcgapi.com/api/${k}/`).catch(()=>[])));
+      lists.forEach(list => (Array.isArray(list) ? list : []).forEach(c=>{
+        if(c && c.card_type === 'Leader') names.push(cleanLeaderName('onepiece', c.card_name, c.card_color));
+      }));
+    }
+    return names.filter(Boolean);
+  }
+  // Resolves to the list (fresh or cached); refreshes the cache when it's older than two weeks.
+  function ensureLeaderList(gameKey){
+    if(!gameKey) return Promise.resolve([]);
+    const entry = readLeaderCache()[gameKey];
+    if(entry && Array.isArray(entry.names) && entry.names.length && Date.now() - (entry.at || 0) < LEADER_CACHE_MS) return Promise.resolve(entry.names);
+    if(!leaderFetches[gameKey]){
+      leaderFetches[gameKey] = fetchLeaderNames(gameKey).then(names=>{
+        const unique = [...new Set(names)].sort((a,b)=>a.localeCompare(b));
+        if(unique.length){
+          try{
+            const cache = readLeaderCache();
+            cache[gameKey] = { at: Date.now(), names: unique };
+            localStorage.setItem(LEADER_CACHE_KEY, JSON.stringify(cache));
+          }catch(e){ /* storage full or blocked: the list still serves this visit */ }
+          return unique;
+        }
+        return cachedLeaders(gameKey);
+      }).catch(()=>cachedLeaders(gameKey)).finally(()=>{ delete leaderFetches[gameKey]; });
+    }
+    return leaderFetches[gameKey];
+  }
+  // A deck's leader/legend in the same form: Brewhouse's raw card name cleaned, or what was typed
+  // here (already in that form, and cleaning it again would drop its colours).
+  function deckLeaderName(d){
+    if(!d || !d.legend) return '';
+    if(!d.brewhouseDeckId) return d.legend;
+    return cleanLeaderName(leaderGameKey(d.game), d.legend, d.colors);
+  }
+  // The list, plus every opponent and leader you've already logged for that game (so your own
+  // spellings keep being offered), without case-only duplicates.
+  function leaderSuggestions(gameKey, list){
+    const seen = new Set(), out = [];
+    const add = n => { n = String(n || '').trim(); const k = n.toLowerCase(); if(n && !seen.has(k)){ seen.add(k); out.push(n); } };
+    (list || cachedLeaders(gameKey)).forEach(add);
+    tournaments.forEach(t=>{
+      if(leaderGameKey(t.game) !== gameKey) return;
+      const results = [t.result, ...Object.values(t.occurrences || {}).map(o=>o && o.result)].filter(Boolean);
+      results.forEach(r=>{ add(r.leader); (r.matches || []).forEach(m=>add(m.opponent)); });
+    });
+    decks.forEach(d=>{ if(leaderGameKey(d.game) === gameKey) add(deckLeaderName(d)); });
+    return out.sort((a,b)=>a.localeCompare(b));
+  }
   const FORMATS = ['Constructed','Sealed','Draft','Standard','Limited','Modified Champion Deck','Team Trios','2v2','Learn to Play','Other'];
   const REPEATS = [
     {v:'none', get l(){ return tr('repeatNone'); }},
@@ -2846,6 +2959,7 @@
     const placementCounts = {};
     const matchupStats = {};
     const deckStats = {};
+    const leaderStats = {};  // your leader/legend (One Piece, Riftbound): the result's, else its deck's
     const allResults = [];
     const trendRows = [];    // finished events with a readable record: feeds the monthly trend and streaks
     const matchRows = [];    // individual matches with an opponent: feeds the deck-vs-opponent matrix
@@ -2872,6 +2986,12 @@
         if(deckKey && rec){
           deckStats[deckKey] = deckStats[deckKey] || {w:0,l:0,d:0};
           deckStats[deckKey].w += rec.w; deckStats[deckKey].l += rec.l; deckStats[deckKey].d += rec.d;
+        }
+        const leaderName = leaderGameKey(t.game)
+          ? (occ.result.leader || (occ.result.deckId ? deckLeaderName(decksArr.find(x=>x.id===occ.result.deckId)) : '')) : '';
+        if(leaderName && rec){
+          const ls = leaderStats[leaderName] = leaderStats[leaderName] || {w:0,l:0,d:0};
+          ls.w += rec.w; ls.l += rec.l; ls.d += rec.d;
         }
         // An event still in progress has a partial record; it would distort a trend or a streak.
         if(rec && !occ.result.inProgress) trendRows.push({ date, name: t.name, w: rec.w, l: rec.l, d: rec.d });
@@ -2938,6 +3058,10 @@
       total: rec.w+rec.l+rec.d,
       winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null
     })).sort((a,b)=>b.total-a.total);
+    const leaderWinRates = Object.entries(leaderStats).map(([name, rec]) => ({
+      name, ...rec, total: rec.w+rec.l+rec.d,
+      winRate: (rec.w+rec.l) > 0 ? Math.round((rec.w/(rec.w+rec.l))*100) : null
+    })).sort((a,b)=>b.total-a.total).slice(0,8);
     const deckWinRates = {
       current: deckEntries.filter(d=>d.status==='current').slice(0,8),
       past: deckEntries.filter(d=>d.status==='past').slice(0,8),
@@ -2995,6 +3119,7 @@
       toughestMatchups,
       bestMatchups,
       deckWinRates,
+      leaderWinRates,
       recentResults: allResults.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10),
       maxFormatCount: Math.max(1, ...Object.values(formatCounts), 1),
       maxStoreCount: Math.max(1, ...Object.values(storeCounts), 1),
@@ -3622,12 +3747,13 @@
     const occ = getOcc(t, date);
     const r = occ.result || { placement:'', record:'', notes:'', deckId:'', deck:'', matches:[] };
     let matches = (r.matches || []).map(m=>({...m}));
-    const isRiftbound = t.game === 'Riftbound';
-    const legendDatalist = isRiftbound
-      ? `<datalist id="legendOptions">${RIFTBOUND_LEGENDS.map(l=>`<option value="${escapeAttr(l)}">`).join('')}</datalist>`
-      : '';
+    const leaderKey = leaderGameKey(t.game);
+    const leaderOptionsHtml = list => leaderSuggestions(leaderKey, list).map(l=>`<option value="${escapeAttr(l)}">`).join('');
+    const legendDatalist = leaderKey ? `<datalist id="legendOptions">${leaderOptionsHtml()}</datalist>` : '';
+    const leaderWord = leaderKey === 'riftbound' ? tr('yourLegend') : tr('yourLeader');
     const matchingDecks = decks.filter(d => !t.game || !d.game || d.game === t.game).sort((a,b)=>(b.active?1:0)-(a.active?1:0));
     const currentDeckId = r.deckId || '';
+    const initialLeader = r.leader || deckLeaderName(decks.find(d=>d.id===currentDeckId));
 
     const isInProgress = occ.result && occ.result.inProgress;
     const hasAnyResult = !!occ.result;
@@ -3650,11 +3776,12 @@
             <option value="__new__">${tr('xAddANewDeck')}</option>
           </select>
           <div id="newDeckInline" style="display:none;margin-top:8px;">
-            <input id="newDeckNameInline" placeholder="${escapeAttr(tr('deckName'))}" ${isRiftbound?'list="legendOptions"':''}/>
+            <input id="newDeckNameInline" placeholder="${escapeAttr(tr('deckName'))}" ${leaderKey?'list="legendOptions"':''}/>
             <button class="mini-btn" id="createDeckInlineBtn" type="button" style="margin-top:6px;">${tr('xCreateSelect')}</button>
           </div>
           ${!r.deckId && r.deck ? `<div class="hint">${trf('freeTextDeckHint', { deck: escapeHtml(r.deck) })}</div>` : ''}
         </div>
+        ${leaderKey ? `<div class="field"><label>${leaderWord}</label><input id="r_leader" list="legendOptions" value="${escapeAttr(initialLeader)}" placeholder="${escapeAttr(tr('leaderFromDeckPh'))}"/></div>` : ''}
         ${legendDatalist}
         <div class="hint" style="margin:-6px 0 12px;">${tr('xRecordFillsInAutomaticallyFrom')}</div>
 
@@ -3697,7 +3824,7 @@
           <div class="info" style="flex:1;min-width:220px;">
             <div class="n" style="margin-bottom:6px;">${trf('roundN', { n: idx+1 })}</div>
             <div class="row2" style="margin-bottom:6px;">
-              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="${escapeAttr(tr('xOpponentSDeckLeader'))}" style="${inputStyle}" ${isRiftbound?'list="legendOptions"':''}/>
+              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="${escapeAttr(tr('xOpponentSDeckLeader'))}" style="${inputStyle}" ${leaderKey?'list="legendOptions"':''}/>
               <select data-m="${idx}" data-f="outcome" style="${inputStyle}">
                 <option value="">${tr('xResult')}</option>
                 <option value="W" ${m.outcome==='W'?'selected':''}>${tr('xWin')}</option>
@@ -3741,9 +3868,24 @@
 
     const deckSelect = overlay.querySelector('#r_deckSelect');
     const newDeckInline = overlay.querySelector('#newDeckInline');
+    // Your leader follows the deck you pick until you type one yourself.
+    const leaderInput = overlay.querySelector('#r_leader');
+    let leaderTyped = false;
+    if(leaderInput) leaderInput.oninput = ()=>{ leaderTyped = true; };
+    function followDeckLeader(){
+      if(!leaderInput || leaderTyped) return;
+      const d = decks.find(x=>x.id===deckSelect.value);
+      leaderInput.value = deckLeaderName(d) || (d ? '' : r.leader || '');
+    }
     deckSelect.onchange = ()=>{
       newDeckInline.style.display = deckSelect.value === '__new__' ? 'block' : 'none';
+      followDeckLeader();
     };
+    // The full list arrives in the background (cached for two weeks); fill it in when it does.
+    if(leaderKey) ensureLeaderList(leaderKey).then(list=>{
+      const dl = overlay.querySelector('#legendOptions');
+      if(dl && overlay.isConnected) dl.innerHTML = leaderOptionsHtml(list);
+    });
     overlay.querySelector('#createDeckInlineBtn').onclick = async ()=>{
       const name = overlay.querySelector('#newDeckNameInline').value.trim();
       if(!name){ showToast(tr('giveDeckName')); return; }
@@ -3754,6 +3896,7 @@
       opt.value = newDeck.id; opt.textContent = newDeck.name; opt.selected = true;
       deckSelect.insertBefore(opt, deckSelect.lastElementChild);
       newDeckInline.style.display = 'none';
+      followDeckLeader();
       showToast(tr('xDeckCreated'));
     };
 
@@ -3773,13 +3916,22 @@
       const notes = overlay.querySelector('#r_notes').value.trim();
       const cleanMatches = matches.filter(m=>m.opponent || m.outcome || m.notes);
       if(!placement && !record && !deckId && !r.deck && !notes && cleanMatches.length===0){ showToast(tr('xAddAtLeastOneDetail')); return; }
+      const leader = leaderInput ? leaderInput.value.trim() : (r.leader || '');
       const resultObj = { placement, record, notes, matches: cleanMatches };
+      if(leader) resultObj.leader = leader;
       if(deckId) resultObj.deckId = deckId;
       else if(r.deck) resultObj.deck = r.deck; // keep old free-text entry if you didn't switch it to a tracked deck
       if(markInProgress) resultObj.inProgress = true;
       setOcc(t, date, { result: resultObj });
       if(opts.draft && !tournaments.includes(t)) tournaments.push(t);
       await saveTournaments();
+      // A deck you made here (not from Brewhouse, which keeps its own) remembers the leader you
+      // gave it, so the next result fills it in.
+      const pickedDeck = deckId && decks.find(d=>d.id===deckId);
+      if(leader && pickedDeck && !pickedDeck.legend && !pickedDeck.brewhouseDeckId){
+        pickedDeck.legend = leader;
+        await saveDecks();
+      }
       // Only tell the "remind me to log results" job to stop nagging once
       // this is actually finished — an in-progress entry should still get
       // the reminder if it's left unfinished.
@@ -4222,6 +4374,7 @@
     const currentDeckRows = s.deckWinRates.current.map(rowOf).join('');
     const pastDeckRows = s.deckWinRates.past.map(rowOf).join('');
     const otherDeckRows = s.deckWinRates.other.map(rowOf).join('');
+    const leaderRows = s.leaderWinRates.map(rowOf).join('');
     const matchupRows = s.matchups.map(rowOf).join('');
     const toughRows = s.toughestMatchups.map(m=>`
       <div class="result-row">
@@ -4265,6 +4418,7 @@
         ${currentDeckRows ? `<div class="section-label">${tr('winCurrentDecks')}</div>${currentDeckRows}` : ''}
         ${pastDeckRows ? `<div class="section-label">${tr('winPastDecks')}</div>${pastDeckRows}` : ''}
         ${otherDeckRows ? `<div class="section-label">${tr('winOtherDecks')}</div>${otherDeckRows}` : ''}
+        ${leaderRows ? `<div class="section-label">${leaderGameKey(game) === 'riftbound' ? tr('winByLegend') : tr('winByLeader')}</div>${leaderRows}` : ''}
         ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
         ${matchupRows ? `<div class="section-label">${tr('allMatchups')}</div>${matchupRows}` : ''}
