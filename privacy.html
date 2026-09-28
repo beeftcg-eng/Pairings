@@ -21,10 +21,12 @@
   .contact-box{background:#f7f7f9;border:1px solid #e5e5e8;border-radius:10px;padding:16px 18px;margin-top:8px;}
   code{background:#f2f2f4;padding:1px 6px;border-radius:4px;font-size:0.92em;}
   a{color:#5b3fd6;}
+  .lang-switch{float:right;font-size:13px;margin-top:6px;}
 </style>
 </head>
 <body>
 
+<div class="lang-switch"><strong>English</strong> · <a href="privacy-es.html">Español</a></div>
 <h1>Privacy Policy</h1>
 <div class="updated">Last updated: September 28, 2026</div>
 
@@ -74,6 +76,7 @@ Using Pairings is also covered by the <a href="terms.html">Terms of Use</a>.
 <ul>
   <li>A copy of your events and decks, so the app works without a connection and nothing is lost if the connection drops. It is removed when you sign out.</li>
   <li>Your colour theme and a few display preferences. These never leave your device.</li>
+  <li>If you open a store's "Follow in Pairings" link before signing in, the store's follow code is kept on your device for up to a day, so the store can be followed once you've signed in.</li>
   <li>Result cards (the shareable images of a result) are drawn on your device. Nothing is uploaded unless you choose to share or save the image yourself.</li>
 </ul>
 
@@ -105,9 +108,17 @@ email and account are never sent.
 
 <h3><span class="app-tag tag-pairings">Pairings</span>Other services the app contacts</h3>
 <ul>
+  <li><strong>Have I Been Pwned (Pwned Passwords):</strong> when you choose a password, the app checks that it hasn't appeared in a known data breach. Only the first 5 characters of a one-way fingerprint (SHA-1 hash) of the password are sent; the password itself, and even its full fingerprint, never leave your device.</li>
   <li><strong>OpenStreetMap (Nominatim):</strong> when you type a home city or an event address, that text is sent to OpenStreetMap to find its coordinates.</li>
   <li><strong>Card lists</strong> (riftcodex.com for Riftbound, optcgapi.com for One Piece): the app downloads the public list of leaders and legends to suggest names on the result form. Nothing about you is sent.</li>
   <li><strong>TurnZero:</strong> "Start a round timer" opens TurnZero with the event's name and game filled in.</li>
+</ul>
+
+<h3><span class="app-tag tag-pairings">Pairings</span>Usage statistics</h3>
+<ul>
+  <li><strong>Page visits (Vercel Web Analytics):</strong> counts visits to the site without cookies and without identifying you: the page, the referring site, and your country, device type and browser. Addresses are sent without their query part, so share codes, follow codes and check-in links are never included.</li>
+  <li><strong>Feature counts:</strong> the app adds 1 to a daily total when a feature is used (for example, opening an event finder or sharing a result card). Only the feature's name and the date are stored: not who used it.</li>
+  <li>These help decide what to improve. They are never used for advertising.</li>
 </ul>
 
 <h3><span class="app-tag tag-turnzero">TurnZero</span>What's collected</h3>
@@ -134,7 +145,7 @@ email and account are never sent.
   <li><strong>Other users, within the app's own features:</strong> in Pairings, an accepted friend can see your "going" list, and — unless you turn this off in Account → Privacy — your event history, results, and decks. Members of a playgroup you join see your username and are told when you're going to an event. Someone you invite to an event, or who opens a Pairings share link/code, sees the specific event details you chose to share (share codes expire after 30 days). Other users can see your username, display name and profile picture.</li>
   <li><strong>Store owners:</strong> if you RSVP to or check in at an event run by a store on Pairings, that store's owner can see your username and your RSVP or check-in for their own events, and can download that list.</li>
   <li><strong>Official event sites:</strong> your home city's approximate coordinates, as described under "Official event finders" above.</li>
-  <li><strong>Service providers who host and run the app:</strong> Supabase (database and backend) and Vercel (web hosting). These providers process data on our behalf and don't use it for their own purposes.</li>
+  <li><strong>Service providers who host and run the app:</strong> Supabase (database and backend) and Vercel (web hosting and cookieless visit statistics). These providers process data on our behalf and don't use it for their own purposes.</li>
   <li><strong>Google</strong>, only if you explicitly connect Google Calendar in Pairings.</li>
   <li><strong>Beef's Brewhouse</strong>, only if you connect it as described above; the data stays within your own accounts.</li>
   <li>We do not otherwise sell, rent, or share your information with third parties.</li>
