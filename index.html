@@ -286,7 +286,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.18.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.19.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -499,7 +499,7 @@
       xDecklist: '📋 Decklist ↗', xStorePage: '🏬 Store page ↗', xJoinOnline: '🎮 Join online ↗', xStartARoundTimer: '⏱ Start a round timer ↗',
       xUnfollowed: 'Unfollowed', xCouldNotUnfollow: 'Could not unfollow', xDeleteThisTournament: 'Delete this tournament?', xDeleted: 'Deleted',
       xThatDateRemoved: 'That date removed', xSeriesDeleted: 'Series deleted',
-      xFillsInDateTimeStore: 'Open the event on playriftbound.com, copy its link, and paste it here: the name, date, time, store, address and entry fee fill in by themselves.',
+      xFillsInDateTimeStore: 'Open the event on playriftbound.com (Riftbound) or Bandai TCG+ (One Piece), copy its link, and paste it here: the name, date, time, store, address and entry fee fill in by themselves.',
       xPasteTheEventTextHere: 'Paste the event text here — name, store, date, time, price…', xEGFridayNightSealed: 'e.g. Friday Night Sealed',
       xEGOnePieceCard: 'e.g. One Piece Card Game', xEGStandardSealed: 'e.g. Standard, Sealed…',
       xCasualTestingSessionNotA: '🎲 Casual / testing session (not a tournament)', xInPerson: 'In person', xOnline: 'Online',
@@ -510,7 +510,7 @@
       xAQuickLinkToThe: 'A quick link to the store itself — handy for checking if an event got cancelled or postponed.',
       xHttpsTheStoreSOwn: 'https://the store\'s own website or Facebook page',
       xARepeatingLocalShowsUp: 'A repeating local shows up every week/month automatically — RSVP and results are tracked per date.',
-      xStreetCity: 'Street, city', xPasteARiftboundEventLink: 'Paste a Riftbound event link first', xFetching: 'Fetching…',
+      xStreetCity: 'Street, city', xPasteARiftboundEventLink: 'Paste a Riftbound or One Piece event link first', xFetching: 'Fetching…',
       xFilledWhatWeCouldFind: 'Filled in the event details. Give them a quick check before saving.', xCouldNotFetchThatPage: 'Could not fetch that page',
       xPasteSomeEventTextFirst: 'Paste some event text first', xFilledWhatWeCouldFind2: 'Filled what we could find — double check before saving',
       xSaved: 'Saved', xAddedToYourCalendar: 'Added to your calendar', xBulkImportEvents: 'Bulk import events',
@@ -653,7 +653,7 @@
       // Add/Edit modal
       addTournament: 'Add tournament', editTournament: 'Edit tournament',
       changesApplyWhole: 'Changes here apply to the whole series.',
-      pasteRiftboundLink: '🔗 Paste a Riftbound event link',
+      pasteRiftboundLink: '🔗 Paste a Riftbound or One Piece event link',
       fetchDetails: 'Fetch details',
       pasteFromStore: "✨ Paste from a store's page or Facebook",
       parseAndFill: 'Parse & fill fields',
@@ -709,7 +709,14 @@
       rbNearYou: 'Riftbound near you', rbTitle: 'Riftbound events near you',
       rbIntro: 'Official Riftbound events (Nexus Nights, Pre-Rifts, Skirmishes and more) near',
       rbNone: 'No Riftbound events found within {km} km. Try a wider radius.',
-      rbShowMore: 'Show more', rbFree: 'Free', rbRegistered: '{n}/{cap} signed up',
+      finderShowMore: 'Show more', finderFree: 'Free', rbRegistered: '{n}/{cap} signed up',
+      opNearYou: 'One Piece near you', opTitle: 'One Piece events near you',
+      opIntro: 'Official ONE PIECE Card Game events from Bandai TCG+ (store tournaments, Pirates Parties, Store Championships and more) near',
+      opNone: 'No One Piece events found within {km} km. Try a wider radius.',
+      opSpots: '{cap} spots',
+      opLoadFailed: "Couldn't load events from Bandai TCG+ right now. Try again in a moment.",
+      opNotFound: "Couldn't find that event on Bandai TCG+. Check the link.",
+      opCancelled: 'That event has been cancelled on Bandai TCG+.',
       rbLoadFailed: "Couldn't load events from playriftbound.com right now. Try again in a moment.",
       rbOldLink: "That's an old locator link. Riftbound events are on playriftbound.com now: open the event there and copy its link.",
       rbBadLink: 'Paste a link to one event on playriftbound.com (it ends in /events/ and a number).',
@@ -888,7 +895,7 @@
       xStorePage: '🏬 Página de la tienda ↗', xJoinOnline: '🎮 Unirse en línea ↗', xStartARoundTimer: '⏱ Iniciar un temporizador de ronda ↗',
       xUnfollowed: 'Dejaste de seguir', xCouldNotUnfollow: 'No se pudo dejar de seguir', xDeleteThisTournament: '¿Eliminar este torneo?',
       xDeleted: 'Eliminado', xThatDateRemoved: 'Fecha eliminada', xSeriesDeleted: 'Serie eliminada',
-      xFillsInDateTimeStore: 'Abre el evento en playriftbound.com, copia su enlace y pégalo aquí: el nombre, la fecha, la hora, la tienda, la dirección y la entrada se completan solos.',
+      xFillsInDateTimeStore: 'Abre el evento en playriftbound.com (Riftbound) o Bandai TCG+ (One Piece), copia su enlace y pégalo aquí: el nombre, la fecha, la hora, la tienda, la dirección y la entrada se completan solos.',
       xPasteTheEventTextHere: 'Pega aquí el texto del evento — nombre, tienda, fecha, hora, precio…', xEGFridayNightSealed: 'p. ej. Viernes de Sealed',
       xEGOnePieceCard: 'p. ej. One Piece Card Game', xEGStandardSealed: 'p. ej. Estándar, Sealed…',
       xCasualTestingSessionNotA: '🎲 Sesión casual / de práctica (no es un torneo)', xInPerson: 'En persona', xOnline: 'En línea',
@@ -899,7 +906,7 @@
       xAQuickLinkToThe: 'Un enlace rápido a la tienda — útil para ver si un evento se canceló o se pospuso.',
       xHttpsTheStoreSOwn: 'https://sitio web o página de Facebook de la tienda',
       xARepeatingLocalShowsUp: 'Un evento que se repite aparece automáticamente cada semana o mes — la asistencia y los resultados se registran por fecha.',
-      xStreetCity: 'Calle, ciudad', xPasteARiftboundEventLink: 'Primero pega un enlace de un evento de Riftbound',
+      xStreetCity: 'Calle, ciudad', xPasteARiftboundEventLink: 'Primero pega un enlace de un evento de Riftbound o One Piece',
       xFetching: 'Buscando…',
       xFilledWhatWeCouldFind: 'Completamos los detalles del evento. Revísalos antes de guardar.',
       xCouldNotFetchThatPage: 'No se pudo obtener esa página', xPasteSomeEventTextFirst: 'Primero pega el texto de un evento',
@@ -1052,7 +1059,7 @@
       // Add/Edit modal
       addTournament: 'Agregar torneo', editTournament: 'Editar torneo',
       changesApplyWhole: 'Los cambios aquí aplican a toda la serie.',
-      pasteRiftboundLink: '🔗 Pega un enlace de evento de Riftbound',
+      pasteRiftboundLink: '🔗 Pega un enlace de evento de Riftbound o One Piece',
       fetchDetails: 'Obtener datos',
       pasteFromStore: '✨ Pega la página de una tienda o Facebook',
       parseAndFill: 'Analizar y rellenar campos',
@@ -1108,7 +1115,14 @@
       rbNearYou: 'Riftbound cerca de ti', rbTitle: 'Eventos de Riftbound cerca de ti',
       rbIntro: 'Eventos oficiales de Riftbound (Nexus Nights, Pre-Rifts, Skirmishes y más) cerca de',
       rbNone: 'No se encontraron eventos de Riftbound a menos de {km} km. Prueba con un radio más amplio.',
-      rbShowMore: 'Ver más', rbFree: 'Gratis', rbRegistered: '{n}/{cap} inscritos',
+      finderShowMore: 'Ver más', finderFree: 'Gratis', rbRegistered: '{n}/{cap} inscritos',
+      opNearYou: 'One Piece cerca de ti', opTitle: 'Eventos de One Piece cerca de ti',
+      opIntro: 'Eventos oficiales de ONE PIECE Card Game de Bandai TCG+ (torneos de tienda, Pirates Parties, Store Championships y más) cerca de',
+      opNone: 'No se encontraron eventos de One Piece a menos de {km} km. Prueba con un radio más amplio.',
+      opSpots: '{cap} plazas',
+      opLoadFailed: 'No se pudieron cargar los eventos de Bandai TCG+. Inténtalo de nuevo en un momento.',
+      opNotFound: 'No encontramos ese evento en Bandai TCG+. Revisa el enlace.',
+      opCancelled: 'Ese evento fue cancelado en Bandai TCG+.',
       rbLoadFailed: 'No se pudieron cargar los eventos de playriftbound.com. Inténtalo de nuevo en un momento.',
       rbOldLink: 'Ese es un enlace del buscador antiguo. Los eventos de Riftbound ahora están en playriftbound.com: abre el evento allí y copia su enlace.',
       rbBadLink: 'Pega el enlace de un evento de playriftbound.com (termina en /events/ y un número).',
@@ -1699,6 +1713,78 @@
     });
     return await res.json();
   }
+  // ---------- One Piece events (Bandai TCG+) ----------
+  // Bandai TCG+'s own API answers signed-out requests and allows any origin (it only
+  // turns away requests without a browser user agent, which the app always has), so
+  // unlike Riftbound this is called straight from the browser. Times come as the
+  // store's local wall-clock time, so no time-zone conversion is needed.
+  const BANDAI_API = 'https://api.bandai-tcg-plus.com';
+  const BANDAI_WEB = 'https://www.bandai-tcg-plus.com';
+  const BANDAI_ONE_PIECE = 4; // game_title_id
+  async function bandaiGet(path, params){
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    const res = await fetch(BANDAI_API + path + qs, { headers: { 'X-Accept-Version': 'v1' } });
+    if(res.status === 404) return null;
+    if(!res.ok) throw new Error('Bandai TCG+ ' + res.status);
+    const j = await res.json();
+    return (j && j.success) || null;
+  }
+  // https://www.bandai-tcg-plus.com/event/6958425 → '6958425'
+  function bandaiEventIdFromUrl(raw){
+    const m = String(raw||'').trim().match(/^https:\/\/(?:www\.)?bandai-tcg-plus\.com\/event\/(\d{1,12})(?:[\/?#]|$)/);
+    return m ? m[1] : null;
+  }
+  // Store events have no name of their own, only their series title:
+  // "[Oct-Dec 2026]Store Tournament Event OP" → "Store Tournament Event OP".
+  function bandaiEventName(e){
+    const s = String(e.event_series_title || '').replace(/^\s*\[[^\]]*\]\s*/, '').trim();
+    return s || 'One Piece';
+  }
+  function bandaiFee(e){
+    const raw = e.entryFee != null ? e.entryFee : e.entry_fee;
+    if(e.hidden_entry_fee || raw == null || raw === '') return '';
+    const amount = Number(raw);
+    if(!isFinite(amount)) return '';
+    if(amount === 0) return 'Free';
+    const cur = String(e.entry_fee_currency_code || '').trim();
+    const digits = { minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 };
+    if(/^[a-z]{3}$/i.test(cur)){
+      try{ return new Intl.NumberFormat('en-US', Object.assign({ style:'currency', currency:cur.toUpperCase() }, digits)).format(amount); }catch(_){}
+    }
+    const n = amount.toLocaleString('en-US', digits);
+    return cur && cur.length <= 3 ? cur + n : n;
+  }
+  function bandaiCity(e){
+    let city = String(e.city_code || e.city_address || '').trim();
+    if(city && city === city.toLowerCase()) city = city.replace(/\b\w/g, c => c.toUpperCase());
+    const region = String(e.pref_code || '').split('-').pop();
+    return { city, region, label: [city, region].filter(Boolean).join(', ') };
+  }
+  // "2026-09-28T19:00:00" (store-local) → { date:'2026-09-28', time:'7:00 PM' }
+  function bandaiDateTime(e){
+    const m = String(e.start_datetime || '').match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+    if(!m) return { date:'', time:'' };
+    const h = parseInt(m[2],10);
+    return { date: m[1], time: ((h % 12) || 12) + ':' + m[3] + ' ' + (h < 12 ? 'AM' : 'PM') };
+  }
+  // A new personal event from a Bandai TCG+ event.
+  function bandaiToEvent(e){
+    const when = bandaiDateTime(e);
+    const place = bandaiCity(e);
+    const geo = e.place_geo || e.event_place_geo || {};
+    const address = [e.street_address, place.city, [place.region, e.postcode].filter(Boolean).join(' ')]
+      .map(s => String(s||'').trim()).filter(Boolean).join(', ');
+    const storeLink = safeUrl(e.organizer_url) ? e.organizer_url : (safeUrl(e.organizer_sns_url) ? e.organizer_sns_url : '');
+    return {
+      id: uid(), name: bandaiEventName(e), game: 'One Piece Card Game', store: String(e.organizer_name||'').trim(),
+      date: when.date, time: when.time, repeat:'none', format:'',
+      fee: bandaiFee(e), address, city: place.label,
+      link: BANDAI_WEB + '/event/' + encodeURIComponent(String(e.id)), storeLink,
+      notes:'', rsvp:null, result:null, occurrences:{},
+      lat: typeof geo.x === 'number' ? geo.x : null, lng: typeof geo.y === 'number' ? geo.y : null, googleEventId:null
+    };
+  }
+
   function riftboundErrorText(code){
     return ({ old_link: tr('rbOldLink'), bad_link: tr('rbBadLink'), not_found: tr('rbNotFound') })[code] || tr('xCouldNotFetchThatPage');
   }
@@ -3688,7 +3774,7 @@
         <div class="paste-box">
           <div class="lbl">${tr('pasteRiftboundLink')}</div>
           <div style="display:flex;gap:8px;">
-            <input id="linkFetchInput" placeholder="https://playriftbound.com/en-US/events/…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
+            <input id="linkFetchInput" placeholder="https://playriftbound.com/en-US/events/… · https://www.bandai-tcg-plus.com/event/…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
             <button class="parse-btn" id="linkFetchBtn" type="button" style="margin-top:0;white-space:nowrap;">${tr('fetchDetails')}</button>
           </div>
           <div class="hint">${tr('xFillsInDateTimeStore')}</div>
@@ -3762,7 +3848,7 @@
       </div>`;
     document.body.appendChild(overlay);
 
-    // Coordinates from a fetched Riftbound event, used on save if the address wasn't edited.
+    // Coordinates from a fetched Riftbound / Bandai TCG+ event, used on save if the address wasn't edited.
     let fetchedPlace = null;
     overlay.querySelector('#linkFetchBtn').onclick = async ()=>{
       const url = overlay.querySelector('#linkFetchInput').value.trim();
@@ -3771,9 +3857,18 @@
       btn.disabled = true;
       btn.textContent = tr('xFetching');
       try{
-        const p = await callRiftboundEvents({ url });
-        if(!p || !p.event){ showToast(riftboundErrorText(p && p.error)); return; }
-        const ev = riftboundToEvent(p.event);
+        let ev;
+        const bandaiId = bandaiEventIdFromUrl(url);
+        if(bandaiId){
+          const p = await bandaiGet('/api/user/event/' + bandaiId);
+          if(!p || !p.event){ showToast(tr('opNotFound')); return; }
+          if(p.event.is_canceled){ showToast(tr('opCancelled')); return; }
+          ev = bandaiToEvent(p.event);
+        } else {
+          const p = await callRiftboundEvents({ url });
+          if(!p || !p.event){ showToast(riftboundErrorText(p && p.error)); return; }
+          ev = riftboundToEvent(p.event);
+        }
         const set = (sel, v, overwrite)=>{ const el = overlay.querySelector(sel); if(v && (overwrite || !el.value)) el.value = v; };
         set('#f_name', ev.name);
         set('#f_date', ev.date, true);
@@ -3783,7 +3878,7 @@
         set('#f_address', ev.address);
         set('#f_format', ev.format, true);
         set('#f_fee', ev.fee);
-        set('#f_game', 'Riftbound');
+        set('#f_game', ev.game);
         set('#f_link', ev.link, true);
         set('#f_storelink', ev.storeLink);
         if(ev.lat != null && ev.lng != null) fetchedPlace = { address: ev.address, lat: ev.lat, lng: ev.lng };
@@ -6788,6 +6883,7 @@
         <div class="section-label">${tr('menuFindEvents')}</div>
         ${row('mPoke','⚡', tr('pokeNearYou'))}
         ${row('mRift','🌀', tr('rbNearYou'))}
+        ${row('mOnePiece','🏴‍☠️', tr('opNearYou'))}
         ${row('mLocators','🌐', tr('officialLocators'))}
 
         <div style="border-top:1px solid var(--line);margin-top:16px;padding-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -6808,7 +6904,8 @@
     go('mStores', openStoresModal);
     go('mShare', openShareModal);
     go('mPoke', openPokedataModal);
-    go('mRift', openRiftboundFinderModal);
+    go('mRift', ()=>openEventFinderModal(riftboundFinderSource()));
+    go('mOnePiece', ()=>openEventFinderModal(onePieceFinderSource()));
     go('mLocators', openLocatorsModal);
     go('mAdmin', openAdminModal);
     const inst = overlay.querySelector('#mInstall');
@@ -6822,7 +6919,7 @@
     overlay.className = 'overlay';
     const links = [
       { url: riftboundEventsUrl(), label: '🔗 ' + tr('locRiftbound') + (profile && profile.home_city ? ' — ' + profile.home_city : '') },
-      { url: 'https://en.onepiece-cardgame.com/events/', label: '🔗 ' + tr('locOnePiece') },
+      { url: BANDAI_WEB + '/event', label: '🔗 ' + tr('locOnePiece') },
       { url: 'https://www.facebook.com/events/', label: '🔗 ' + tr('locFacebook') },
       { url: 'https://www.google.com/maps/search/game+store+near+me', label: '🔗 ' + tr('locStores') }
     ];
@@ -6838,15 +6935,66 @@
     overlay.querySelector('#closeLocators').onclick = ()=>overlay.remove();
   }
 
-  // Riftbound events near the user's home city, read live from playriftbound.com
-  // through the fetch-event-link Edge Function (100 per page, "Show more" pages on).
-  function openRiftboundFinderModal(){
+  // Official events near the user's home city, read live from the game's own site.
+  // A source says how to load one page: load(km, cursor) → { items, next }, where
+  // each item is { event (ready to save, from riftboundToEvent / bandaiToEvent), bits
+  // (the small grey details line) }, and next is the cursor for "Show more" or null.
+  function riftboundFinderSource(){
+    return {
+      icon: '🌀', title: tr('rbTitle'), intro: tr('rbIntro'), none: km => trf('rbNone', { km }),
+      loadFailed: tr('rbLoadFailed'), siteLabel: 'playriftbound.com', siteUrl: riftboundEventsUrl(),
+      async load(km, cursor){
+        const p = await callRiftboundEvents({ near: { lat: profile.home_lat, lng: profile.home_lng, km, after: cursor || undefined } });
+        if(!p || !Array.isArray(p.events)) throw new Error(p && p.error || 'no events');
+        const today = todayStr();
+        const items = p.events.filter(e => riftboundDateTime(e).date >= today).map(e => ({
+          event: riftboundToEvent(e),
+          bits: [
+            e.distanceKm != null ? Math.round(e.distanceKm) + ' ' + tr('pokeAway') : '',
+            riftboundTypeLabel(e.type), riftboundFee(e) === 'Free' ? tr('finderFree') : riftboundFee(e),
+            e.capacity ? trf('rbRegistered', { n: e.registered || 0, cap: e.capacity }) : ''
+          ]
+        }));
+        return { items, next: p.nextCursor || null };
+      }
+    };
+  }
+  function onePieceFinderSource(){
+    const PAGE = 100;
+    return {
+      icon: '🏴‍☠️', title: tr('opTitle'), intro: tr('opIntro'), none: km => trf('opNone', { km }),
+      loadFailed: tr('opLoadFailed'), siteLabel: 'Bandai TCG+', siteUrl: BANDAI_WEB + '/event',
+      async load(km, cursor){
+        const offset = cursor || 0;
+        const p = await bandaiGet('/api/user/event/list', {
+          game_title_id: BANDAI_ONE_PIECE, limit: PAGE, offset, start_date: todayStr(), order: 1,
+          current_lat: profile.home_lat, current_lng: profile.home_lng, distance: km
+        });
+        if(!p || !Array.isArray(p.event_list)) throw new Error('no events');
+        const items = p.event_list.filter(e => !e.is_canceled).map(e => {
+          const fee = bandaiFee(e);
+          return {
+            event: bandaiToEvent(e),
+            bits: [
+              typeof e.distance === 'number' ? Math.round(e.distance) + ' ' + tr('pokeAway') : '',
+              fee === 'Free' ? tr('finderFree') : fee,
+              e.max_join_count && !e.is_capacity_hidden ? trf('opSpots', { cap: e.max_join_count }) : ''
+            ]
+          };
+        });
+        const seen = offset + p.event_list.length;
+        return { items, next: p.event_list.length && seen < Number(p.total || 0) ? seen : null };
+      }
+    };
+  }
+
+  function openEventFinderModal(src){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    overlay.innerHTML = `<div class="modal"><h2>🌀 ${tr('rbTitle')}</h2><div id="rbBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
+    overlay.innerHTML = `<div class="modal"><h2>${src.icon} ${escapeHtml(src.title)}</h2><div id="efBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
-    const body = overlay.querySelector('#rbBody');
+    const body = overlay.querySelector('#efBody');
 
     if(profile.home_lat == null || profile.home_lng == null){
       body.innerHTML = `
@@ -6854,27 +7002,25 @@
           <div class="big">${tr('pokeSetCity')}</div>
           <div>${tr('pokeSetCityBody')}</div>
         </div>
-        <div class="modal-actions"><button class="btn-primary" id="rbGoAccount" style="flex:1;">${tr('pokeOpenAccount')}</button></div>`;
-      body.querySelector('#rbGoAccount').onclick = ()=>{ overlay.remove(); openAccountModal(); };
+        <div class="modal-actions"><button class="btn-primary" id="efGoAccount" style="flex:1;">${tr('pokeOpenAccount')}</button></div>`;
+      body.querySelector('#efGoAccount').onclick = ()=>{ overlay.remove(); openAccountModal(); };
       return;
     }
 
     let radiusKm = 80;
-    let events = [], nextCursor = null, failed = false, loading = false;
+    let items = [], next = null, failed = false, loading = false;
     let loadToken = 0; // a radius change while a page is loading drops that page
 
     async function load(more){
       const token = ++loadToken;
       loading = true;
-      if(!more){ events = []; nextCursor = null; failed = false; }
+      if(!more){ items = []; next = null; failed = false; }
       draw();
       try{
-        const p = await callRiftboundEvents({ near: { lat: profile.home_lat, lng: profile.home_lng, km: radiusKm, after: more ? nextCursor : undefined } });
+        const page = await src.load(radiusKm, more ? next : null);
         if(token !== loadToken) return;
-        if(!p || !Array.isArray(p.events)) throw new Error(p && p.error || 'no events');
-        const today = todayStr();
-        events = events.concat(p.events.filter(e => riftboundDateTime(e).date >= today));
-        nextCursor = p.nextCursor || null;
+        items = items.concat(page.items);
+        next = page.next;
       }catch(e){
         if(token !== loadToken) return;
         failed = true;
@@ -6886,52 +7032,44 @@
     function draw(){
       if(!overlay.isConnected) return;
       const radiusChips = [40,80,160].map(r=>
-        `<button class="chip ${radiusKm===r?'active':''}" data-rb-radius="${r}">${r} km</button>`).join('');
-      const rows = events.map((e,i)=>{
-        const when = riftboundDateTime(e);
-        const bits = [
-          e.distanceKm != null ? Math.round(e.distanceKm) + ' ' + tr('pokeAway') : '',
-          riftboundTypeLabel(e.type), riftboundFee(e) === 'Free' ? tr('rbFree') : riftboundFee(e),
-          e.capacity ? trf('rbRegistered', { n: e.registered || 0, cap: e.capacity }) : ''
-        ].filter(Boolean).map(escapeHtml).join(' · ');
-        return `
+        `<button class="chip ${radiusKm===r?'active':''}" data-ef-radius="${r}">${r} km</button>`).join('');
+      const rows = items.map(({ event: ev, bits }, i)=>`
           <div class="list-item">
             <div class="info">
-              <div class="n">${escapeHtml(e.name || 'Riftbound')}</div>
-              <div class="m">${fmtFriendly(when.date, when.time)} · ${escapeHtml(e.store||'')}${e.city?' · '+escapeHtml(e.city):''}</div>
-              <div class="m" style="font-size:11px;">${bits}</div>
+              <div class="n">${escapeHtml(ev.name)}</div>
+              <div class="m">${fmtFriendly(ev.date, ev.time)} · ${escapeHtml(ev.store||'')}${ev.city?' · '+escapeHtml(ev.city):''}</div>
+              <div class="m" style="font-size:11px;">${bits.filter(Boolean).map(escapeHtml).join(' · ')}</div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-              ${riftboundEventLink(e)?`<a class="mini-btn" href="${safeHref(riftboundEventLink(e))}" target="_blank" rel="noopener">${tr('pokeDetails')} ↗</a>`:''}
-              <button class="mini-btn" data-rb-add="${i}">${tr('pokeAdd')}</button>
+              ${safeUrl(ev.link)?`<a class="mini-btn" href="${safeHref(ev.link)}" target="_blank" rel="noopener">${tr('pokeDetails')} ↗</a>`:''}
+              <button class="mini-btn" data-ef-add="${i}">${tr('pokeAdd')}</button>
             </div>
-          </div>`;
-      }).join('');
+          </div>`).join('');
       let status = '';
-      if(failed) status = `<div class="modal-sub">${tr('rbLoadFailed')}</div>`;
+      if(failed) status = `<div class="modal-sub">${escapeHtml(src.loadFailed)}</div>`;
       else if(loading) status = `<div class="modal-sub">${tr('loadingDots')}</div>`;
-      else if(!events.length) status = `<div class="modal-sub">${trf('rbNone', { km: radiusKm })}</div>`;
+      else if(!items.length) status = `<div class="modal-sub">${escapeHtml(src.none(radiusKm))}</div>`;
       body.innerHTML = `
-        <div class="modal-sub">${tr('rbIntro')} ${escapeHtml(profile.home_city||'')}.</div>
+        <div class="modal-sub">${escapeHtml(src.intro)} ${escapeHtml(profile.home_city||'')}.</div>
         <div class="chip-row" style="margin-bottom:12px;">${radiusChips}</div>
         ${rows}
         ${status}
-        ${nextCursor && !loading && !failed ? `<button class="btn-secondary" id="rbMore" style="width:100%;margin-top:8px;">${tr('rbShowMore')}</button>` : ''}
+        ${next != null && !loading && !failed ? `<button class="btn-secondary" id="efMore" style="width:100%;margin-top:8px;">${tr('finderShowMore')}</button>` : ''}
         <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--line);">
           <span style="color:var(--text-dim);font-size:11.5px;">${tr('pokeCourtesy')}
-            <a href="${safeHref(riftboundEventsUrl())}" target="_blank" rel="noopener" style="color:var(--teal);">playriftbound.com</a>
+            <a href="${safeHref(src.siteUrl)}" target="_blank" rel="noopener" style="color:var(--teal);">${escapeHtml(src.siteLabel)}</a>
           </span>
         </div>
-        <div class="modal-actions"><button class="btn-secondary" id="closeRb" style="flex:1;">${tr('close')}</button></div>`;
+        <div class="modal-actions"><button class="btn-secondary" id="closeEf" style="flex:1;">${tr('close')}</button></div>`;
 
-      body.querySelector('#closeRb').onclick = ()=>overlay.remove();
-      const more = body.querySelector('#rbMore');
+      body.querySelector('#closeEf').onclick = ()=>overlay.remove();
+      const more = body.querySelector('#efMore');
       if(more) more.onclick = ()=>load(true);
-      body.querySelectorAll('[data-rb-radius]').forEach(btn=>{
-        btn.onclick = ()=>{ radiusKm = parseInt(btn.dataset.rbRadius,10); load(false); };
+      body.querySelectorAll('[data-ef-radius]').forEach(btn=>{
+        btn.onclick = ()=>{ radiusKm = parseInt(btn.dataset.efRadius,10); load(false); };
       });
-      body.querySelectorAll('[data-rb-add]').forEach(btn=>{
-        const ev = riftboundToEvent(events[parseInt(btn.dataset.rbAdd,10)]);
+      body.querySelectorAll('[data-ef-add]').forEach(btn=>{
+        const ev = items[parseInt(btn.dataset.efAdd,10)].event;
         if(isDuplicateEvent(ev)){ btn.textContent = tr('xAlreadyHaveIt'); btn.disabled = true; return; }
         btn.onclick = async ()=>{
           if(isDuplicateEvent(ev)){
