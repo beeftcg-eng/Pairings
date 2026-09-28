@@ -347,7 +347,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.21.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.22.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -554,13 +554,13 @@
       xCouldNotDisablePushNotifications: 'Could not disable push notifications', xCouldNotLoadGoogleSign: 'Could not load Google Sign-In',
       xGoogleSignInWasCancelled: 'Google sign-in was cancelled', xGoogleCalendarConnected: 'Google Calendar connected',
       xCouldNotConnectGoogleCalendar: 'Could not connect Google Calendar', xSyncedToGoogleCalendar: 'Synced to Google Calendar',
-      xCouldNotSyncToGoogle: 'Could not sync to Google Calendar', xPrivacyPolicy: 'Privacy Policy',
+      xCouldNotSyncToGoogle: 'Could not sync to Google Calendar', xPrivacyPolicy: 'Privacy Policy', xTermsOfUse: 'Terms of Use', agreeTermsBefore: 'By creating an account you agree to the', agreeTermsAnd: 'and the',
       xEnterAnEmailAndPassword: 'Enter an email and password', xCheckYourEmailToConfirm: 'Check your email to confirm your account, then sign in.',
       xSomethingWentWrong: 'Something went wrong', xFromAStoreYouFollow: '🏪 From a store you follow', xCancelled: '⚠️ CANCELLED', xFull: '🈵 FULL',
       xDecklist: '📋 Decklist ↗', xStorePage: '🏬 Store page ↗', xJoinOnline: '🎮 Join online ↗', xStartARoundTimer: '⏱ Start a round timer ↗',
       xUnfollowed: 'Unfollowed', xCouldNotUnfollow: 'Could not unfollow', xDeleteThisTournament: 'Delete this tournament?', xDeleted: 'Deleted',
       xThatDateRemoved: 'That date removed', xSeriesDeleted: 'Series deleted',
-      xFillsInDateTimeStore: 'Open the event on playriftbound.com (Riftbound) or Bandai TCG+ (One Piece), copy its link, and paste it here: the name, date, time, store, address and entry fee fill in by themselves.',
+      xFillsInDateTimeStore: 'Open the event on playriftbound.com (Riftbound), Bandai TCG+ (One Piece) or the Wizards locator (Magic), copy its link, and paste it here: the name, date, time, store, address and entry fee fill in by themselves.',
       xPasteTheEventTextHere: 'Paste the event text here — name, store, date, time, price…', xEGFridayNightSealed: 'e.g. Friday Night Sealed',
       xEGOnePieceCard: 'e.g. One Piece Card Game', xEGStandardSealed: 'e.g. Standard, Sealed…',
       xCasualTestingSessionNotA: '🎲 Casual / testing session (not a tournament)', xInPerson: 'In person', xOnline: 'Online',
@@ -571,7 +571,7 @@
       xAQuickLinkToThe: 'A quick link to the store itself — handy for checking if an event got cancelled or postponed.',
       xHttpsTheStoreSOwn: 'https://the store\'s own website or Facebook page',
       xARepeatingLocalShowsUp: 'A repeating local shows up every week/month automatically — RSVP and results are tracked per date.',
-      xStreetCity: 'Street, city', xPasteARiftboundEventLink: 'Paste a Riftbound or One Piece event link first', xFetching: 'Fetching…',
+      xStreetCity: 'Street, city', xPasteARiftboundEventLink: 'Paste a Riftbound, One Piece or Magic event link first', xFetching: 'Fetching…',
       xFilledWhatWeCouldFind: 'Filled in the event details. Give them a quick check before saving.', xCouldNotFetchThatPage: 'Could not fetch that page',
       xPasteSomeEventTextFirst: 'Paste some event text first', xFilledWhatWeCouldFind2: 'Filled what we could find — double check before saving',
       xSaved: 'Saved', xAddedToYourCalendar: 'Added to your calendar', xBulkImportEvents: 'Bulk import events',
@@ -714,7 +714,7 @@
       // Add/Edit modal
       addTournament: 'Add tournament', editTournament: 'Edit tournament',
       changesApplyWhole: 'Changes here apply to the whole series.',
-      pasteRiftboundLink: '🔗 Paste a Riftbound or One Piece event link',
+      pasteRiftboundLink: '🔗 Paste a Riftbound, One Piece or Magic event link',
       fetchDetails: 'Fetch details',
       pasteFromStore: "✨ Paste from a store's page or Facebook",
       parseAndFill: 'Parse & fill fields',
@@ -781,6 +781,12 @@
       rbIntro: 'Official Riftbound events (Nexus Nights, Pre-Rifts, Skirmishes and more) near',
       rbNone: 'No Riftbound events found within {km} km. Try a wider radius.',
       finderShowMore: 'Show more', finderFree: 'Free', rbRegistered: '{n}/{cap} signed up',
+      mtgNearYou: 'Magic near you', mtgTitle: 'Magic events near you', locMagic: 'Magic: The Gathering events',
+      mtgIntro: 'Official Magic: The Gathering events from the Wizards Store & Event Locator (Commander nights, Standard, drafts, prereleases and more) near',
+      mtgNone: 'No Magic events found within {km} km. Try a wider radius.',
+      mtgLoadFailed: "Couldn't load events from the Wizards locator right now. Try again in a moment.",
+      mtgNotFound: "Couldn't find that event on the Wizards locator. Check the link.",
+      mtgCancelled: 'That event has been cancelled on the Wizards locator.',
       opNearYou: 'One Piece near you', opTitle: 'One Piece events near you',
       opIntro: 'Official ONE PIECE Card Game events from Bandai TCG+ (store tournaments, Pirates Parties, Store Championships and more) near',
       opNone: 'No One Piece events found within {km} km. Try a wider radius.',
@@ -959,14 +965,14 @@
       xCouldNotLoadGoogleSign: 'No se pudo cargar el inicio de sesión de Google',
       xGoogleSignInWasCancelled: 'Se canceló el inicio de sesión con Google', xGoogleCalendarConnected: 'Google Calendar conectado',
       xCouldNotConnectGoogleCalendar: 'No se pudo conectar Google Calendar', xSyncedToGoogleCalendar: 'Sincronizado con Google Calendar',
-      xCouldNotSyncToGoogle: 'No se pudo sincronizar con Google Calendar', xPrivacyPolicy: 'Política de privacidad (en inglés)',
+      xCouldNotSyncToGoogle: 'No se pudo sincronizar con Google Calendar', xPrivacyPolicy: 'Política de privacidad (en inglés)', xTermsOfUse: 'Términos de uso (en inglés)', agreeTermsBefore: 'Al crear una cuenta aceptas los', agreeTermsAnd: 'y la',
       xEnterAnEmailAndPassword: 'Escribe un correo y una contraseña',
       xCheckYourEmailToConfirm: 'Revisa tu correo para confirmar tu cuenta y luego inicia sesión.', xSomethingWentWrong: 'Algo salió mal',
       xFromAStoreYouFollow: '🏪 De una tienda que sigues', xCancelled: '⚠️ CANCELADO', xFull: '🈵 LLENO', xDecklist: '📋 Lista del mazo ↗',
       xStorePage: '🏬 Página de la tienda ↗', xJoinOnline: '🎮 Unirse en línea ↗', xStartARoundTimer: '⏱ Iniciar un temporizador de ronda ↗',
       xUnfollowed: 'Dejaste de seguir', xCouldNotUnfollow: 'No se pudo dejar de seguir', xDeleteThisTournament: '¿Eliminar este torneo?',
       xDeleted: 'Eliminado', xThatDateRemoved: 'Fecha eliminada', xSeriesDeleted: 'Serie eliminada',
-      xFillsInDateTimeStore: 'Abre el evento en playriftbound.com (Riftbound) o Bandai TCG+ (One Piece), copia su enlace y pégalo aquí: el nombre, la fecha, la hora, la tienda, la dirección y la entrada se completan solos.',
+      xFillsInDateTimeStore: 'Abre el evento en playriftbound.com (Riftbound), Bandai TCG+ (One Piece) o el localizador de Wizards (Magic), copia su enlace y pégalo aquí: el nombre, la fecha, la hora, la tienda, la dirección y la entrada se completan solos.',
       xPasteTheEventTextHere: 'Pega aquí el texto del evento — nombre, tienda, fecha, hora, precio…', xEGFridayNightSealed: 'p. ej. Viernes de Sealed',
       xEGOnePieceCard: 'p. ej. One Piece Card Game', xEGStandardSealed: 'p. ej. Estándar, Sealed…',
       xCasualTestingSessionNotA: '🎲 Sesión casual / de práctica (no es un torneo)', xInPerson: 'En persona', xOnline: 'En línea',
@@ -977,7 +983,7 @@
       xAQuickLinkToThe: 'Un enlace rápido a la tienda — útil para ver si un evento se canceló o se pospuso.',
       xHttpsTheStoreSOwn: 'https://sitio web o página de Facebook de la tienda',
       xARepeatingLocalShowsUp: 'Un evento que se repite aparece automáticamente cada semana o mes — la asistencia y los resultados se registran por fecha.',
-      xStreetCity: 'Calle, ciudad', xPasteARiftboundEventLink: 'Primero pega un enlace de un evento de Riftbound o One Piece',
+      xStreetCity: 'Calle, ciudad', xPasteARiftboundEventLink: 'Primero pega un enlace de un evento de Riftbound, One Piece o Magic',
       xFetching: 'Buscando…',
       xFilledWhatWeCouldFind: 'Completamos los detalles del evento. Revísalos antes de guardar.',
       xCouldNotFetchThatPage: 'No se pudo obtener esa página', xPasteSomeEventTextFirst: 'Primero pega el texto de un evento',
@@ -1130,7 +1136,7 @@
       // Add/Edit modal
       addTournament: 'Agregar torneo', editTournament: 'Editar torneo',
       changesApplyWhole: 'Los cambios aquí aplican a toda la serie.',
-      pasteRiftboundLink: '🔗 Pega un enlace de evento de Riftbound o One Piece',
+      pasteRiftboundLink: '🔗 Pega un enlace de evento de Riftbound, One Piece o Magic',
       fetchDetails: 'Obtener datos',
       pasteFromStore: '✨ Pega la página de una tienda o Facebook',
       parseAndFill: 'Analizar y rellenar campos',
@@ -1197,6 +1203,12 @@
       rbIntro: 'Eventos oficiales de Riftbound (Nexus Nights, Pre-Rifts, Skirmishes y más) cerca de',
       rbNone: 'No se encontraron eventos de Riftbound a menos de {km} km. Prueba con un radio más amplio.',
       finderShowMore: 'Ver más', finderFree: 'Gratis', rbRegistered: '{n}/{cap} inscritos',
+      mtgNearYou: 'Magic cerca de ti', mtgTitle: 'Eventos de Magic cerca de ti', locMagic: 'Eventos de Magic: The Gathering',
+      mtgIntro: 'Eventos oficiales de Magic: The Gathering del localizador de tiendas y eventos de Wizards (noches de Commander, Standard, drafts, presentaciones y más) cerca de',
+      mtgNone: 'No se encontraron eventos de Magic a menos de {km} km. Prueba con un radio más amplio.',
+      mtgLoadFailed: 'No se pudieron cargar los eventos del localizador de Wizards. Inténtalo de nuevo en un momento.',
+      mtgNotFound: 'No encontramos ese evento en el localizador de Wizards. Revisa el enlace.',
+      mtgCancelled: 'Ese evento fue cancelado en el localizador de Wizards.',
       opNearYou: 'One Piece cerca de ti', opTitle: 'Eventos de One Piece cerca de ti',
       opIntro: 'Eventos oficiales de ONE PIECE Card Game de Bandai TCG+ (torneos de tienda, Pirates Parties, Store Championships y más) cerca de',
       opNone: 'No se encontraron eventos de One Piece a menos de {km} km. Prueba con un radio más amplio.',
@@ -1863,6 +1875,75 @@
       link: BANDAI_WEB + '/event/' + encodeURIComponent(String(e.id)), storeLink,
       notes:'', rsvp:null, result:null, occurrences:{},
       lat: typeof geo.x === 'number' ? geo.x : null, lng: typeof geo.y === 'number' ? geo.y : null, googleEventId:null
+    };
+  }
+
+  // ---------- Magic events (Wizards Store & Event Locator) ----------
+  // The locator's GraphQL API answers signed-out requests and allows any origin, so
+  // like Bandai TCG+ it is called straight from the browser. The same locator also
+  // lists D&D and board-game events; only events tagged Magic are kept. Fees are in
+  // cents; start times are UTC plus the store's IANA time zone.
+  const WIZARDS_GQL = 'https://api.tabletop.wizards.com/silverbeak-griffin-service/graphql';
+  const WIZARDS_WEB = 'https://locator.wizards.com';
+  const WIZARDS_EVENT_FIELDS = `id title status tags isOnline capacity scheduledStartTime timeZone latitude longitude distance
+    entryFee { amount currency } eventFormat { name }
+    organization { name website address city state postalCode }`;
+  async function wizardsQuery(query, variables){
+    const res = await fetch(WIZARDS_GQL, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ query, variables }) });
+    if(!res.ok) throw new Error('Wizards ' + res.status);
+    const j = await res.json();
+    // "No event found" comes back as an error with code 404 and data.event = null: that's an answer.
+    const real = (j.errors || []).filter(e => !(e.extensions && String(e.extensions.code) === '404'));
+    if(real.length) throw new Error('Wizards: ' + real[0].message);
+    return j.data;
+  }
+  // https://locator.wizards.com/event/11750902 → '11750902'
+  function wizardsEventIdFromUrl(raw){
+    const m = String(raw||'').trim().match(/^https:\/\/locator\.wizards\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?events?\/(\d{1,12})(?:[\/?#]|$)/i);
+    return m ? m[1] : null;
+  }
+  function isMagicEvent(e){ return Array.isArray(e.tags) && e.tags.includes('magic:_the_gathering'); }
+  // "2026-09-28T17:00:00.0000000Z" + "America/New_York" → { date:'2026-09-28', time:'1:00 PM' },
+  // in the store's own time zone (the device's if the zone is missing or unknown).
+  function wizardsDateTime(e){
+    const iso = String(e.scheduledStartTime || '').replace(/(\.\d{3})\d+/, '$1');
+    const d = new Date(iso);
+    if(!iso || isNaN(d)) return { date:'', time:'' };
+    const fmt = tz => new Intl.DateTimeFormat('en-US', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit', hour:'numeric', minute:'2-digit', hour12:true }).formatToParts(d);
+    let parts;
+    try{ parts = fmt(e.timeZone || undefined); }catch(_){ parts = fmt(undefined); }
+    const p = Object.fromEntries(parts.map(x=>[x.type, x.value]));
+    return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute} ${String(p.dayPeriod||'').toUpperCase()}` };
+  }
+  function wizardsFee(e){
+    const f = e.entryFee;
+    if(!f || f.amount == null) return '';
+    const amount = Number(f.amount) / 100;
+    if(!isFinite(amount)) return '';
+    if(amount === 0) return 'Free';
+    try{
+      return new Intl.NumberFormat('en-US', { style:'currency', currency: String(f.currency || 'USD').toUpperCase(),
+        minimumFractionDigits: Number.isInteger(amount) ? 0 : 2 }).format(amount);
+    }catch(_){ return amount.toFixed(2); }
+  }
+  // Wizards' format names → our stored FORMATS values where they match; anything else as named.
+  function wizardsFormatName(e){
+    const n = String((e.eventFormat && e.eventFormat.name) || '').trim();
+    return ({ 'Sealed Deck':'Sealed', 'Booster Draft':'Draft' })[n] || (n === 'Other' ? '' : n);
+  }
+  // A new personal event from a Wizards locator event.
+  function wizardsToEvent(e){
+    const when = wizardsDateTime(e);
+    const o = e.organization || {};
+    const address = [o.address, o.city, [o.state, o.postalCode].filter(Boolean).join(' ')]
+      .map(s => String(s||'').trim()).filter(Boolean).join(', ');
+    return {
+      id: uid(), name: String(e.title || '').trim() || 'Magic', game: 'Magic: The Gathering', store: String(o.name||'').trim(),
+      date: when.date, time: when.time, repeat:'none', format: wizardsFormatName(e),
+      fee: wizardsFee(e), address, city: [o.city, o.state].filter(Boolean).join(', '),
+      link: WIZARDS_WEB + '/event/' + encodeURIComponent(String(e.id)), storeLink: safeUrl(o.website) ? o.website : '',
+      notes:'', rsvp:null, result:null, occurrences:{},
+      lat: typeof e.latitude === 'number' ? e.latitude : null, lng: typeof e.longitude === 'number' ? e.longitude : null, googleEventId:null
     };
   }
 
@@ -3501,6 +3582,7 @@
           <div class="field"><label>${tr('email')}</label><input id="a_email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
           <div class="field"><label>${tr('password')}</label><input id="a_password" type="password" placeholder="••••••••" autocomplete="${mode==='signin'?'current-password':'new-password'}"/></div>
           ${mode==='signin' ? `<div class="auth-toggle" style="margin:-4px 0 12px;text-align:right;"><a id="forgotPw">${tr('forgotPassword')}</a></div>` : ''}
+          ${mode==='signin' ? '' : `<div class="hint" style="margin:-4px 0 10px;">${tr('agreeTermsBefore')} <a href="${window.location.origin + window.location.pathname}terms.html" target="_blank" rel="noopener" style="color:var(--teal);">${tr('xTermsOfUse')}</a> ${tr('agreeTermsAnd')} <a href="${window.location.origin + window.location.pathname}privacy.html" target="_blank" rel="noopener" style="color:var(--teal);">${tr('xPrivacyPolicy')}</a>.</div>`}
           <button class="btn-primary" id="a_submit" style="width:100%;">${mode==='signin'?tr('signin'):tr('signup')}</button>
           <div class="auth-toggle">${mode==='signin' ? `${tr('newHere')} <a id="toSignup">${tr('signup')}</a>` : `${tr('alreadyHave')} <a id="toSignin">${tr('signin')}</a>`}</div>
           <div style="text-align:center;margin-top:16px;">
@@ -3509,6 +3591,8 @@
           </div>
           <div style="text-align:center;margin-top:14px;">
             <a href="${window.location.origin + window.location.pathname}privacy.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xPrivacyPolicy')}</a>
+            <span style="color:var(--text-dim);font-size:12px;"> · </span>
+            <a href="${window.location.origin + window.location.pathname}terms.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xTermsOfUse')}</a>
           </div>
         </div>
       </div>`;
@@ -3866,7 +3950,7 @@
         <div class="paste-box">
           <div class="lbl">${tr('pasteRiftboundLink')}</div>
           <div style="display:flex;gap:8px;">
-            <input id="linkFetchInput" placeholder="https://playriftbound.com/en-US/events/… · https://www.bandai-tcg-plus.com/event/…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
+            <input id="linkFetchInput" placeholder="https://…" style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"/>
             <button class="parse-btn" id="linkFetchBtn" type="button" style="margin-top:0;white-space:nowrap;">${tr('fetchDetails')}</button>
           </div>
           <div class="hint">${tr('xFillsInDateTimeStore')}</div>
@@ -3951,7 +4035,13 @@
       try{
         let ev;
         const bandaiId = bandaiEventIdFromUrl(url);
-        if(bandaiId){
+        const wizardsId = wizardsEventIdFromUrl(url);
+        if(wizardsId){
+          const d = await wizardsQuery(`query ($id: ID!) { event(id: $id) { ${WIZARDS_EVENT_FIELDS} } }`, { id: wizardsId });
+          if(!d || !d.event){ showToast(tr('mtgNotFound')); return; }
+          if(/CANCEL/i.test(d.event.status || '')){ showToast(tr('mtgCancelled')); return; }
+          ev = wizardsToEvent(d.event);
+        } else if(bandaiId){
           const p = await bandaiGet('/api/user/event/' + bandaiId);
           if(!p || !p.event){ showToast(tr('opNotFound')); return; }
           if(p.event.is_canceled){ showToast(tr('opCancelled')); return; }
@@ -5125,7 +5215,7 @@
       },
       {
         title: 'Add your first event',
-        body: 'Tap "+ Add" to enter one by hand. Or paste the link to a Riftbound event (playriftbound.com) or a One Piece event (Bandai TCG+) and the name, date, time, store, address and entry fee fill in by themselves. You can also paste text from a store\'s page, or mark something as a casual or online testing session.'
+        body: 'Tap "+ Add" to enter one by hand. Or paste the link to a Riftbound event (playriftbound.com), a One Piece event (Bandai TCG+) or a Magic event (Wizards locator) and the name, date, time, store, address and entry fee fill in by themselves. You can also paste text from a store\'s page, or mark something as a casual or online testing session.'
       },
       {
         title: 'Your Player Card 🪪',
@@ -5141,7 +5231,7 @@
       },
       {
         title: 'Find events near you',
-        body: '☰ → Riftbound near you, One Piece near you and Pokémon near you list official events around your city, with one-tap add to your calendar. ☰ → Stores lets you follow local shops so their events show up by themselves, and if a store has a check-in QR at the counter, scanning it checks you in.'
+        body: '☰ → Riftbound, One Piece, Magic and Pokémon near you list official events around your city, with one-tap add to your calendar. ☰ → Stores lets you follow local shops so their events show up by themselves, and if a store has a check-in QR at the counter, scanning it checks you in.'
       },
       {
         title: 'Log results as you play',
@@ -5175,7 +5265,7 @@
       },
       {
         title: 'Agrega tu primer evento',
-        body: 'Toca "+ Agregar" para ingresarlo a mano. O pega el enlace de un evento de Riftbound (playriftbound.com) o de One Piece (Bandai TCG+) y el nombre, la fecha, la hora, la tienda, la dirección y la entrada se completan solos. También puedes pegar texto de la página de una tienda, o marcarlo como sesión casual o de testing en línea.'
+        body: 'Toca "+ Agregar" para ingresarlo a mano. O pega el enlace de un evento de Riftbound (playriftbound.com), de One Piece (Bandai TCG+) o de Magic (localizador de Wizards) y el nombre, la fecha, la hora, la tienda, la dirección y la entrada se completan solos. También puedes pegar texto de la página de una tienda, o marcarlo como sesión casual o de testing en línea.'
       },
       {
         title: 'Tu Tarjeta de Jugador 🪪',
@@ -5191,7 +5281,7 @@
       },
       {
         title: 'Encuentra eventos cerca de ti',
-        body: '☰ → Riftbound cerca de ti, One Piece cerca de ti y Pokémon cerca de ti muestran eventos oficiales cerca de tu ciudad, y los agregas a tu calendario con un toque. ☰ → Tiendas te deja seguir tiendas locales para que sus eventos aparezcan solos, y si una tienda tiene un QR de registro en el mostrador, al escanearlo quedas registrado.'
+        body: '☰ → Riftbound, One Piece, Magic y Pokémon cerca de ti muestran eventos oficiales cerca de tu ciudad, y los agregas a tu calendario con un toque. ☰ → Tiendas te deja seguir tiendas locales para que sus eventos aparezcan solos, y si una tienda tiene un QR de registro en el mostrador, al escanearlo quedas registrado.'
       },
       {
         title: 'Registra resultados mientras juegas',
@@ -7298,6 +7388,7 @@
         ${row('mPoke','⚡', tr('pokeNearYou'))}
         ${row('mRift','🌀', tr('rbNearYou'))}
         ${row('mOnePiece','🏴‍☠️', tr('opNearYou'))}
+        ${row('mMagic','🧙', tr('mtgNearYou'))}
         ${row('mLocators','🌐', tr('officialLocators'))}
 
         <div style="border-top:1px solid var(--line);margin-top:16px;padding-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -7321,6 +7412,7 @@
     go('mPoke', openPokedataModal);
     go('mRift', ()=>openEventFinderModal(riftboundFinderSource()));
     go('mOnePiece', ()=>openEventFinderModal(onePieceFinderSource()));
+    go('mMagic', ()=>openEventFinderModal(magicFinderSource()));
     go('mLocators', openLocatorsModal);
     go('mAdmin', openAdminModal);
     const inst = overlay.querySelector('#mInstall');
@@ -7335,6 +7427,7 @@
     const links = [
       { url: riftboundEventsUrl(), label: '🔗 ' + tr('locRiftbound') + (profile && profile.home_city ? ' — ' + profile.home_city : '') },
       { url: BANDAI_WEB + '/event', label: '🔗 ' + tr('locOnePiece') },
+      { url: WIZARDS_WEB + '/', label: '🔗 ' + tr('locMagic') },
       { url: 'https://www.facebook.com/events/', label: '🔗 ' + tr('locFacebook') },
       { url: 'https://www.google.com/maps/search/game+store+near+me', label: '🔗 ' + tr('locStores') }
     ];
@@ -7399,6 +7492,42 @@
         });
         const seen = offset + p.event_list.length;
         return { items, next: p.event_list.length && seen < Number(p.total || 0) ? seen : null };
+      }
+    };
+  }
+
+  function magicFinderSource(){
+    const PAGE = 100;
+    return {
+      icon: '🧙', title: tr('mtgTitle'), intro: tr('mtgIntro'), none: km => trf('mtgNone', { km }),
+      loadFailed: tr('mtgLoadFailed'), siteLabel: 'Wizards Store & Event Locator', siteUrl: WIZARDS_WEB + '/',
+      async load(km, cursor){
+        const page = cursor || 0;
+        const d = await wizardsQuery(`query ($lat: Float!, $lng: Float!, $maxMeters: Int!, $page: Int, $pageSize: Int) {
+          advancedSearchEvents(query: { lat: $lat, lng: $lng, maxMeters: $maxMeters, sort: date, sortDirection: Asc, page: $page, pageSize: $pageSize }) {
+            events { ${WIZARDS_EVENT_FIELDS} }
+            pageInfo { page pageSize totalResults }
+          } }`, { lat: profile.home_lat, lng: profile.home_lng, maxMeters: Math.round(km * 1000), page, pageSize: PAGE });
+        const r = d && d.advancedSearchEvents;
+        if(!r || !Array.isArray(r.events)) throw new Error('no events');
+        const today = todayStr();
+        const items = r.events
+          .filter(e => isMagicEvent(e) && !/CANCEL/i.test(e.status || '') && wizardsDateTime(e).date >= today)
+          .map(e => {
+            const fee = wizardsFee(e);
+            const fmt = e.eventFormat && e.eventFormat.name;
+            return {
+              event: wizardsToEvent(e),
+              bits: [
+                typeof e.distance === 'number' ? Math.round(e.distance / 1000) + ' ' + tr('pokeAway') : '',
+                fmt && fmt !== 'Other' ? fmt : '',
+                fee === 'Free' ? tr('finderFree') : fee,
+                e.capacity ? trf('opSpots', { cap: e.capacity }) : ''
+              ]
+            };
+          });
+        const total = Number((r.pageInfo || {}).totalResults || 0);
+        return { items, next: r.events.length && (page + 1) * PAGE < total ? page + 1 : null };
       }
     };
   }
@@ -7881,6 +8010,8 @@
         ${safeUrl(DONATION_URL) ? `<div style="text-align:center;margin-top:16px;"><a href="${safeHref(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('supportProject')}</a></div>` : ''}
         <div style="text-align:center;margin-top:12px;">
           <a href="${baseAppUrl()}privacy.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xPrivacyPolicy')}</a>
+          <span style="color:var(--text-dim);font-size:12px;"> · </span>
+          <a href="${baseAppUrl()}terms.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xTermsOfUse')}</a>
           <span style="color:var(--text-dim);font-size:12px;"> · </span>
           <button id="deleteAccountBtn" style="background:none;border:none;color:var(--rose);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;font-family:inherit;">${tr('deleteAccount')}</button>
         </div>
