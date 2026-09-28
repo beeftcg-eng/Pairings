@@ -19,6 +19,14 @@
 <meta name="twitter:card" content="summary_large_image"/>
 
 <link rel="manifest" href="/manifest.json"/>
+<!-- Vercel Web Analytics: cookieless page-view counts (enable it in the Vercel project →
+     Analytics). The query string is dropped before anything is sent, so share codes,
+     check-in ids and follow codes never reach it. -->
+<script>
+  window.va = window.va || function(){ (window.vaq = window.vaq || []).push(arguments); };
+  window.va('beforeSend', function(event){ try{ var u = new URL(event.url); u.search = ''; u.hash = ''; event.url = u.toString(); }catch(e){} return event; });
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
 <meta name="theme-color" content="#100e1a"/>
 <script>
   // Apply the saved colour theme before anything is drawn (see "Themes" in the app script).
@@ -347,7 +355,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.22.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.23.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -425,7 +433,7 @@
       resetFailed: "Couldn't send the reset email — please try again in a minute.",
       newPasswordSub: "Choose a new password. Use at least 8 characters, and one you don't use elsewhere.",
       newPassword: 'New password', confirmPassword: 'Confirm new password', savePassword: 'Save password',
-      passwordsDontMatch: "The two passwords don't match.", passwordTooShort: 'Use at least 8 characters.',
+      passwordsDontMatch: "The two passwords don't match.", passwordTooShort: 'Use at least 8 characters.', passwordBreached: 'That password has shown up in a data breach, so it is easy to guess. Please choose a different one.',
       passwordUpdated: "Password updated — you're signed in.",
       emailLinkExpired: 'That email link has expired or was already used. Try signing in, or use "Forgot password?" to get a new one.',
       backToSignIn: 'Back to sign in',
@@ -533,7 +541,7 @@
       yetWord: 'yet', resetsMonday: 'resets every Monday', allTimeTotals: 'All-time totals',
       noStoresForGame: 'No stores currently running or tagged for {game}.', cancelledWord: 'CANCELLED', fullWord: 'FULL', repeatsWord: 'repeats',
       storeApprovedLine: '{name} — approved. Follow code:', buildWord: 'Build', eventsDecksCount: '{events} events · {decks} decks',
-      getPairingsCta: 'Get Pairings — follow code: {code}', feeExample: 'e.g. $10, or Free',
+      getPairingsCta: 'Follow in Pairings (free) · code {code}', alreadyFollowingStore: 'You already follow {name}.', feeExample: 'e.g. $10, or Free',
       feeDetailExample: 'e.g. $10 entry, +$5 for a bye, cash payouts top 4', entryCostOptional: 'Entry cost (optional), e.g. $10',
       xCouldNotSaveYourIds: 'Could not save your IDs', xCouldNotProcessThatImage: 'Could not process that image',
       xCouldNotReadThatImage: 'Could not read that image', xCouldNotReadThatFile: 'Could not read that file',
@@ -633,6 +641,10 @@
       xManage: 'Manage', xYourStores: 'Your stores', xAddAnotherStore: 'Add another store', xTimeEG630: 'Time, e.g. 6:30 PM',
       xFormatOptional: 'Format (optional)', xCapacityOptional: 'Capacity (optional)', xPrizingOptional: 'Prizing (optional)', xEdit2: '✏️ Edit',
       xDuplicate: '📋 Duplicate', xNoEventsPublishedYet: 'No events published yet.', xAllYourStores: '← All your stores',
+      posterBtn: 'Print poster', posterTitle: 'Follow our events on Pairings', posterScan: 'Get our events on your phone',
+      posterCodeLabel: 'Follow code:', posterStep1: 'Scan the code with your phone camera.', posterStep2: 'Tap "Follow in Pairings" on our page and sign in. It\'s free.',
+      posterStep3: 'Our events show up in your calendar by themselves, with reminders.', posterPrint: 'Print',
+      posterBlocked: 'Your browser blocked the poster window. Allow pop-ups for this site and try again.', posterFailed: "Couldn't make the QR code. Check your connection and try again.",
       xCopyPublicPageLink: 'Copy public page link', xOpenTurnzeroToStartA: '⏱ Open TurnZero to start a round timer ↗',
       xGamesYouRegularlyRun: 'Games you regularly run',
       xHelpsPeopleFindYouIn: 'Helps people find you in Browse even during a quiet week with nothing posted.', xSaveGames: 'Save games',
@@ -826,7 +838,7 @@
       resetFailed: 'No pudimos enviar el correo — inténtalo de nuevo en un minuto.',
       newPasswordSub: 'Elige una contraseña nueva. Usa al menos 8 caracteres, y una que no uses en otros sitios.',
       newPassword: 'Contraseña nueva', confirmPassword: 'Confirma la contraseña nueva', savePassword: 'Guardar contraseña',
-      passwordsDontMatch: 'Las dos contraseñas no coinciden.', passwordTooShort: 'Usa al menos 8 caracteres.',
+      passwordsDontMatch: 'Las dos contraseñas no coinciden.', passwordTooShort: 'Usa al menos 8 caracteres.', passwordBreached: 'Esa contraseña apareció en una filtración de datos, así que es fácil de adivinar. Elige otra, por favor.',
       passwordUpdated: 'Contraseña actualizada — ya iniciaste sesión.',
       emailLinkExpired: 'Ese enlace del correo venció o ya se usó. Intenta iniciar sesión, o usa "¿Olvidaste tu contraseña?" para pedir uno nuevo.',
       backToSignIn: 'Volver a iniciar sesión',
@@ -939,7 +951,7 @@
       yetWord: 'todavía', resetsMonday: 'se reinicia cada lunes', allTimeTotals: 'Totales históricos',
       noStoresForGame: 'No hay tiendas con eventos ni etiquetadas para {game} por ahora.', cancelledWord: 'CANCELADO', fullWord: 'LLENO',
       repeatsWord: 'se repite', storeApprovedLine: '{name} — aprobada. Código para seguir:', buildWord: 'Versión',
-      eventsDecksCount: '{events} eventos · {decks} mazos', getPairingsCta: 'Consigue Pairings — código para seguir: {code}',
+      eventsDecksCount: '{events} eventos · {decks} mazos', getPairingsCta: 'Seguir en Pairings (gratis) · código {code}', alreadyFollowingStore: 'Ya sigues a {name}.',
       feeExample: 'p. ej. $10, o Gratis', feeDetailExample: 'p. ej. $10 de entrada, +$5 por un bye, premios en efectivo al top 4',
       entryCostOptional: 'Costo de entrada (opcional), p. ej. $10',
       xCouldNotSaveYourIds: 'No se pudieron guardar tus IDs', xCouldNotProcessThatImage: 'No se pudo procesar esa imagen',
@@ -965,7 +977,7 @@
       xCouldNotLoadGoogleSign: 'No se pudo cargar el inicio de sesión de Google',
       xGoogleSignInWasCancelled: 'Se canceló el inicio de sesión con Google', xGoogleCalendarConnected: 'Google Calendar conectado',
       xCouldNotConnectGoogleCalendar: 'No se pudo conectar Google Calendar', xSyncedToGoogleCalendar: 'Sincronizado con Google Calendar',
-      xCouldNotSyncToGoogle: 'No se pudo sincronizar con Google Calendar', xPrivacyPolicy: 'Política de privacidad (en inglés)', xTermsOfUse: 'Términos de uso (en inglés)', agreeTermsBefore: 'Al crear una cuenta aceptas los', agreeTermsAnd: 'y la',
+      xCouldNotSyncToGoogle: 'No se pudo sincronizar con Google Calendar', xPrivacyPolicy: 'Política de privacidad', xTermsOfUse: 'Términos de uso', agreeTermsBefore: 'Al crear una cuenta aceptas los', agreeTermsAnd: 'y la',
       xEnterAnEmailAndPassword: 'Escribe un correo y una contraseña',
       xCheckYourEmailToConfirm: 'Revisa tu correo para confirmar tu cuenta y luego inicia sesión.', xSomethingWentWrong: 'Algo salió mal',
       xFromAStoreYouFollow: '🏪 De una tienda que sigues', xCancelled: '⚠️ CANCELADO', xFull: '🈵 LLENO', xDecklist: '📋 Lista del mazo ↗',
@@ -1053,6 +1065,10 @@
       xManage: 'Administrar', xYourStores: 'Tus tiendas', xAddAnotherStore: 'Agregar otra tienda', xTimeEG630: 'Hora, p. ej. 6:30 PM',
       xFormatOptional: 'Formato (opcional)', xCapacityOptional: 'Cupo (opcional)', xPrizingOptional: 'Premios (opcional)', xEdit2: '✏️ Editar',
       xDuplicate: '📋 Duplicar', xNoEventsPublishedYet: 'Todavía no hay eventos publicados.', xAllYourStores: '← Todas tus tiendas',
+      posterBtn: 'Imprimir póster', posterTitle: 'Sigue nuestros eventos en Pairings', posterScan: 'Recibe nuestros eventos en tu teléfono',
+      posterCodeLabel: 'Código para seguir:', posterStep1: 'Escanea el código con la cámara de tu teléfono.', posterStep2: 'Toca "Seguir en Pairings" en nuestra página e inicia sesión. Es gratis.',
+      posterStep3: 'Nuestros eventos aparecen solos en tu calendario, con recordatorios.', posterPrint: 'Imprimir',
+      posterBlocked: 'Tu navegador bloqueó la ventana del póster. Permite ventanas emergentes para este sitio e inténtalo de nuevo.', posterFailed: 'No se pudo crear el código QR. Revisa tu conexión e inténtalo de nuevo.',
       xCopyPublicPageLink: 'Copiar enlace de la página pública', xOpenTurnzeroToStartA: '⏱ Abrir TurnZero para iniciar un temporizador de ronda ↗',
       xGamesYouRegularlyRun: 'Juegos que organizas con regularidad',
       xHelpsPeopleFindYouIn: 'Ayuda a que te encuentren en Explorar incluso en una semana tranquila sin nada publicado.', xSaveGames: 'Guardar juegos',
@@ -1686,6 +1702,7 @@
     deferredInstallPrompt = e;
   });
   async function handleInstallClick(){
+    trackFeature('install_app');
     if(deferredInstallPrompt){
       deferredInstallPrompt.prompt();
       const choice = await deferredInstallPrompt.userChoice;
@@ -1720,6 +1737,16 @@
 
   let pendingShareCode = null;
   let pendingPlaygroupCode = null;
+  const PENDING_FOLLOW_KEY = 'pairings-pending-follow';
+  function takePendingFollow(){
+    try{
+      const raw = localStorage.getItem(PENDING_FOLLOW_KEY);
+      if(!raw) return null;
+      localStorage.removeItem(PENDING_FOLLOW_KEY);
+      const p = JSON.parse(raw);
+      return p && p.code && Date.now() - p.at < 24*3600*1000 ? p.code : null;
+    }catch(_){ return null; }
+  }
   (function captureShareParam(){
     const params = new URLSearchParams(window.location.search);
     const code = params.get('share');
@@ -1729,6 +1756,18 @@
       url.searchParams.delete('share');
       window.history.replaceState({}, '', url.toString());
     }
+    // ?follow=<store follow code> (the public store page's button, and the store poster's QR
+    // via that page): kept on the device for a day so it survives signing up, where the
+    // confirmation email opens a fresh tab without it. Followed once signed in.
+    const fc = params.get('follow');
+    if(fc){
+      if(/^[A-Za-z0-9]{3,16}$/.test(fc)){
+        try{ localStorage.setItem(PENDING_FOLLOW_KEY, JSON.stringify({ code: fc.toUpperCase(), at: Date.now() })); }catch(_){}
+      }
+      const url3 = new URL(window.location.href);
+      url3.searchParams.delete('follow');
+      window.history.replaceState({}, '', url3.toString());
+    }
     const pg = params.get('joinpg');
     if(pg){
       pendingPlaygroupCode = pg.toUpperCase();
@@ -1737,6 +1776,17 @@
       window.history.replaceState({}, '', url2.toString());
     }
   })();
+
+  // ---------- Feature counts ----------
+  // Anonymous usage counts: track_feature (master-schema.sql) adds 1 to today's count for an
+  // allowlisted feature name. No user id is stored. Fire-and-forget: it never waits, never
+  // shows an error, and does nothing before the SQL has been run or when signed out.
+  function trackFeature(name){
+    try{
+      if(!session || !supabaseClient) return;
+      Promise.resolve(supabaseClient.rpc('track_feature', { p_feature: name })).then(()=>{}, ()=>{});
+    }catch(_){}
+  }
 
   // ---------- Riftbound events (playriftbound.com) ----------
   // Riot's event site replaced locator.riftbound.uvsgames.com in September 2026.
@@ -2235,6 +2285,87 @@
   // qrcodejs is only needed on the store-owner page, so load it (pinned +
   // SRI-checked) the first time it's asked for instead of on every page view.
   let qrLibPromise = null;
+  // A printable counter poster for a store: its name, a big QR code to its public Pairings
+  // page (?storepage=<follow code>), the follow code and three steps. Main text in the app's
+  // language, a short line in the other one. The window is opened straight from the click
+  // (so pop-up blockers allow it) and filled in once the QR code is drawn.
+  // Follows an approved store by its follow code (the Stores screen's box, and ?follow= links).
+  // Returns true when the user now follows it (including if they already did).
+  async function followStoreByCode(code){
+    code = String(code || '').trim().toUpperCase();
+    try{
+      const { data: s, error } = await supabaseClient.from('stores').select('*').eq('follow_code', code).eq('approved', true).maybeSingle();
+      if(error || !s){ showToast(tr('xNoStoreFoundWithThat')); return false; }
+      const { error: insErr } = await supabaseClient.from('store_follows').insert({ user_id: session.user.id, store_id: s.id });
+      if(insErr && insErr.code !== '23505'){ showToast(tr('xCouldNotFollowYouMay')); return false; }
+      showToast(insErr ? trf('alreadyFollowingStore', { name: s.name }) : tr('xNowFollowing') + ' ' + s.name);
+      await syncFollowedStoreEvents();
+      render();
+      return true;
+    }catch(e){ showToast(tr('xCouldNotFollowYouMay')); return false; }
+  }
+
+  // Styles for the printed store poster (kept out of the page template).
+  const POSTER_CSS = [
+    '@page{ size:auto; margin:12mm; }',
+    '*{ box-sizing:border-box; }',
+    "body{ margin:0; font-family:'Segoe UI',Helvetica,Arial,sans-serif; color:#1b1730; background:#fff; }",
+    '.poster{ max-width:720px; margin:0 auto; padding:28px 24px; text-align:center; }',
+    '.brand{ display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:18px; }',
+    '.brand img{ width:56px; height:56px; border-radius:12px; }',
+    '.brand span{ font-size:34px; font-weight:800; color:#6d28d9; letter-spacing:-0.5px; }',
+    'h1{ font-size:40px; line-height:1.15; margin:0 0 6px; }',
+    '.other{ font-size:18px; color:#5a5374; margin:0 0 22px; }',
+    '.store{ font-size:28px; font-weight:700; margin:0 0 20px; }',
+    '.qr{ width:78%; max-width:420px; border:10px solid #fff; outline:3px solid #6d28d9; border-radius:16px; }',
+    '.scan{ font-size:22px; font-weight:600; margin:18px 0 4px; }',
+    '.code{ font-size:18px; color:#5a5374; margin:0 0 24px; }',
+    '.code b{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:24px; color:#1b1730; letter-spacing:2px; }',
+    'ol{ text-align:left; display:inline-block; font-size:18px; line-height:1.7; margin:0 0 20px; padding-left:24px; }',
+    '.url{ font-size:13px; color:#5a5374; word-break:break-all; }',
+    '.print{ margin:20px auto 0; padding:12px 28px; font-size:16px; font-weight:700; color:#fff; background:#6d28d9; border:0; border-radius:10px; cursor:pointer; }',
+    '@media print{ .print{ display:none; } }'
+  ].join('\n');
+  // Prints the poster once its images have loaded.
+  const POSTER_PRINT_JS = "window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 300); });";
+  function printStorePoster(store){
+    trackFeature('store_poster');
+    const win = window.open('', '_blank');
+    if(!win){ showToast(tr('posterBlocked')); return; }
+    win.document.write('<!doctype html><title>Pairings</title><p style="font-family:sans-serif;padding:24px;">' + escapeHtml(tr('loadingDots')) + '</p>');
+    const url = `${baseAppUrl()}?storepage=${encodeURIComponent(store.follow_code)}`;
+    const other = currentLang === 'es' ? 'en' : 'es';
+    const t2 = key => (TRANSLATIONS[other] && TRANSLATIONS[other][key]) || '';
+    loadQrLib().then(()=>{
+      const box = document.createElement('div');
+      new QRCode(box, { text: url, width: 720, height: 720, correctLevel: QRCode.CorrectLevel.H });
+      const canvas = box.querySelector('canvas');
+      const qr = canvas ? canvas.toDataURL('image/png') : ((box.querySelector('img') || {}).src || '');
+      const html = `<!doctype html>
+<html lang="${currentLang}"><head><meta charset="utf-8"><title>${escapeHtml(store.name)}</title>
+<style>${POSTER_CSS}</style></head>
+<body><div class="poster">
+  <div class="brand"><img src="${escapeAttr(baseAppUrl())}icon-192.png" alt=""><span>Pairings</span></div>
+  <h1>${escapeHtml(tr('posterTitle'))}</h1>
+  <p class="other">${escapeHtml(t2('posterTitle'))}</p>
+  <p class="store">${escapeHtml(store.name)}</p>
+  <img class="qr" src="${qr}" alt="${escapeAttr(url)}">
+  <p class="scan">${escapeHtml(tr('posterScan'))}</p>
+  <p class="code">${escapeHtml(tr('posterCodeLabel'))} <b>${escapeHtml(store.follow_code)}</b></p>
+  <ol>
+    <li>${escapeHtml(tr('posterStep1'))}</li>
+    <li>${escapeHtml(tr('posterStep2'))}</li>
+    <li>${escapeHtml(tr('posterStep3'))}</li>
+  </ol>
+  <div class="url">${escapeHtml(url)}</div>
+  <button class="print" onclick="window.print()">${escapeHtml(tr('posterPrint'))}</button>
+</div>
+<scr${''}ipt>${POSTER_PRINT_JS}</scr${''}ipt>
+</body></html>`;
+      win.document.open(); win.document.write(html); win.document.close();
+    }).catch(()=>{ try{ win.close(); }catch(_){} showToast(tr('posterFailed')); });
+  }
+
   function loadQrLib(){
     if(window.QRCode) return Promise.resolve();
     if(!qrLibPromise){
@@ -3572,6 +3703,37 @@
   // ============================================================
   // RENDER: AUTH SCREEN
   // ============================================================
+  // Free stand-in for Supabase's paid "leaked password protection": checks a new password
+  // against Have I Been Pwned's breached-password list with its k-anonymity API. Only the
+  // first 5 characters of the password's SHA-1 are sent (padded responses, so even the size
+  // of the answer says nothing); the match happens on the device. If the service can't be
+  // reached, the password is allowed, so an outage never blocks sign-up.
+  async function isBreachedPassword(pw){
+    try{
+      if(!window.crypto || !crypto.subtle) return false;
+      const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(pw));
+      const hex = [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+      const res = await fetch('https://api.pwnedpasswords.com/range/' + hex.slice(0,5), { headers: { 'Add-Padding': 'true' } });
+      if(!res.ok) return false;
+      const suffix = hex.slice(5);
+      return (await res.text()).split('\n').some(line => {
+        const [h, count] = line.trim().split(':');
+        return h === suffix && Number(count) > 0;   // padding rows have a count of 0
+      });
+    }catch(_){ return false; }
+  }
+  // Shared rules for any new password: at least 8 characters, and not from a known breach.
+  async function newPasswordProblem(pw){
+    if(pw.length < 8) return tr('passwordTooShort');
+    if(await isBreachedPassword(pw)) return tr('passwordBreached');
+    return null;
+  }
+
+  // privacy.html / terms.html, or their Spanish versions (privacy-es.html / terms-es.html).
+  function legalPageUrl(page){
+    return window.location.origin + window.location.pathname + page + (currentLang === 'es' ? '-es' : '') + '.html';
+  }
+
   function renderAuth(mode){
     mode = mode || 'signin';
     app.innerHTML = `
@@ -3582,7 +3744,7 @@
           <div class="field"><label>${tr('email')}</label><input id="a_email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
           <div class="field"><label>${tr('password')}</label><input id="a_password" type="password" placeholder="••••••••" autocomplete="${mode==='signin'?'current-password':'new-password'}"/></div>
           ${mode==='signin' ? `<div class="auth-toggle" style="margin:-4px 0 12px;text-align:right;"><a id="forgotPw">${tr('forgotPassword')}</a></div>` : ''}
-          ${mode==='signin' ? '' : `<div class="hint" style="margin:-4px 0 10px;">${tr('agreeTermsBefore')} <a href="${window.location.origin + window.location.pathname}terms.html" target="_blank" rel="noopener" style="color:var(--teal);">${tr('xTermsOfUse')}</a> ${tr('agreeTermsAnd')} <a href="${window.location.origin + window.location.pathname}privacy.html" target="_blank" rel="noopener" style="color:var(--teal);">${tr('xPrivacyPolicy')}</a>.</div>`}
+          ${mode==='signin' ? '' : `<div class="hint" style="margin:-4px 0 10px;">${tr('agreeTermsBefore')} <a href="${legalPageUrl('terms')}" target="_blank" rel="noopener" style="color:var(--teal);">${tr('xTermsOfUse')}</a> ${tr('agreeTermsAnd')} <a href="${legalPageUrl('privacy')}" target="_blank" rel="noopener" style="color:var(--teal);">${tr('xPrivacyPolicy')}</a>.</div>`}
           <button class="btn-primary" id="a_submit" style="width:100%;">${mode==='signin'?tr('signin'):tr('signup')}</button>
           <div class="auth-toggle">${mode==='signin' ? `${tr('newHere')} <a id="toSignup">${tr('signup')}</a>` : `${tr('alreadyHave')} <a id="toSignin">${tr('signin')}</a>`}</div>
           <div style="text-align:center;margin-top:16px;">
@@ -3590,9 +3752,9 @@
             <button class="chip ${currentLang==='es'?'active':''}" id="authLangEs" type="button">Español</button>
           </div>
           <div style="text-align:center;margin-top:14px;">
-            <a href="${window.location.origin + window.location.pathname}privacy.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xPrivacyPolicy')}</a>
+            <a href="${legalPageUrl('privacy')}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xPrivacyPolicy')}</a>
             <span style="color:var(--text-dim);font-size:12px;"> · </span>
-            <a href="${window.location.origin + window.location.pathname}terms.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xTermsOfUse')}</a>
+            <a href="${legalPageUrl('terms')}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xTermsOfUse')}</a>
           </div>
         </div>
       </div>`;
@@ -3607,6 +3769,8 @@
           const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
           if(error){ showToast(error.message); return; }
         } else {
+          const problem = await newPasswordProblem(password);
+          if(problem){ showToast(problem); return; }
           const { data, error } = await supabaseClient.auth.signUp({ email, password });
           if(error){ showToast(error.message); return; }
           if(!data.session){ showToast(tr('xCheckYourEmailToConfirm')); renderAuth('signin'); return; }
@@ -3648,9 +3812,10 @@
     btn.onclick = async ()=>{
       const pw = document.getElementById('np_password').value;
       const pw2 = document.getElementById('np_confirm').value;
-      if(pw.length < 8){ showToast(tr('passwordTooShort')); return; }
       if(pw !== pw2){ showToast(tr('passwordsDontMatch')); return; }
       btn.disabled = true;
+      const problem = await newPasswordProblem(pw);
+      if(problem){ showToast(problem); btn.disabled = false; return; }
       try{
         const { error } = await supabaseClient.auth.updateUser({ password: pw });
         if(error){ showToast(error.message); btn.disabled = false; return; }
@@ -4064,6 +4229,7 @@
         set('#f_link', ev.link, true);
         set('#f_storelink', ev.storeLink);
         if(ev.lat != null && ev.lng != null) fetchedPlace = { address: ev.address, lat: ev.lat, lng: ev.lng };
+        trackFeature(wizardsId ? 'link_magic' : bandaiId ? 'link_onepiece' : 'link_riftbound');
         showToast(tr('xFilledWhatWeCouldFind'));
       }catch(e){ showToast(tr('xCouldNotFetchThatPage')); }
       finally{ btn.disabled = false; btn.textContent = tr('fetchDetails'); }
@@ -4416,6 +4582,7 @@
       else if(r.deck) resultObj.deck = r.deck; // keep old free-text entry if you didn't switch it to a tracked deck
       if(markInProgress) resultObj.inProgress = true;
       setOcc(t, date, { result: resultObj });
+      trackFeature(opts.draft ? 'quick_log' : 'result_logged');
       if(opts.draft && !tournaments.includes(t)) tournaments.push(t);
       await saveTournaments();
       // A deck you made here (not from Brewhouse, which keeps its own) remembers the leader you
@@ -6121,15 +6288,7 @@
       body.querySelector('#followCodeBtn').onclick = async ()=>{
         const code = body.querySelector('#followCodeInput').value.trim().toUpperCase();
         if(!code){ showToast(tr('xEnterACode')); return; }
-        try{
-          const { data: s, error } = await supabaseClient.from('stores').select('*').eq('follow_code', code).eq('approved', true).maybeSingle();
-          if(error || !s){ showToast(tr('xNoStoreFoundWithThat')); return; }
-          await supabaseClient.from('store_follows').insert({ user_id: session.user.id, store_id: s.id });
-          showToast(tr('xNowFollowing') + s.name);
-          await syncFollowedStoreEvents();
-          render();
-          runSearch(body.querySelector('#storeSearch').value, currentGame());
-        }catch(e){ showToast(tr('xCouldNotFollowYouMay')); }
+        if(await followStoreByCode(code)) runSearch(body.querySelector('#storeSearch').value, currentGame());
       };
     }
 
@@ -6265,6 +6424,7 @@
             <div class="share-link" style="margin-bottom:14px;">${baseAppUrl()}?storepage=${myStore.follow_code}</div>
             <div id="storeQrHolder" style="display:flex;justify-content:center;margin-bottom:14px;background:#fff;padding:10px;border-radius:12px;width:fit-content;"></div>
             <button class="mini-btn" id="copyPublicLinkBtn" style="margin-bottom:14px;">${tr('xCopyPublicPageLink')}</button>
+            <button class="mini-btn" id="printPosterBtn" style="margin-bottom:14px;margin-left:6px;">🖨 ${tr('posterBtn')}</button>
             <a class="mini-btn" href="${TURNZERO_URL}" target="_blank" rel="noopener" style="display:inline-block;margin-bottom:14px;margin-left:6px;text-decoration:none;">${tr('xOpenTurnzeroToStartA')}</a>
 
             <div class="section-label">${tr('xGamesYouRegularlyRun')}</div>
@@ -6300,6 +6460,7 @@
 
           overlay.querySelector('#closeStores').onclick = ()=>overlay.remove();
           body.querySelector('#backToStoreList').onclick = ()=>drawStoreList();
+          body.querySelector('#printPosterBtn').onclick = ()=>printStorePoster(myStore);
           body.querySelector('#copyPublicLinkBtn').onclick = ()=>{
             const ok = copyText(`${baseAppUrl()}?storepage=${myStore.follow_code}`);
             showToast(ok?tr('xLinkCopied'):tr('xCouldNotCopy'));
@@ -6646,8 +6807,29 @@
 
             ${weeks.length ? `<div class="section-label">Signups per week</div>${weekBars}` : ''}
 
+            <div class="section-label">Feature use (last 30 days)</div>
+            <div id="adminFeatureCounts"><div class="modal-sub">Loading…</div></div>
+
             <div class="modal-sub" style="margin-top:10px;font-size:11px;">Generated ${new Date(m.generated_at).toLocaleString()}</div>
           `;
+          // Anonymous feature counts (track_feature). Separate call: older databases don't have it yet.
+          const FEATURE_LABELS = {
+            finder_riftbound: 'Riftbound finder opened', finder_onepiece: 'One Piece finder opened', finder_magic: 'Magic finder opened', finder_pokemon: 'Pokémon finder opened',
+            finder_add_riftbound: 'Added from Riftbound finder', finder_add_onepiece: 'Added from One Piece finder', finder_add_magic: 'Added from Magic finder', finder_add_pokemon: 'Added from Pokémon finder',
+            link_riftbound: 'Riftbound link pasted', link_onepiece: 'Bandai TCG+ link pasted', link_magic: 'Wizards link pasted',
+            result_logged: 'Results logged', quick_log: 'Stats → Log a result', result_card_share: 'Result cards shared', result_card_save: 'Result cards saved',
+            theme_change: 'Theme changed', store_poster: 'Store posters printed', share_list: 'Share my list opened', install_app: 'Install app tapped'
+          };
+          const fcEl = el.querySelector('#adminFeatureCounts');
+          try{
+            const { data: fc, error: fcErr } = await supabaseClient.rpc('admin_feature_counts', { p_days: 30 });
+            if(fcErr) throw fcErr;
+            fcEl.innerHTML = (fc && fc.length)
+              ? fc.map(r => row(FEATURE_LABELS[r.feature] || r.feature, r.total, r.last_7_days + ' in the last 7 days')).join('')
+              : `<div class="modal-sub">Nothing counted yet.</div>`;
+          }catch(_){
+            fcEl.innerHTML = `<div class="modal-sub">Feature counts need the feature_counts block of master-schema.sql.</div>`;
+          }
         }catch(err){
           el.innerHTML = `<div class="modal-sub">Couldn't load metrics — check that the analytics migration has been run.</div>`;
         }
@@ -7246,6 +7428,7 @@
       const a = document.createElement('a');
       a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      trackFeature('result_card_save');
     };
     overlay.querySelector('#cardSave').onclick = save;
     const shareBtn = overlay.querySelector('#cardShare');
@@ -7254,7 +7437,7 @@
       if(!blob){ showToast(tr('cardFailed')); return; }
       const file = new File([blob], fileName, { type: 'image/png' });
       if(navigator.canShare && navigator.canShare({ files: [file] })){
-        try{ await navigator.share({ files: [file], title: data.name }); }
+        try{ await navigator.share({ files: [file], title: data.name }); trackFeature('result_card_share'); }
         catch(e){ if(e && e.name !== 'AbortError') save(); }
       } else {
         // Desktop browsers mostly can't share files: save it instead.
@@ -7324,6 +7507,7 @@
     if(meta) meta.setAttribute('content', THEME_BG[t]);
   }
   function setTheme(id){
+    if(id !== savedTheme()) trackFeature('theme_change');
     try{ localStorage.setItem('pairings-theme', id); }catch(_){}
     applyTheme(id);
   }
@@ -7449,7 +7633,7 @@
   // (the small grey details line) }, and next is the cursor for "Show more" or null.
   function riftboundFinderSource(){
     return {
-      icon: '🌀', title: tr('rbTitle'), intro: tr('rbIntro'), none: km => trf('rbNone', { km }),
+      key: 'riftbound', icon: '🌀', title: tr('rbTitle'), intro: tr('rbIntro'), none: km => trf('rbNone', { km }),
       loadFailed: tr('rbLoadFailed'), siteLabel: 'playriftbound.com', siteUrl: riftboundEventsUrl(),
       async load(km, cursor){
         const p = await callRiftboundEvents({ near: { lat: profile.home_lat, lng: profile.home_lng, km, after: cursor || undefined } });
@@ -7470,7 +7654,7 @@
   function onePieceFinderSource(){
     const PAGE = 100;
     return {
-      icon: '🏴‍☠️', title: tr('opTitle'), intro: tr('opIntro'), none: km => trf('opNone', { km }),
+      key: 'onepiece', icon: '🏴‍☠️', title: tr('opTitle'), intro: tr('opIntro'), none: km => trf('opNone', { km }),
       loadFailed: tr('opLoadFailed'), siteLabel: 'Bandai TCG+', siteUrl: BANDAI_WEB + '/event',
       async load(km, cursor){
         const offset = cursor || 0;
@@ -7499,7 +7683,7 @@
   function magicFinderSource(){
     const PAGE = 100;
     return {
-      icon: '🧙', title: tr('mtgTitle'), intro: tr('mtgIntro'), none: km => trf('mtgNone', { km }),
+      key: 'magic', icon: '🧙', title: tr('mtgTitle'), intro: tr('mtgIntro'), none: km => trf('mtgNone', { km }),
       loadFailed: tr('mtgLoadFailed'), siteLabel: 'Wizards Store & Event Locator', siteUrl: WIZARDS_WEB + '/',
       async load(km, cursor){
         const page = cursor || 0;
@@ -7533,6 +7717,7 @@
   }
 
   function openEventFinderModal(src){
+    trackFeature('finder_' + src.key);
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `<div class="modal"><h2>${src.icon} ${escapeHtml(src.title)}</h2><div id="efBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
@@ -7623,6 +7808,7 @@
           tournaments.push(ev);
           await saveTournaments();
           render();
+          trackFeature('finder_add_' + src.key);
           showToast(tr('xAddedToYourCalendar'));
           btn.textContent = tr('xAdded'); btn.disabled = true;
         };
@@ -7632,6 +7818,7 @@
   }
 
   async function openPokedataModal(){
+    trackFeature('finder_pokemon');
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `<div class="modal"><h2>⚡ ${tr('pokeTitle')}</h2><div id="pokeBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
@@ -7717,6 +7904,7 @@
             notes:'', rsvp:null, result:null, occurrences:{},
             lat: e.latitude, lng: e.longitude, googleEventId:null
           });
+          trackFeature('finder_add_pokemon');
           await saveTournaments();
           render();
           showToast(tr('xAddedToYourCalendar'));
@@ -7823,9 +8011,10 @@
     save.onclick = async ()=>{
       const pw = overlay.querySelector('#cp_password').value;
       const pw2 = overlay.querySelector('#cp_confirm').value;
-      if(pw.length < 8){ showToast(tr('passwordTooShort')); return; }
       if(pw !== pw2){ showToast(tr('passwordsDontMatch')); return; }
       save.disabled = true;
+      const problem = await newPasswordProblem(pw);
+      if(problem){ showToast(problem); save.disabled = false; return; }
       try{
         const { error } = await supabaseClient.auth.updateUser({ password: pw });
         if(error){
@@ -8009,9 +8198,9 @@
         </div>
         ${safeUrl(DONATION_URL) ? `<div style="text-align:center;margin-top:16px;"><a href="${safeHref(DONATION_URL)}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('supportProject')}</a></div>` : ''}
         <div style="text-align:center;margin-top:12px;">
-          <a href="${baseAppUrl()}privacy.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xPrivacyPolicy')}</a>
+          <a href="${legalPageUrl('privacy')}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xPrivacyPolicy')}</a>
           <span style="color:var(--text-dim);font-size:12px;"> · </span>
-          <a href="${baseAppUrl()}terms.html" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xTermsOfUse')}</a>
+          <a href="${legalPageUrl('terms')}" target="_blank" rel="noopener" style="color:var(--text-dim);font-size:12px;text-decoration:underline;">${tr('xTermsOfUse')}</a>
           <span style="color:var(--text-dim);font-size:12px;"> · </span>
           <button id="deleteAccountBtn" style="background:none;border:none;color:var(--rose);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;font-family:inherit;">${tr('deleteAccount')}</button>
         </div>
@@ -8331,6 +8520,7 @@
 
   // ---------- Share modal ----------
   function openShareModal(){
+    trackFeature('share_list');
     const today = todayStr();
     const upcomingInstances = buildInstances().filter(i=>i.date >= today).sort((a,b)=>a.date.localeCompare(b.date));
     const overlay = document.createElement('div');
@@ -8600,6 +8790,8 @@
       render();
       ensureTimezoneSaved();
       refreshBrewhouseDecksQuietly();
+      const followCode = takePendingFollow();
+      if(followCode) await followStoreByCode(followCode);
       if(pendingPlaygroupCode){
         const pgCode = pendingPlaygroupCode;
         pendingPlaygroupCode = null;
@@ -8717,7 +8909,7 @@
           ${rows || `<div class="modal-sub" style="text-align:center;">${tr('xNoUpcomingEventsPostedRight')}</div>`}
           <div class="empty-state" style="margin-top:24px;">
             <div>${tr('xWantTheseEventsToShow')}</div>
-            <div style="margin-top:12px;"><a href="${baseAppUrl()}" class="btn-primary" style="display:inline-block;text-decoration:none;padding:12px 22px;border-radius:10px;">${trf('getPairingsCta', { code: escapeHtml(store.follow_code) })}</a></div>
+            <div style="margin-top:12px;"><a href="${baseAppUrl()}?follow=${encodeURIComponent(store.follow_code)}" class="btn-primary" style="display:inline-block;text-decoration:none;padding:12px 22px;border-radius:10px;">${trf('getPairingsCta', { code: escapeHtml(store.follow_code) })}</a></div>
           </div>
         </div>`;
     }catch(e){
