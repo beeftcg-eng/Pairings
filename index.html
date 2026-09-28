@@ -4,6 +4,19 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Pairings — TCG Tournament Tracker</title>
+<!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
+     so this is the same card for every link to the site. og-image.png is 1200×630. -->
+<meta name="description" content="Find TCG locals near you, log your results and see who's going. Riftbound, One Piece, Pokémon and more."/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Pairings"/>
+<meta property="og:title" content="Pairings — TCG Tournament Tracker"/>
+<meta property="og:description" content="Find TCG locals near you, log your results and see who's going. Riftbound, One Piece, Pokémon and more."/>
+<meta property="og:url" content="https://pairings-coral.vercel.app/"/>
+<meta property="og:image" content="https://pairings-coral.vercel.app/og-image.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="Pairings, your TCG tournament tracker"/>
+<meta name="twitter:card" content="summary_large_image"/>
 
 <link rel="manifest" href="/manifest.json"/>
 <meta name="theme-color" content="#100e1a"/>
@@ -334,7 +347,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.20.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.21.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -714,6 +727,13 @@
       // Account modal
       displayName: 'Display name', username: 'Username', homeCity: 'Home city (used to match "near you" notifications)',
       useMyLocation: '📍 Use my location', saveProfile: 'Save profile', googleCalendar: 'Google Calendar',
+      cardTitle: 'Result card', cardSub: 'An image of this result to post on Discord, Instagram or anywhere else.',
+      cardSave: 'Save image', cardShare: 'Share', cardSavedInstead: 'Image saved. Post it from your downloads.',
+      cardFailed: "Couldn't make the image on this device.", cardShareLink: 'Share result',
+      cardPickTitle: 'Share a result', cardPickSub: 'Pick any result you have logged to make an image of it.',
+      cardNoResults: 'No finished results yet. Log one first.', cardShareFor: 'Result card for {name}',
+      cardDeck: 'Deck', cardRounds: 'Rounds', cardRoundShort: 'R', cardVs: 'vs', cardW: 'WIN', cardL: 'LOSS', cardD: 'DRAW',
+      cardMoreRounds: '+{n} more rounds',
       themeMenu: 'Theme', themeTitle: 'Theme', themeSub: 'Pick the colours for Pairings on this device.',
       themeAuto: 'Auto (follows your device)', themeRift: 'Rift (default)', themeOcean: 'Ocean', themeEmber: 'Ember',
       themeForest: 'Forest', themeMidnight: 'Midnight (pure black)', themeDaylight: 'Light',
@@ -1123,6 +1143,13 @@
       // Account modal
       displayName: 'Nombre para mostrar', username: 'Nombre de usuario', homeCity: 'Ciudad (para notificaciones "cerca de ti")',
       useMyLocation: '📍 Usar mi ubicación', saveProfile: 'Guardar perfil', googleCalendar: 'Google Calendar',
+      cardTitle: 'Tarjeta de resultado', cardSub: 'Una imagen de este resultado para publicar en Discord, Instagram o donde quieras.',
+      cardSave: 'Guardar imagen', cardShare: 'Compartir', cardSavedInstead: 'Imagen guardada. Publícala desde tus descargas.',
+      cardFailed: 'No se pudo crear la imagen en este dispositivo.', cardShareLink: 'Compartir resultado',
+      cardPickTitle: 'Compartir un resultado', cardPickSub: 'Elige cualquier resultado que hayas registrado para crear su imagen.',
+      cardNoResults: 'Todavía no hay resultados terminados. Registra uno primero.', cardShareFor: 'Tarjeta de resultado de {name}',
+      cardDeck: 'Mazo', cardRounds: 'Rondas', cardRoundShort: 'R', cardVs: 'vs', cardW: 'VICTORIA', cardL: 'DERROTA', cardD: 'EMPATE',
+      cardMoreRounds: '+{n} rondas más',
       themeMenu: 'Tema', themeTitle: 'Tema', themeSub: 'Elige los colores de Pairings en este dispositivo.',
       themeAuto: 'Automático (según tu dispositivo)', themeRift: 'Grieta (predeterminado)', themeOcean: 'Océano', themeEmber: 'Brasa',
       themeForest: 'Bosque', themeMidnight: 'Medianoche (negro puro)', themeDaylight: 'Claro',
@@ -3676,6 +3703,7 @@
               ${safeUrl(t.simulatorLink) ? `<a class="card-link" href="${safeHref(t.simulatorLink)}" target="_blank" rel="noopener">${tr('xJoinOnline')}</a>` : ''}
               ${t.contactInfo ? `<span class="card-link" style="cursor:default;">✉ ${escapeHtml(t.contactInfo)}</span>` : ''}
               <a class="card-link" href="${escapeAttr(turnZeroUrlFor(t))}" target="_blank" rel="noopener">${tr('xStartARoundTimer')}</a>
+              ${isPast && isShareableResult(inst.result) ? `<a class="card-link gold" href="#" data-action="resultcard" data-id="${t.id}" data-date="${date}">📸 ${tr('cardShareLink')}</a>` : ''}
               <a class="card-link" href="#" data-action="shareevent" data-id="${t.id}" data-date="${date}">${tr('shareWithFriend')}</a>
               <a class="card-link" href="#" data-action="inviteevent" data-id="${t.id}" data-date="${date}">${tr('inviteFriend')}</a>
               <a class="card-link gold" href="${gcalQuickLink(t,date)}" target="_blank" rel="noopener">${tr('addToGCal')}</a>
@@ -3748,6 +3776,12 @@
     app.querySelectorAll('.rsvp-btn').forEach(b=>b.onclick=()=>toggleRsvp(b.dataset.id,b.dataset.date,b.dataset.rsvp));
     app.querySelectorAll('[data-action="logresult"]').forEach(b=>b.onclick=()=>openResultModal(b.dataset.id,b.dataset.date));
     app.querySelectorAll('[data-action="gsync"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) syncEventToGoogle(t, b.dataset.date); });
+    app.querySelectorAll('[data-action="resultcard"]').forEach(b=>b.onclick=(e)=>{
+      e.preventDefault();
+      const t = tournaments.find(x=>x.id===b.dataset.id);
+      const occ = t && getOcc(t, b.dataset.date);
+      if(occ && occ.result) openResultCardModal(t, b.dataset.date, occ.result);
+    });
     app.querySelectorAll('[data-action="shareevent"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) shareEventLink(t, b.dataset.date); });
     app.querySelectorAll('[data-action="inviteevent"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) openInviteModal(t, b.dataset.date); });
     app.querySelectorAll('[data-action="downloadics"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) downloadIcs(t, b.dataset.date); });
@@ -4642,6 +4676,7 @@
           <button class="btn-primary" id="quickLogFromStats" style="flex:1;">${tr('quickLogBtn')}</button>
           <button class="btn-secondary" id="openDecksFromStats" style="flex:1;">${tr('manageDecks')}</button>
         </div>
+        ${allLoggedResults().some(r => isShareableResult(r.result)) ? `<div class="modal-actions" style="margin-top:8px;"><button class="btn-secondary" id="shareResultFromStats" style="flex:1;">📸 ${tr('cardPickTitle')}</button></div>` : ''}
 
         ${s.timeline.length ? `<div class="section-label">${tr('winRateByMonth')}</div>${trendChartHtml(s.timeline)}` : ''}
         ${s.streaks.events ? `<div class="section-label">${tr('streaks')}</div>${streaksHtml(s.streaks)}` : ''}
@@ -4659,6 +4694,8 @@
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeStats').onclick = ()=>overlay.remove();
     overlay.querySelector('#openDecksFromStats').onclick = ()=>{ overlay.remove(); openDecksModal(); };
+    const shareRes = overlay.querySelector('#shareResultFromStats');
+    if(shareRes) shareRes.onclick = openResultPickerModal;
     wireQuickLog();
     overlay.querySelectorAll('[data-game-details]').forEach(b=>{
       b.onclick = ()=>{ overlay.remove(); openGameStatsModal(b.dataset.gameDetails, tournaments, decks, 'Your'); };
@@ -6914,6 +6951,240 @@
     const dLat = toRad(lat2-lat1), dLng = toRad(lng2-lng1);
     const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
     return 2*R*Math.asin(Math.sqrt(a));
+  }
+
+  // ---------- Result cards ----------
+  // A shareable 1080×1350 image of one finished result (Instagram feed size; fine in
+  // Discord and stories too), drawn on a canvas in the current theme's colours, with a
+  // small link to the app at the bottom. Works for any past result, recurring or not,
+  // from before this feature existed too: it only reads what the result form saves.
+  const CARD_W = 1080, CARD_H = 1350;
+
+  // Every finished result, newest first (all history, not just the Past tab's window).
+  function allLoggedResults(){
+    const today = todayStr(), out = [];
+    tournaments.forEach(t=>{
+      if(!isRepeating(t)){
+        if(t.result && t.date) out.push({ t, date: t.date, result: t.result });
+      } else {
+        Object.entries(t.occurrences || {}).forEach(([date, o])=>{ if(o && o.result && !o.skip) out.push({ t, date, result: o.result }); });
+      }
+    });
+    return out.filter(r => !r.result.inProgress && r.date <= today).sort((a,b)=> b.date.localeCompare(a.date));
+  }
+  function isShareableResult(result){
+    return !!(result && !result.inProgress && (result.placement || result.record || (result.matches && result.matches.length)));
+  }
+  // Record as typed, else counted from the rounds ("3-1", "2-1-1").
+  function resultRecordText(result){
+    if(result.record) return String(result.record).trim();
+    const n = { W:0, L:0, D:0 };
+    (result.matches || []).forEach(m=>{ if(n[m.outcome] != null) n[m.outcome]++; });
+    if(!n.W && !n.L && !n.D) return '';
+    return n.W + '-' + n.L + (n.D ? '-' + n.D : '');
+  }
+  function resultCardData(t, date, result){
+    const deck = result.deckId ? decks.find(d=>d.id===result.deckId) : null;
+    return {
+      game: t.game || '', icon: t.game ? gameIcon(t.game) : '🎴',
+      name: t.name || tr('untitledEvent'), where: [t.store, t.city].filter(Boolean).join(' · '),
+      date: new Date(date + 'T00:00:00').toLocaleDateString(dateLocale(), { weekday:'short', month:'short', day:'numeric', year:'numeric' }),
+      placement: String(result.placement || '').trim(), record: resultRecordText(result),
+      deck: deck ? deck.name : (result.deck || ''),
+      leader: String(result.leader || (deck ? deckLeaderName(deck) : '') || '').trim(),
+      matches: (result.matches || []).filter(m => m.opponent || m.outcome),
+    };
+  }
+
+  function drawResultCard(canvas, d){
+    canvas.width = CARD_W; canvas.height = CARD_H;
+    const ctx = canvas.getContext('2d');
+    const css = getComputedStyle(document.documentElement);
+    const v = name => (css.getPropertyValue('--' + name) || '').trim();
+    const C = { bg: v('void') || '#100e1a', panel: v('panel-2') || '#1f1b33', line: v('line') || '#2c2745',
+      text: v('text') || '#eeeaf7', dim: v('text-dim') || '#a49bc4', accent: v('rift-2') || '#c084fc',
+      teal: v('teal') || '#2dd9c1', rose: v('rose') || '#f0678a', amber: v('amber') || '#f5b656', rift: v('rift') || '#8b5cf6' };
+    const HEAD = "'Space Grotesk', 'Inter', sans-serif", BODY = "'Inter', sans-serif";
+    const P = 84, maxW = CARD_W - P * 2;
+
+    // Background with the app's two soft glows.
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, CARD_W, CARD_H);
+    const glow = (x, y, r, color, a)=>{
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      ctx.globalAlpha = a; g.addColorStop(0, color); g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, CARD_W, CARD_H); ctx.globalAlpha = 1;
+    };
+    glow(120, -60, 820, C.rift, 0.30);
+    glow(CARD_W + 60, CARD_H + 60, 760, C.teal, 0.16);
+
+    const fit = (text, font, width)=>{   // one line, shortened with … if needed
+      ctx.font = font; let s = String(text);
+      if(ctx.measureText(s).width <= width) return s;
+      while(s.length > 1 && ctx.measureText(s + '…').width > width) s = s.slice(0, -1);
+      return s.trimEnd() + '…';
+    };
+    const wrap = (text, font, width, maxLines)=>{
+      ctx.font = font; const words = String(text).split(/\s+/); const lines = []; let line = '';
+      words.forEach(w=>{ const tryLine = line ? line + ' ' + w : w; if(ctx.measureText(tryLine).width <= width || !line) line = tryLine; else { lines.push(line); line = w; } });
+      if(line) lines.push(line);
+      if(lines.length > maxLines){ lines.length = maxLines; lines[maxLines-1] = fit(lines[maxLines-1] + ' …', font, width); }
+      return lines.map(l => fit(l, font, width));
+    };
+
+    let y = P + 10;
+    // Game and date.
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = C.dim; ctx.font = `600 34px ${BODY}`;
+    ctx.fillText(fit((d.icon ? d.icon + '  ' : '') + d.game, `600 34px ${BODY}`, maxW * 0.55), P, y + 30);
+    ctx.textAlign = 'right'; ctx.font = `500 32px ${BODY}`; ctx.fillText(d.date, CARD_W - P, y + 30); ctx.textAlign = 'left';
+    y += 150;
+
+    // Event name and place.
+    ctx.fillStyle = C.text;
+    wrap(d.name, `700 76px ${HEAD}`, maxW, 2).forEach(l=>{ ctx.font = `700 76px ${HEAD}`; ctx.fillText(l, P, y); y += 88; });
+    if(d.where){ ctx.fillStyle = C.dim; ctx.font = `500 36px ${BODY}`; ctx.fillText(fit(d.where, ctx.font, maxW), P, y); y += 20; }
+    y += 70;
+
+    // The result: placement big in the accent gradient, record beside or below it.
+    const big = d.placement || d.record;
+    const small = d.placement ? d.record : '';
+    if(big){
+      const bigFont = `700 ${big.length > 7 ? 120 : 170}px ${HEAD}`;
+      ctx.font = bigFont;
+      const bigText = fit(big, bigFont, maxW);
+      const bw = ctx.measureText(bigText).width;
+      const g = ctx.createLinearGradient(P, 0, P + Math.max(bw, 1), 0);
+      g.addColorStop(0, C.accent); g.addColorStop(1, C.teal);
+      ctx.fillStyle = g; ctx.fillText(bigText, P, y + 130);
+      if(small){
+        ctx.font = `700 76px ${HEAD}`;
+        const sw = ctx.measureText(small).width;
+        ctx.fillStyle = C.text;
+        if(P + bw + 50 + sw <= CARD_W - P) ctx.fillText(small, P + bw + 50, y + 130);
+        else { y += 100; ctx.fillText(fit(small, ctx.font, maxW), P, y + 130); }
+      }
+      y += 200;
+    }
+
+    // Deck and leader.
+    const deckLine = [d.deck, d.leader && d.leader !== d.deck ? d.leader : ''].filter(Boolean).join(' · ');
+    if(deckLine){
+      ctx.fillStyle = C.dim; ctx.font = `600 30px ${BODY}`; ctx.fillText(tr('cardDeck').toUpperCase(), P, y); y += 50;
+      ctx.fillStyle = C.text; ctx.font = `600 44px ${BODY}`; ctx.fillText(fit(deckLine, ctx.font, maxW), P, y); y += 70;
+    }
+
+    // Rounds, as many as fit above the footer.
+    const footerTop = CARD_H - P - 40;
+    if(d.matches.length){
+      y += 10;
+      ctx.fillStyle = C.dim; ctx.font = `600 30px ${BODY}`; ctx.fillText(tr('cardRounds').toUpperCase(), P, y); y += 24;
+      const rowH = d.matches.length > 6 ? 58 : 66, room = Math.max(0, Math.floor((footerTop - 30 - y) / rowH));
+      const shown = d.matches.length > room ? d.matches.slice(0, Math.max(0, room - 1)) : d.matches;
+      const oc = { W: [C.teal, tr('cardW')], L: [C.rose, tr('cardL')], D: [C.amber, tr('cardD')] };
+      shown.forEach((m, i)=>{
+        const top = y + i * rowH;
+        ctx.fillStyle = C.panel; ctx.beginPath();
+        if(ctx.roundRect) ctx.roundRect(P, top, maxW, rowH - 12, 14); else ctx.rect(P, top, maxW, rowH - 12);
+        ctx.fill();
+        const mid = top + (rowH - 12) / 2 + 12;
+        ctx.fillStyle = C.dim; ctx.font = `600 30px ${BODY}`; ctx.fillText(tr('cardRoundShort') + (i + 1), P + 26, mid);
+        ctx.fillStyle = C.text; ctx.font = `500 34px ${BODY}`;
+        ctx.fillText(fit(m.opponent ? tr('cardVs') + ' ' + m.opponent : '—', ctx.font, maxW - 280), P + 110, mid);
+        if(oc[m.outcome]){ ctx.fillStyle = oc[m.outcome][0]; ctx.font = `700 34px ${HEAD}`; ctx.textAlign = 'right'; ctx.fillText(oc[m.outcome][1], CARD_W - P - 26, mid); ctx.textAlign = 'left'; }
+      });
+      if(shown.length < d.matches.length){
+        ctx.fillStyle = C.dim; ctx.font = `500 30px ${BODY}`;
+        ctx.fillText(trf('cardMoreRounds', { n: d.matches.length - shown.length }), P + 26, y + shown.length * rowH + 30);
+      }
+    }
+
+    // Footer: a small, quiet link to the app.
+    const host = location.host.replace(/^www\./, '');
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = C.dim; ctx.font = `500 26px ${BODY}`; ctx.textAlign = 'right';
+    ctx.fillText('Pairings · ' + host, CARD_W - P, CARD_H - P + 20);
+    ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+  }
+
+  async function openResultCardModal(t, date, result){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>📸 ${tr('cardTitle')}</h2>
+        <div class="modal-sub">${tr('cardSub')}</div>
+        <canvas id="resultCanvas" role="img" aria-label="${escapeAttr(tr('cardTitle') + ': ' + (t.name || ''))}" style="width:100%;height:auto;border-radius:12px;border:1px solid var(--line);display:block;"></canvas>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="cardSave" style="flex:1;">⬇️ ${tr('cardSave')}</button>
+          <button class="btn-primary" id="cardShare" style="flex:1;">${tr('cardShare')}</button>
+        </div>
+        <div class="modal-actions" style="margin-top:0;"><button class="btn-secondary" id="cardClose" style="flex:1;">${tr('close')}</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#cardClose').onclick = ()=>overlay.remove();
+    const canvas = overlay.querySelector('#resultCanvas');
+    // The canvas needs the web fonts loaded, or it draws in a fallback font.
+    try{ if(document.fonts) await Promise.race([Promise.all([
+      document.fonts.load("700 76px 'Space Grotesk'"), document.fonts.load("600 34px 'Inter'"), document.fonts.load("500 34px 'Inter'")
+    ]), new Promise(r => setTimeout(r, 2500))]); }catch(_){}
+    const data = resultCardData(t, date, result);
+    try{ drawResultCard(canvas, data); }catch(e){ showToast(tr('cardFailed')); return; }
+
+    const fileName = ('pairings-' + (t.name || 'result') + '-' + date).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.png';
+    const toBlob = ()=> new Promise(res => { try{ canvas.toBlob(b => res(b), 'image/png'); }catch(_){ res(null); } });
+    const save = async ()=>{
+      const blob = await toBlob();
+      if(!blob){ showToast(tr('cardFailed')); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    };
+    overlay.querySelector('#cardSave').onclick = save;
+    const shareBtn = overlay.querySelector('#cardShare');
+    shareBtn.onclick = async ()=>{
+      const blob = await toBlob();
+      if(!blob){ showToast(tr('cardFailed')); return; }
+      const file = new File([blob], fileName, { type: 'image/png' });
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        try{ await navigator.share({ files: [file], title: data.name }); }
+        catch(e){ if(e && e.name !== 'AbortError') save(); }
+      } else {
+        // Desktop browsers mostly can't share files: save it instead.
+        await save();
+        showToast(tr('cardSavedInstead'));
+      }
+    };
+  }
+
+  // Stats → "Share a result": every finished result, so older events work too.
+  function openResultPickerModal(){
+    const list = allLoggedResults();
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>📸 ${tr('cardPickTitle')}</h2>
+        <div class="modal-sub">${tr('cardPickSub')}</div>
+        ${list.length ? list.map((r, i)=>`
+          <div class="result-row">
+            <div>
+              <div class="n">${escapeHtml(r.t.name || tr('untitledEvent'))}</div>
+              <div class="m">${fmtFriendly(r.date)}${r.t.store ? ' · ' + escapeHtml(r.t.store) : ''}${r.t.game ? ' · ' + escapeHtml(r.t.game) : ''}</div>
+            </div>
+            <button class="mini-btn" data-card="${i}" ${isShareableResult(r.result) ? '' : 'disabled'}>${escapeHtml([r.result.placement, resultRecordText(r.result)].filter(Boolean).join(' · ') || '—')} 📸</button>
+          </div>`).join('') : `<div class="modal-sub">${tr('cardNoResults')}</div>`}
+        <div class="modal-actions"><button class="btn-secondary" id="closeCardPick" style="flex:1;">${tr('close')}</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeCardPick').onclick = ()=>overlay.remove();
+    overlay.querySelectorAll('[data-card]').forEach(b=>{
+      const r = list[parseInt(b.dataset.card, 10)];
+      b.setAttribute('aria-label', trf('cardShareFor', { name: r.t.name || tr('untitledEvent') }));
+      b.onclick = ()=>openResultCardModal(r.t, r.date, r.result);
+    });
   }
 
   // ---------- Themes ----------
