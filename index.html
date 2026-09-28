@@ -286,7 +286,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.18.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.18.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -511,7 +511,6 @@
       xHttpsTheStoreSOwn: 'https://the store\'s own website or Facebook page',
       xARepeatingLocalShowsUp: 'A repeating local shows up every week/month automatically — RSVP and results are tracked per date.',
       xStreetCity: 'Street, city', xPasteARiftboundEventLink: 'Paste a Riftbound event link first', xFetching: 'Fetching…',
-      xCouldnTFindEventDetails: 'Couldn\'t find event details on that page — try pasting text instead',
       xFilledWhatWeCouldFind: 'Filled in the event details. Give them a quick check before saving.', xCouldNotFetchThatPage: 'Could not fetch that page',
       xPasteSomeEventTextFirst: 'Paste some event text first', xFilledWhatWeCouldFind2: 'Filled what we could find — double check before saving',
       xSaved: 'Saved', xAddedToYourCalendar: 'Added to your calendar', xBulkImportEvents: 'Bulk import events',
@@ -901,7 +900,7 @@
       xHttpsTheStoreSOwn: 'https://sitio web o página de Facebook de la tienda',
       xARepeatingLocalShowsUp: 'Un evento que se repite aparece automáticamente cada semana o mes — la asistencia y los resultados se registran por fecha.',
       xStreetCity: 'Calle, ciudad', xPasteARiftboundEventLink: 'Primero pega un enlace de un evento de Riftbound',
-      xFetching: 'Buscando…', xCouldnTFindEventDetails: 'No encontramos detalles del evento en esa página — prueba pegando el texto',
+      xFetching: 'Buscando…',
       xFilledWhatWeCouldFind: 'Completamos los detalles del evento. Revísalos antes de guardar.',
       xCouldNotFetchThatPage: 'No se pudo obtener esa página', xPasteSomeEventTextFirst: 'Primero pega el texto de un evento',
       xFilledWhatWeCouldFind2: 'Completamos lo que pudimos — revísalo antes de guardar', xSaved: 'Guardado',
@@ -1669,9 +1668,17 @@
   function riftboundDateTime(e){
     const d = new Date(e.startsAt);
     if(!e.startsAt || isNaN(d)) return { date:'', time:'' };
-    return { date: dateToStr(d), time: d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' }) };
+    // Some browsers put a narrow no-break space before AM/PM; the reminder jobs cast
+    // date + ' ' + time to a timestamp in Postgres, which only accepts a plain space.
+    const time = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' }).replace(/[\u00a0\u202f]/g, ' ');
+    return { date: dateToStr(d), time };
   }
   function riftboundCity(e){ return [e.city, e.region].filter(Boolean).join(', '); }
+  // The function returns en-US links; open them in the app's language.
+  function riftboundEventLink(e){
+    const u = safeUrl(e.url) ? e.url : '';
+    return u.replace(/^https:\/\/playriftbound\.com\/en-US\//, 'https://playriftbound.com/' + riftboundSiteLocale() + '/');
+  }
   // A new personal event from a playriftbound.com event.
   function riftboundToEvent(e){
     const when = riftboundDateTime(e);
@@ -1679,7 +1686,7 @@
       id: uid(), name: e.name || 'Riftbound', game: 'Riftbound', store: e.store || '',
       date: when.date, time: when.time, repeat:'none', format: riftboundFormatName(e.format),
       fee: riftboundFee(e), address: e.address || '', city: riftboundCity(e),
-      link: safeUrl(e.url) ? e.url : '', storeLink: safeUrl(e.storeWebsite) ? e.storeWebsite : '',
+      link: riftboundEventLink(e), storeLink: safeUrl(e.storeWebsite) ? e.storeWebsite : '',
       notes:'', rsvp:null, result:null, occurrences:{},
       lat: typeof e.lat === 'number' ? e.lat : null, lng: typeof e.lng === 'number' ? e.lng : null, googleEventId:null
     };
@@ -3777,7 +3784,7 @@
         set('#f_format', ev.format, true);
         set('#f_fee', ev.fee);
         set('#f_game', 'Riftbound');
-        set('#f_link', ev.link);
+        set('#f_link', ev.link, true);
         set('#f_storelink', ev.storeLink);
         if(ev.lat != null && ev.lng != null) fetchedPlace = { address: ev.address, lat: ev.lat, lng: ev.lng };
         showToast(tr('xFilledWhatWeCouldFind'));
@@ -6895,7 +6902,7 @@
               <div class="m" style="font-size:11px;">${bits}</div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-              ${safeUrl(e.url)?`<a class="mini-btn" href="${safeHref(e.url)}" target="_blank" rel="noopener">${tr('pokeDetails')} ↗</a>`:''}
+              ${riftboundEventLink(e)?`<a class="mini-btn" href="${safeHref(riftboundEventLink(e))}" target="_blank" rel="noopener">${tr('pokeDetails')} ↗</a>`:''}
               <button class="mini-btn" data-rb-add="${i}">${tr('pokeAdd')}</button>
             </div>
           </div>`;
