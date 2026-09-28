@@ -26,7 +26,7 @@
 <body>
 
 <h1>Privacy Policy</h1>
-<div class="updated">Last updated: September 23, 2026</div>
+<div class="updated">Last updated: September 28, 2026</div>
 
 <p>
 This policy covers two apps built and operated by the same developer:
@@ -44,13 +44,19 @@ rights described below, contact:
   <strong>Email:</strong> <em>beeftcg@gmail.com</em>
 </div>
 
+<p>
+Using Pairings is also covered by the <a href="terms.html">Terms of Use</a>.
+</p>
+
 <h2>What information is collected</h2>
 
 <h3><span class="app-tag tag-pairings">Pairings</span>Account &amp; profile</h3>
 <ul>
   <li>Email address (used to sign in)</li>
   <li>Username and display name, if you set them</li>
-  <li>Home city, and its approximate coordinates if you provide it or use the "use my location" option — used only to match you with friends attending nearby events</li>
+  <li>A profile picture, if you upload one (it is publicly viewable by link, like most profile pictures)</li>
+  <li>Home city, and its approximate coordinates if you provide it or use the "use my location" option — used to match you with friends attending nearby events and to search for official events near you (see "Official event finders" below)</li>
+  <li>Player IDs you save on your Player Card (Bandai, Konami, Pokémon, Wizards and others) — visible only to you</li>
   <li>Preferred language and notification settings</li>
 </ul>
 
@@ -59,7 +65,16 @@ rights described below, contact:
   <li>Tournament/event entries you add (name, date, store, notes, links)</li>
   <li>Results you log (placement, record, round-by-round matches)</li>
   <li>Decks you create or import, including details copied from Beef's Brewhouse if you import a deck from it (deck name, game, format, legend or leader, colors, card count)</li>
-  <li>Friend connections (who you've added, and who's added you)</li>
+  <li>Friend connections (who you've added, and who's added you), and playgroups you create or join</li>
+  <li>Your RSVPs ("going", "maybe") and, if you scan a store's check-in QR code, the time you checked in</li>
+  <li>Stores you follow, and, if you run a store in Pairings, its details, events and announcements</li>
+</ul>
+
+<h3><span class="app-tag tag-pairings">Pairings</span>Stored on your own device</h3>
+<ul>
+  <li>A copy of your events and decks, so the app works without a connection and nothing is lost if the connection drops. It is removed when you sign out.</li>
+  <li>Your colour theme and a few display preferences. These never leave your device.</li>
+  <li>Result cards (the shareable images of a result) are drawn on your device. Nothing is uploaded unless you choose to share or save the image yourself.</li>
 </ul>
 
 <h3><span class="app-tag tag-pairings">Pairings</span>If you connect Beef's Brewhouse</h3>
@@ -71,6 +86,28 @@ rights described below, contact:
 <h3><span class="app-tag tag-pairings">Pairings</span>If you connect Google Calendar</h3>
 <ul>
   <li>An access token used only to create/update calendar events you explicitly ask to sync — we don't read your existing calendar</li>
+</ul>
+
+<h3><span class="app-tag tag-pairings">Pairings</span>Official event finders and event links</h3>
+<p>
+"Riftbound near you", "One Piece near you" and "Magic near you" look up official events near
+your home city on the game publishers' own event sites, and pasting an event link reads that
+one event from the same sites. Only what's needed for the search is sent: your home city's
+approximate coordinates and the search radius (or the event number from the link). Your name,
+email and account are never sent.
+</p>
+<ul>
+  <li><strong>Riftbound</strong> (Riot Games, playriftbound.com): the search goes through our own server, so Riot sees our server, not your device.</li>
+  <li><strong>One Piece</strong> (Bandai, Bandai TCG+) and <strong>Magic: The Gathering</strong> (Wizards of the Coast, Wizards Store &amp; Event Locator): your device asks their sites directly, so they also see your device's IP address, as with visiting their sites yourself.</li>
+  <li><strong>Pokémon</strong>: events come from a daily copy we keep of pokedata.ovh's public list. Your search stays within Pairings.</li>
+  <li>An event you add from a finder is saved like any event you add yourself. Those sites' own privacy policies apply to what they receive.</li>
+</ul>
+
+<h3><span class="app-tag tag-pairings">Pairings</span>Other services the app contacts</h3>
+<ul>
+  <li><strong>OpenStreetMap (Nominatim):</strong> when you type a home city or an event address, that text is sent to OpenStreetMap to find its coordinates.</li>
+  <li><strong>Card lists</strong> (riftcodex.com for Riftbound, optcgapi.com for One Piece): the app downloads the public list of leaders and legends to suggest names on the result form. Nothing about you is sent.</li>
+  <li><strong>TurnZero:</strong> "Start a round timer" opens TurnZero with the event's name and game filled in.</li>
 </ul>
 
 <h3><span class="app-tag tag-turnzero">TurnZero</span>What's collected</h3>
@@ -94,8 +131,10 @@ rights described below, contact:
 
 <h2>Who your information is shared with</h2>
 <ul>
-  <li><strong>Other users, within the app's own features:</strong> in Pairings, an accepted friend can see your "going" list, and — unless you turn this off in Account → Privacy — your event history, results, and decks. Someone you invite to an event, or who scans a Pairings share link/code, sees the specific event details you chose to share.</li>
-  <li><strong>Service providers who host and run the app:</strong> Supabase (database and backend), and Vercel or Netlify (web hosting). These providers process data on our behalf and don't use it for their own purposes.</li>
+  <li><strong>Other users, within the app's own features:</strong> in Pairings, an accepted friend can see your "going" list, and — unless you turn this off in Account → Privacy — your event history, results, and decks. Members of a playgroup you join see your username and are told when you're going to an event. Someone you invite to an event, or who opens a Pairings share link/code, sees the specific event details you chose to share (share codes expire after 30 days). Other users can see your username, display name and profile picture.</li>
+  <li><strong>Store owners:</strong> if you RSVP to or check in at an event run by a store on Pairings, that store's owner can see your username and your RSVP or check-in for their own events, and can download that list.</li>
+  <li><strong>Official event sites:</strong> your home city's approximate coordinates, as described under "Official event finders" above.</li>
+  <li><strong>Service providers who host and run the app:</strong> Supabase (database and backend) and Vercel (web hosting). These providers process data on our behalf and don't use it for their own purposes.</li>
   <li><strong>Google</strong>, only if you explicitly connect Google Calendar in Pairings.</li>
   <li><strong>Beef's Brewhouse</strong>, only if you connect it as described above; the data stays within your own accounts.</li>
   <li>We do not otherwise sell, rent, or share your information with third parties.</li>
@@ -104,9 +143,24 @@ rights described below, contact:
 <h2>Data retention and deletion</h2>
 <ul>
   <li><strong>Export:</strong> in Pairings, you can download a full copy of your data anytime from Account → "Export my data."</li>
-  <li><strong>Deletion:</strong> to delete your account and all associated data from either app, email the contact address above. We'll delete it within a reasonable time. (TurnZero timers age out naturally since they aren't tied to any account; you can also just stop using a given timer.)</li>
-  <li>We retain data for as long as your account is active, or as needed to provide the service.</li>
+  <li><strong>Deletion:</strong> see "Delete your Pairings account" below. (TurnZero timers age out naturally since they aren't tied to any account; you can also just stop using a given timer.)</li>
+  <li>We retain data for as long as your account is active, or as needed to provide the service. Share codes are removed after 30 days, and records of events or decks you deleted are kept for 60 days so the deletion reaches all your devices.</li>
 </ul>
+
+<h2 id="delete-account">Delete your Pairings account</h2>
+<p>You can delete your account and its data at any time, in either of these ways:</p>
+<ul>
+  <li><strong>In the app:</strong> open ☰ → Account and tap <strong>"Delete my account"</strong> at the bottom. For your protection this only works if you signed in within the last 30 minutes; if it's been longer, the app asks you to sign out and back in first.</li>
+  <li><strong>By email:</strong> write to <em>beeftcg@gmail.com</em> from the address you sign in with and ask us to delete your account. We'll do it within 30 days and confirm by email.</li>
+</ul>
+<p>
+Deleting your account permanently removes your profile, profile picture, events, results,
+decks, player IDs, friends, playgroup memberships, RSVPs and check-ins, notifications and push
+subscriptions, and any Google Calendar connection. Stores you own (with their events) and playgroups
+you created are removed too. This can't be undone, so export your data first (Account → "Export my data") if you want a
+copy. Events you already added to your own Google Calendar stay there, and results you shared
+as images stay wherever you posted them.
+</p>
 
 <h2>Children's privacy</h2>
 <p>
