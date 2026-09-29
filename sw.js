@@ -5,8 +5,10 @@
 // Bump this when the list of cached files changes; old caches are deleted
 // on activate. (Page/script updates don't need a bump — see the fetch
 // handler: online loads always try the network first.)
-const CACHE = 'pairings-shell-v1';
-const SHELL = ['/', '/config.js', '/manifest.json', '/icon-192.png', '/icon-512.png', '/favicon-32.png', '/apple-touch-icon.png'];
+// supabase.js (the Supabase client library) and i18n.js (every on-screen string) are
+// hosted here rather than on a CDN, so the app can start with no connection at all.
+const CACHE = 'pairings-shell-v2';
+const SHELL = ['/', '/config.js', '/supabase.js', '/i18n.js', '/manifest.json', '/icon-192.png', '/icon-512.png', '/favicon-32.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
   // allSettled: one missing file must not make the whole install fail.
