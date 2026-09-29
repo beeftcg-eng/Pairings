@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-X5rlc5muM90pzrd+TEijpB0h+iQBw89rehCsohQSJ4Y=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-qn5Yd+57DAvKj37IlJntp8YcMGXSttcKUnCWbsTWegA=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -347,12 +347,12 @@
   updated pairings.html, you just drop it in and config.js stays untouched.
   ============================================================
 -->
-<!-- supabase.js is supabase-js 2.116.0 (dist/umd/supabase.js from jsdelivr), hosted next to
+<!-- supabase.js is supabase-js 2.117.2 (dist/umd/supabase.js from jsdelivr), hosted next to
      this file so the service worker can cache it and the app starts with no connection.
      The integrity hash pins the exact file. To upgrade: download the new version over
      supabase.js, then regenerate the hash with
      openssl dgst -sha384 -binary supabase.js | openssl base64 -A -->
-<script src="/supabase.js" integrity="sha384-iLddHTLokph6Omwoyid4XKxHaWa6w41BnoEj0q5oOrzmYPpHIKt1wyjReA7s//pP"></script>
+<script src="/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
 <script src="/config.js"></script>
 <script src="/i18n.js"></script>
 <script>
@@ -363,7 +363,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.24.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.25.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -978,6 +978,52 @@
       Promise.resolve(supabaseClient.rpc('track_feature', { p_feature: name })).then(()=>{}, ()=>{});
     }catch(_){}
   }
+
+  // ---------- Error reports ----------
+  // Uncaught errors go to report_client_error (master-schema.sql) and show up in the Admin
+  // dashboard: the app version, the message and where it happened, nothing about the user.
+  // Emails, ids and long numbers are scrubbed first (the server does it again). Each distinct
+  // error is sent once per page load, at most 5 per load. Skipped: errors from other scripts
+  // (browser extensions, "Script error."), and network failures, which are the connection, not
+  // a bug. Fire-and-forget like trackFeature; works signed out too.
+  const reportedErrors = new Set();
+  function scrubErrorText(s, max){
+    return String(s == null ? '' : s)
+      .replace(/[^\s@<>"']+@[^\s@<>"']+\.[A-Za-z]{2,}/g, '<email>')
+      .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<id>')
+      .replace(/https?:\/\/[^\s)]+/g, u => u.split(/[?#]/)[0].replace(location.origin, ''))   // no query strings (share codes); our own URLs shortened
+      .replace(/[0-9]{5,}/g, '<n>')
+      .trim().slice(0, max);
+  }
+  function reportClientError(message, where){
+    try{
+      const m = scrubErrorText(message, 300), w = scrubErrorText(where, 200);
+      if(!m || /^(Uncaught )?(Script error\.?|ResizeObserver loop)/i.test(m)) return;
+      if(/Failed to fetch|NetworkError|Load failed|network (error|connection)|timed? ?out/i.test(m)) return;
+      const key = m + '|' + w;
+      if(reportedErrors.has(key) || reportedErrors.size >= 5) return;
+      reportedErrors.add(key);
+      Promise.resolve(supabaseClient.rpc('report_client_error', { p_version: APP_VERSION, p_message: m, p_where: w })).then(()=>{}, ()=>{});
+    }catch(_){}
+  }
+  // "where": the first stack line that is this page (a function name and line), else the line.
+  function errorWhere(err, fallback){
+    const frames = String((err && err.stack) || '').split('\n').map(l => l.trim()).filter(l => /^at |@/.test(l));
+    const ours = frames.find(l => l.includes(location.origin)) || frames[0] || '';
+    return ours.replace(/^at /, '') || fallback || '';
+  }
+  window.addEventListener('error', e => {
+    if(!e || !e.message) return;   // a failed image or script load, not a code error
+    if(e.filename && !e.filename.startsWith(location.origin)) return;   // an extension or another site's script
+    reportClientError(e.message, errorWhere(e.error, e.lineno ? `line ${e.lineno}:${e.colno}` : ''));
+  });
+  window.addEventListener('unhandledrejection', e => {
+    const r = e && e.reason;
+    if(r == null) return;
+    const msg = typeof r === 'string' ? r : (r.message || (r.code ? 'code ' + r.code : ''));
+    if(!msg) return;
+    reportClientError('Unhandled promise: ' + msg, errorWhere(r, ''));
+  });
 
   // ---------- Riftbound events (playriftbound.com) ----------
   // Riot's event site replaced locator.riftbound.uvsgames.com in September 2026.
@@ -6005,6 +6051,9 @@
             <div class="section-label">Feature use (last 30 days)</div>
             <div id="adminFeatureCounts"><div class="modal-sub">Loading…</div></div>
 
+            <div class="section-label">Errors users hit (last 14 days)</div>
+            <div id="adminClientErrors"><div class="modal-sub">Loading…</div></div>
+
             <div class="modal-sub" style="margin-top:10px;font-size:11px;">Generated ${new Date(m.generated_at).toLocaleString()}</div>
           `;
           // Anonymous feature counts (track_feature). Separate call: older databases don't have it yet.
@@ -6024,6 +6073,18 @@
               : `<div class="modal-sub">Nothing counted yet.</div>`;
           }catch(_){
             fcEl.innerHTML = `<div class="modal-sub">Feature counts need the feature_counts block of master-schema.sql.</div>`;
+          }
+          // Anonymous error reports (report_client_error): newest first. The text came from users'
+          // browsers, so it is escaped like any other user data.
+          const ceEl = el.querySelector('#adminClientErrors');
+          try{
+            const { data: ce, error: ceErr } = await supabaseClient.rpc('admin_client_errors', { p_days: 14 });
+            if(ceErr) throw ceErr;
+            ceEl.innerHTML = (ce && ce.length)
+              ? ce.map(r => `<div class="result-row"><div style="min-width:0;"><div class="n" style="overflow-wrap:anywhere;">${escapeHtml(r.message)}</div><div class="m" style="overflow-wrap:anywhere;">${escapeHtml(r.location || '—')} · v${escapeHtml(r.app_version)} · last ${escapeHtml(new Date(r.last_seen).toLocaleString())}</div></div><div class="p">${Number(r.total) || 0}×</div></div>`).join('')
+              : `<div class="modal-sub">No errors reported. 🎉</div>`;
+          }catch(_){
+            ceEl.innerHTML = `<div class="modal-sub">Error reports need the client_errors block of master-schema.sql.</div>`;
           }
         }catch(err){
           el.innerHTML = `<div class="modal-sub">Couldn't load metrics — check that the analytics migration has been run.</div>`;
@@ -8060,7 +8121,12 @@
   async function renderPublicStorePage(idOrCode){
     app.innerHTML = `<div class="wrap"><div class="modal-sub" style="text-align:center;margin-top:60px;">${tr('loadingDots')}</div></div>`;
     try{
-      let { data: store } = await supabaseClient.from('stores').select('*').eq('id', idOrCode).eq('approved', true).maybeSingle();
+      // Old links carry the store's id, new ones its follow code; only an id-shaped value is looked
+      // up by id (a code there is a 400 "invalid input syntax for type uuid").
+      let store = null;
+      if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrCode || '')){
+        ({ data: store } = await supabaseClient.from('stores').select('*').eq('id', idOrCode).eq('approved', true).maybeSingle());
+      }
       if(!store){
         const res = await supabaseClient.from('stores').select('*').eq('follow_code', idOrCode.toUpperCase()).eq('approved', true).maybeSingle();
         store = res.data;
