@@ -7,8 +7,8 @@
 // handler: online loads always try the network first.)
 // supabase.js (the Supabase client library) and i18n.js (every on-screen string) are
 // hosted here rather than on a CDN, so the app can start with no connection at all.
-const CACHE = 'pairings-shell-v2';
-const SHELL = ['/', '/config.js', '/supabase.js', '/i18n.js', '/manifest.json', '/icon-192.png', '/icon-512.png', '/favicon-32.png', '/apple-touch-icon.png'];
+const CACHE = 'pairings-shell-v3';
+const SHELL = ['/', '/config.js', '/supabase.js', '/i18n.js', '/bracket.js', '/manifest.json', '/icon-192.png', '/icon-512.png', '/favicon-32.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
   // allSettled: one missing file must not make the whole install fail.
@@ -86,11 +86,13 @@ self.addEventListener('notificationclick', (event) => {
   // user to an arbitrary external site.
   let target = '/';
   let openName = '';
+  let bracketId = '';
   try {
     const u = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin);
     if (u.origin === self.location.origin) {
       target = u.pathname + u.search + u.hash;
       openName = u.searchParams.get('open') || '';   // e.g. /?open=notifications
+      bracketId = u.searchParams.get('bracket') || '';   // a bracket pairing: /?bracket=<id>
     }
   } catch (e) {}
   event.waitUntil(
@@ -100,6 +102,7 @@ self.addEventListener('notificationclick', (event) => {
           // The app is already open: tell it which screen to show (it only honours
           // names it knows), then bring it to the front.
           if (openName) client.postMessage({ type: 'open', name: openName });
+          if (bracketId) client.postMessage({ type: 'bracket', id: bracketId });
           return client.focus();
         }
       }

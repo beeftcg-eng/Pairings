@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-qn5Yd+57DAvKj37IlJntp8YcMGXSttcKUnCWbsTWegA=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-5n+WxKq451uWdw6MjBpYm+KH21y8e//xqOWH3nsWwOU=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -355,6 +355,9 @@
 <script src="/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
 <script src="/config.js"></script>
 <script src="/i18n.js"></script>
+<!-- bracket.js: the tournament bracket engine (Swiss pairings, tiebreakers, single elimination).
+     Optional: without it everything else works and Brackets says it couldn't load. -->
+<script src="/bracket.js"></script>
 <script>
 (function(){
   const CFG = window.PAIRINGS_CONFIG || {};
@@ -363,7 +366,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.25.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.28.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -430,6 +433,23 @@
       history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
     }
   }catch(e){}
+  // A bracket link: /?bracket=<id> (anyone), plus &p=<token> on a guest's own link. Only a UUID and a
+  // 32-hex token are accepted. The token leaves the address bar at once (it's kept on this device:
+  // see rememberBracketToken); the bracket id stays, so a refresh reopens the bracket.
+  let pendingBracket = null, pendingBracketToken = null;
+  try{
+    const qs = new URLSearchParams(window.location.search);
+    const id = qs.get('bracket');
+    if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '')){
+      pendingBracket = id.toLowerCase();
+      if(/^[0-9a-f]{32}$/.test(qs.get('p') || '')) pendingBracketToken = qs.get('p');
+    }
+    if(qs.has('p')){
+      qs.delete('p');
+      const rest = qs.toString();
+      history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+    }
+  }catch(e){}
   try{
     const qs = new URLSearchParams(window.location.search);
     if(qs.has('open')){
@@ -470,6 +490,9 @@
     event_soon:             { re: /^🎯 (.+) starts in about 2 hours!$/,                         key: 'notifEventSoon',      vars: ['event'] },
     playgroup_going:        { re: /^(.+) \(playgroup\) is going to (.+)$/,                     key: 'notifPlaygroupGoing', vars: ['name', 'event'] },
     playgroup_shared_event: { re: /^(.+?) shared an event with (.+?): (.+)$/,                  key: 'notifPlaygroupShared', vars: ['name', 'group', 'event'] },
+    bracket_pairing:        { re: /^Your next match in (.+): table (.+?) vs (.+)$/,            key: 'notifBracketPairing', vars: ['event', 'table', 'name'] },
+    bracket_bye:            { re: /^You have a bye this round in (.+)$/,                       key: 'notifBracketBye',     vars: ['event'] },
+    bracket_finished:       { re: /^(.+) has finished: add your results to your stats$/,       key: 'notifBracketFinished', vars: ['event'] },
   };
   function localizeNotification(n){
     const raw = (n && n.message) || '';
@@ -644,6 +667,7 @@
     { key: 'store_new_event', get label(){ return tr('prefStoreEvent'); } },
     { key: 'playgroup_going', get label(){ return tr('prefPlaygroupGoing'); } },
     { key: 'playgroup_shared_event', get label(){ return tr('prefPlaygroupShared'); } },
+    { key: 'bracket_round', get label(){ return tr('prefBracketRound'); } },
   ];
 
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
@@ -2407,6 +2431,11 @@
       navigator.serviceWorker.addEventListener('message', (ev)=>{
         const d = ev && ev.data;
         if(d && d.type === 'open' && isOpenTarget(d.name) && session && !bootstrapping) OPEN_TARGETS[d.name]();
+        // A bracket pairing push: open that bracket (an id only, checked like the ?bracket= link).
+        if(d && d.type === 'bracket' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(d.id || '') && session && !bootstrapping){
+          document.querySelectorAll('.overlay').forEach(o => o.remove());
+          openBracketViewModal(d.id.toLowerCase());
+        }
       });
     }
   }
@@ -3622,7 +3651,8 @@
     const t = opts.draft || tournaments.find(x=>x.id===id);
     if(!t) return;
     const occ = getOcc(t, date);
-    const r = occ.result || { placement:'', record:'', notes:'', deckId:'', deck:'', matches:[] };
+    // opts.prefill: a result to start from when there is none yet (a finished bracket's rounds).
+    const r = occ.result || opts.prefill || { placement:'', record:'', notes:'', deckId:'', deck:'', matches:[] };
     let matches = (r.matches || []).map(m=>({...m}));
     const leaderKey = leaderGameKey(t.game);
     const leaderOptionsHtml = list => (leaderKey ? leaderSuggestions(leaderKey, list) : opponentSuggestions(t.game)).map(l=>`<option value="${escapeAttr(l)}">`).join('');
@@ -3811,6 +3841,7 @@
       const leader = leaderInput ? leaderInput.value.trim() : (r.leader || '');
       const resultObj = { placement, record, notes, matches: cleanMatches };
       if(leader) resultObj.leader = leader;
+      if(r.bracketId) resultObj.bracketId = r.bracketId;   // came from a bracket: Brackets shows it as logged
       if(deckId) resultObj.deckId = deckId;
       if(deckId){
         const d = decks.find(x=>x.id===deckId);
@@ -3923,8 +3954,8 @@
         <div class="field">
           <label>${tr('addFriendLabel')}</label>
           <div class="hint" style="margin-bottom:6px;">${tr('addFriendHint')}</div>
-          <div style="display:flex;gap:8px;">
-            <input id="friendEmail" placeholder="${escapeAttr(tr('friendSearchPlaceholder'))}" style="flex:1;"/>
+          <div class="field" style="align-items:center;display:flex;gap:8px;">
+            <input id="friendEmail" placeholder="${escapeAttr(tr('friendSearchPlaceholder'))}" style="flex:1;min-width:0;"/>
             <button class="mini-btn" id="sendReqBtn">${tr('send')}</button>
           </div>
         </div>
@@ -3991,6 +4022,8 @@
           <button class="icon-btn" data-del-notif="${n.id}" title="${escapeAttr(tr('delete'))}" aria-label="${escapeAttr(tr('delete'))}" style="flex:none;">✕</button>
         </div>
         <div class="t">${new Date(n.created_at).toLocaleString(dateLocale())}</div>
+        ${n.bracket_id && /^bracket_/.test(n.type) ? `
+          <div class="rsvp-row" style="margin-top:8px;"><button class="rsvp-btn going" data-notif-bracket="${escapeAttr(n.bracket_id)}">🏆 ${tr('brOpenBracket')}</button></div>` : ''}
         ${isInvite && inviteStatus === 'pending' ? `
           <div class="rsvp-row" style="margin-top:8px;">
             <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">${tr('accept')}</button>
@@ -4030,6 +4063,7 @@
       overlay.remove();
       openNotificationsModal();
     });
+    overlay.querySelectorAll('[data-notif-bracket]').forEach(b=>b.onclick = ()=>{ overlay.remove(); openBracketViewModal(b.dataset.notifBracket); });
     overlay.querySelectorAll('[data-notif-accept-friend]').forEach(b=>b.onclick = async ()=>{
       b.disabled = true;
       await acceptFriend(b.dataset.notifAcceptFriend);
@@ -5072,8 +5106,8 @@
           </div>`).join('') : `<div class="modal-sub">${tr('xYouReNotInAny')}</div>`}
 
         <div class="section-label">${tr('xJoinWithACode')}</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px;">
-          <input id="pgJoinCode" placeholder="${escapeAttr(tr('codeExample'))}" style="flex:1;text-transform:uppercase;"/>
+        <div class="field" style="align-items:center;display:flex;gap:8px;margin-bottom:16px;">
+          <input id="pgJoinCode" placeholder="${escapeAttr(tr('codeExample'))}" style="flex:1;min-width:0;text-transform:uppercase;"/>
           <button class="mini-btn" id="pgJoinBtn">${tr('xJoin')}</button>
         </div>
 
@@ -5458,8 +5492,8 @@
         </div>
         <div id="storeResults"><div class="modal-sub">${tr('xLoadingStores')}</div></div>
         <div class="section-label">${tr('xFollowByCode')}</div>
-        <div style="display:flex;gap:8px;">
-          <input id="followCodeInput" placeholder="${escapeAttr(tr('codeExample'))}" style="flex:1;text-transform:uppercase;"/>
+        <div class="field" style="align-items:center;display:flex;gap:8px;">
+          <input id="followCodeInput" placeholder="${escapeAttr(tr('codeExample'))}" style="flex:1;min-width:0;text-transform:uppercase;"/>
           <button class="mini-btn" id="followCodeBtn">${tr('xFollow')}</button>
         </div>
         <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
@@ -5650,6 +5684,7 @@
               <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
                 ${going ? `<button class="mini-btn" data-view-attendees="${e.id}" data-event-name="${escapeAttr(e.name)}">${tr('xAttendees')}</button>` : ''}
                 <button class="mini-btn" data-qr-se="${e.id}">${tr('xCheckInQr')}</button>
+                <button class="mini-btn" data-bracket-se="${e.id}">🏆 ${tr('brRunBracket')}</button>
                 <button class="mini-btn" data-edit-se="${e.id}">${tr('xEdit2')}</button>
                 <button class="mini-btn" data-dup-se="${e.id}">${tr('xDuplicate')}</button>
                 <button class="mini-btn" data-cancel-se="${e.id}">${e.cancelled?tr('uncancel'):tr('cancel')}</button>
@@ -5682,8 +5717,8 @@
 
             <div class="section-label">${tr('xMessageYourFollowers')}</div>
             <div class="modal-sub" style="margin-bottom:8px;">${tr('xSeparateFromEventsForClosures')}</div>
-            <div style="display:flex;gap:8px;margin-bottom:12px;">
-              <input id="annMessage" placeholder="${escapeAttr(tr('xEGClosedThisFriday'))}" style="flex:1;"/>
+            <div class="field" style="display:flex;gap:8px;align-items:center;">
+              <input id="annMessage" placeholder="${escapeAttr(tr('xEGClosedThisFriday'))}" style="flex:1;min-width:0;"/>
               <button class="mini-btn" id="postAnnouncementBtn">${tr('xPost')}</button>
             </div>
             ${announcements.length ? announcements.map(a=>`
@@ -5753,6 +5788,16 @@
 
           body.querySelectorAll('[data-qr-se]').forEach(btn=>{
             btn.onclick = ()=>{ const ev = myEvents.find(x=>x.id===btn.dataset.qrSe); if(ev) openCheckinQrModal(ev); };
+          });
+          // A bracket for this event's next date (today, if it's on today).
+          body.querySelectorAll('[data-bracket-se]').forEach(btn=>{
+            btn.onclick = ()=>{
+              const ev = myEvents.find(x=>x.id===btn.dataset.bracketSe);
+              if(!ev) return;
+              const until = new Date(); until.setDate(until.getDate() + 120);
+              const next = getOccurrenceDates(ev, todayStr(), dateToStr(until)).filter(d=>d >= todayStr())[0] || ev.date;
+              openBracketsModal({ name: ev.name, game: ev.game, store_id: myStore.id, store_event_id: ev.id, occurrence_date: next });
+            };
           });
           body.querySelectorAll('[data-edit-se]').forEach(btn=>{
             btn.onclick = ()=>{
@@ -5862,11 +5907,818 @@
     renderBrowseTab();
   }
 
+  // ---------- Brackets (Swiss / single elimination, run by a store owner or an allowed user) ----------
+  // The engine is bracket.js (window.PairingsBracket): the organizer's device works out each round
+  // and saves it with save_bracket_round; the server checks it (master-schema.sql, Brackets). The
+  // screen is rebuilt from get_bracket, and while it is open it asks bracket_version every 15 s so
+  // results players report show up (only a number crosses the network until something changed).
+  const BRACKET_POLL_MS = 15000;
+  const BRACKET_TOP_CUTS = [2, 4, 8, 16];
+  const bracketEngine = () => window.PairingsBracket || null;
+  const bracketOpts = b => ({ bestOf: (b.settings || {}).bestOf === 1 ? 1 : 3, seed: b.seed });
+  const bracketPlayers = b => b.players.map(p => ({ id: p.id, name: p.name, dropped: p.dropped }));
+  const bracketStageMatches = (b, stage) => b.matches.filter(m => m.stage === stage);
+  const bracketSeeds = b => b.players.filter(p => p.seed != null).sort((x, y) => x.seed - y.seed).map(p => p.id);
+  const bracketHasResult = m => m.p2 == null || !!m.result;
+  function bracketStatusLabel(b){
+    if(b.status === 'swiss') return trf('brStatusSwiss', { n: b.current_round });
+    return tr({ registration: 'brStatusRegistration', top_cut: 'brStatusTopCut', finished: 'brStatusFinished', cancelled: 'brStatusCancelled' }[b.status] || 'brStatusRegistration');
+  }
+  const bracketPlayerCount = n => n === 1 ? tr('brPlayerCount1') : trf('brPlayerCount', { n });
+  function bracketFormatLabel(f){ return tr({ swiss: 'brFormatSwiss', swiss_top_cut: 'brFormatSwissTopCut', single_elim: 'brFormatSingleElim' }[f] || 'brFormatSwiss'); }
+  // "Final", "Semifinals", "Quarterfinals", or "Round of 16" for an elimination round.
+  function bracketElimRoundName(size, round){
+    const left = size / Math.pow(2, round - 1);
+    return left === 2 ? tr('brFinal') : left === 4 ? tr('brSemis') : left === 8 ? tr('brQuarters') : trf('brRoundOfN', { n: left });
+  }
+
+  // ---- shared by the organizer's screen and the player view ----
+  const bracketNameOf = (b, pid) => { const p = b.players.find(x => x.id === pid); return p ? p.name : '?'; };
+  // Every result a match can have, as picker options ({ v: 'p1:2:1', l: 'Bea 2-1' }). Elimination has no draws.
+  function bracketResultOptions(b, m){
+    const need = bracketEngine().winsNeeded(bracketOpts(b).bestOf), elim = m.stage === 'elim';
+    const o = [{ v: '', l: tr('brResultPick') }];
+    const wins = [];
+    for(let loser = 0; loser < need; loser++) wins.push([need, loser]);
+    if(need > 1) wins.push([1, 0]);   // a win on time
+    wins.forEach(([w, l]) => o.push({ v: `p1:${w}:${l}`, l: `${bracketNameOf(b, m.p1)} ${w}-${l}` }));
+    wins.forEach(([w, l]) => o.push({ v: `p2:${l}:${w}`, l: `${bracketNameOf(b, m.p2)} ${w}-${l}` }));
+    if(!elim){
+      if(need > 1) o.push({ v: 'draw:1:1', l: tr('brDraw') + ' 1-1' });
+      o.push({ v: 'draw:0:0', l: tr('brDraw') + (need > 1 ? ' 0-0' : '') });
+      o.push({ v: 'double_loss::', l: tr('brDoubleLoss') });
+    }
+    return o;
+  }
+  // The picker value for a result ({ result, p1Games, p2Games }: a match or one player's report).
+  function bracketResultValue(b, m){
+    if(!m || !m.result) return '';
+    if(m.result === 'double_loss') return 'double_loss::';
+    if(m.p1Games == null){
+      const need = bracketEngine().winsNeeded(bracketOpts(b).bestOf);
+      return m.result === 'p1' ? `p1:${need}:0` : m.result === 'p2' ? `p2:0:${need}` : (need > 1 ? 'draw:1:1' : 'draw:0:0');
+    }
+    return `${m.result}:${m.p1Games}:${m.p2Games}`;
+  }
+  const bracketResultLabel = (b, m, r) => { const v = bracketResultValue(b, r); const o = v && bracketResultOptions(b, m).find(x => x.v === v); return o ? o.l : ''; };
+  function bracketStatusBadge(m){
+    if(m.status === 'disputed') return `<span style="color:var(--rose);">⚠ ${tr('brDisputed')}</span>`;
+    if(m.status === 'reported') return `<span style="color:var(--text-dim);">${tr('brReported')}</span>`;
+    if(m.status === 'confirmed') return `<span style="color:var(--teal);">✓ ${tr('brConfirmed')}</span>`;
+    return '';
+  }
+  // One match as a list row; `editable` adds the organizer's result picker.
+  function bracketMatchRow(b, m, label, editable){
+    const nameOf = pid => bracketNameOf(b, pid);
+    if(m.p2 == null) return `<div class="list-item"><div class="info"><div class="n">${escapeHtml(nameOf(m.p1))}</div><div class="m">${tr('brBye')}</div></div></div>`;
+    const current = bracketResultValue(b, m);
+    const picker = editable ? `<div class="field" style="margin:0;flex:0 0 auto;max-width:150px;"><select data-result="${escapeAttr(m.id)}" aria-label="${escapeAttr(trf('brResultFor', { a: nameOf(m.p1), b: nameOf(m.p2) }))}" style="padding:7px 8px;">
+        ${bracketResultOptions(b, m).map(o=>`<option value="${escapeAttr(o.v)}" ${o.v === current ? 'selected' : ''}>${escapeHtml(o.l)}</option>`).join('')}
+      </select></div>` : '';
+    // Players who disagree: show what each of them reported, so the organizer can settle it.
+    const said = (pid, r) => { const l = r && bracketResultLabel(b, m, r); return l ? trf('brSays', { name: nameOf(pid), result: l }) : ''; };
+    const reports = m.status === 'disputed' ? [said(m.p1, m.p1_report), said(m.p2, m.p2_report)].filter(Boolean).join(' · ') : '';
+    const result = !editable && m.result ? bracketResultLabel(b, m, m) : '';
+    return `<div class="list-item">
+      <div class="info"><div class="n">${escapeHtml(nameOf(m.p1))} <span style="color:var(--text-dim);">${tr('brVs')}</span> ${escapeHtml(nameOf(m.p2))}</div>
+        <div class="m">${escapeHtml([label, result].filter(Boolean).join(' · '))}${bracketStatusBadge(m) ? ' · ' + bracketStatusBadge(m) : ''}</div>
+        ${reports ? `<div class="m">${escapeHtml(reports)}</div>` : ''}</div>
+      ${picker}
+    </div>`;
+  }
+  // The elimination bracket round by round: { e (bracket.js's view), cur (latest saved round), html }.
+  // rowFn(savedMatch, label, round, cur) draws a match that has been saved.
+  function bracketElimView(b, rowFn){
+    const nameOf = pid => bracketNameOf(b, pid);
+    const elim = bracketStageMatches(b, 'elim'), seeds = bracketSeeds(b);
+    const e = seeds.length ? bracketEngine().elimination(seeds, elim) : null;
+    const cur = Math.max(0, ...elim.map(m => m.round));
+    let html = '';
+    if(e){
+      const saved = (r, p1, p2) => elim.find(m => m.round === r && ((m.p1 === p1 && m.p2 === p2) || (m.p1 === p2 && m.p2 === p1)));
+      e.rounds.forEach((list, i) => {
+        const r = i + 1;
+        const rows = list.map(m => {
+          if(m.bye) return `<div class="list-item"><div class="info"><div class="n">${escapeHtml(nameOf(m.p1 || m.p2))}</div><div class="m">${tr('brBye')}</div></div></div>`;
+          const row = m.p1 && m.p2 ? saved(r, m.p1, m.p2) : null;
+          if(row) return rowFn(row, trf('brSeedVs', { a: seeds.indexOf(row.p1) + 1, b: seeds.indexOf(row.p2) + 1 }), r, cur);
+          return `<div class="list-item"><div class="info"><div class="n" style="color:var(--text-dim);">${escapeHtml(m.p1 ? nameOf(m.p1) : tr('brTbd'))} ${tr('brVs')} ${escapeHtml(m.p2 ? nameOf(m.p2) : tr('brTbd'))}</div></div></div>`;
+        }).join('');
+        html += `<div class="section-label">${escapeHtml(bracketElimRoundName(e.size, r))}</div>${rows}`;
+      });
+    }
+    return { e, cur, html };
+  }
+  // Swiss standings as list rows (meId's row is highlighted).
+  function bracketStandingsHtml(b, meId){
+    const rows = bracketEngine().standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), bracketOpts(b));
+    return `<div class="hint" style="margin-bottom:8px;">${tr('brTiebreakHint')}</div>
+      ${rows.map(r=>`
+        <div class="list-item"${r.id === meId ? ' style="border-color:var(--rift);"' : ''}>
+          <div class="info"><div class="n">${r.rank}. ${escapeHtml(r.name)}${r.dropped ? ` <span style="color:var(--text-dim);">(${tr('brDroppedShort')})</span>` : ''}</div>
+            <div class="m">${escapeHtml(trf('brRecord', { w: r.wins, l: r.losses, d: r.draws }))} · <span title="${escapeAttr(tr('brTiebreakTitle'))}">${escapeHtml(r.tiebreak)}</span></div></div>
+        </div>`).join('')}`;
+  }
+
+  // My brackets, and a form for a new one (prefill: from a store event's 🏆 button).
+  async function openBracketsModal(prefill){
+    prefill = prefill || {};
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>🏆 ${tr('brTitle')}</h2><div id="bracketsBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#bracketsBody');
+    const closeRow = `<div class="modal-actions"><button class="btn-secondary" id="closeBrackets" style="flex:1;">${tr('close')}</button></div>`;
+    const wireClose = () => { overlay.querySelector('#closeBrackets').onclick = ()=>overlay.remove(); };
+    if(!bracketEngine()){ body.innerHTML = `<div class="modal-sub">${tr('brEngineMissing')}</div>${closeRow}`; wireClose(); return; }
+
+    let allowed = false, mine = [], played = [];
+    try{
+      const [access, list, playedIn] = await Promise.all([
+        supabaseClient.rpc('can_run_brackets'),
+        supabaseClient.from('brackets').select('id, name, game, format, status, current_round, created_at').order('created_at', { ascending: false }).limit(30),
+        supabaseClient.rpc('my_brackets'),
+      ]);
+      if(list.error) throw list.error;
+      allowed = !access.error && access.data === true;
+      mine = list.data || [];
+      played = (!playedIn.error && Array.isArray(playedIn.data)) ? playedIn.data : [];
+    }catch(e){
+      body.innerHTML = `<div class="modal-sub">${tr('brCouldNotLoad')}</div>${closeRow}`; wireClose(); return;
+    }
+
+    const games = GAMES.includes(prefill.game) || !prefill.game ? GAMES : [prefill.game].concat(GAMES);
+    const form = allowed ? `
+      <div class="field">
+        <label for="br_name">${tr('brNewTitle')}</label>
+        <input id="br_name" maxlength="120" placeholder="${escapeAttr(tr('brNamePlaceholder'))}" value="${escapeAttr(prefill.name || '')}"/>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="br_game">${tr('brGame')}</label>
+          <select id="br_game">${games.map(g=>`<option value="${escapeAttr(g)}" ${g === prefill.game ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('')}</select></div>
+        <div class="field"><label for="br_format">${tr('brFormatLabel')}</label>
+          <select id="br_format">${['swiss', 'swiss_top_cut', 'single_elim'].map(f=>`<option value="${f}">${escapeHtml(bracketFormatLabel(f))}</option>`).join('')}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="br_bestof">${tr('brBestOfLabel')}</label>
+          <select id="br_bestof"><option value="3">${tr('brBestOf3')}</option><option value="1">${tr('brBestOf1')}</option></select></div>
+        <div class="field"><label for="br_rounds">${tr('brRoundsLabel')}</label>
+          <input id="br_rounds" type="number" min="1" max="20" placeholder="${escapeAttr(tr('brRoundsAuto'))}"/></div>
+      </div>
+      <div class="field" id="br_topcut_field" style="display:none;"><label for="br_topcut">${tr('brTopCutLabel')}</label>
+        <select id="br_topcut">${BRACKET_TOP_CUTS.map(n=>`<option value="${n}" ${n === 8 ? 'selected' : ''}>${escapeHtml(trf('brTopN', { n }))}</option>`).join('')}</select></div>
+      <div class="hint" style="margin-bottom:10px;">${tr('brTiebreakHint')}</div>
+      <button class="btn-primary" id="br_create" style="width:100%;">${tr('brCreate')}</button>`
+      : `<div class="modal-sub">${tr('brNotAllowed')}</div>`;
+
+    body.innerHTML = `${form}
+      ${allowed || mine.length ? `<div class="section-label">${tr('brYours')}</div>` : ''}
+      ${mine.length ? mine.map(x=>`
+        <div class="list-item">
+          <div class="info"><div class="n">${escapeHtml(x.name)}</div>
+            <div class="m">${escapeHtml([x.game, bracketFormatLabel(x.format), bracketStatusLabel(x)].filter(Boolean).join(' · '))}</div></div>
+          <button class="mini-btn" data-open-bracket="${escapeAttr(x.id)}">${tr('brOpen')}</button>
+        </div>`).join('') : allowed ? `<div class="modal-sub">${tr('brNoneYet')}</div>` : ''}
+      ${played.length ? `<div class="section-label">${tr('brPlayedIn')}</div>
+        ${played.map(x=>`
+        <div class="list-item">
+          <div class="info"><div class="n">${escapeHtml(x.name)}</div>
+            <div class="m">${escapeHtml([x.game, bracketStatusLabel(x), x.status === 'finished' && bracketResultLogged(x.id) ? tr('brInYourResults') : ''].filter(Boolean).join(' · '))}</div></div>
+          <button class="mini-btn" data-view-bracket="${escapeAttr(x.id)}">${tr('brOpen')}</button>
+        </div>`).join('')}` : ''}
+      ${closeRow}`;
+    wireClose();
+    body.querySelectorAll('[data-open-bracket]').forEach(btn=>{
+      btn.onclick = ()=>{ overlay.remove(); openBracketModal(btn.dataset.openBracket); };
+    });
+    body.querySelectorAll('[data-view-bracket]').forEach(btn=>{
+      btn.onclick = ()=>{ overlay.remove(); openBracketViewModal(btn.dataset.viewBracket); };
+    });
+    if(!allowed) return;
+
+    const fmt = body.querySelector('#br_format');
+    const rounds = body.querySelector('#br_rounds');
+    fmt.onchange = ()=>{
+      body.querySelector('#br_topcut_field').style.display = fmt.value === 'swiss_top_cut' ? '' : 'none';
+      rounds.disabled = fmt.value === 'single_elim';
+    };
+    body.querySelector('#br_create').onclick = async (e)=>{
+      const name = body.querySelector('#br_name').value.trim();
+      if(!name){ showToast(tr('brNameFirst')); return; }
+      const n = parseInt(rounds.value, 10);
+      const settings = { bestOf: body.querySelector('#br_bestof').value === '1' ? 1 : 3 };
+      if(fmt.value !== 'single_elim' && n >= 1 && n <= 20) settings.rounds = n;
+      if(fmt.value === 'swiss_top_cut') settings.topCut = parseInt(body.querySelector('#br_topcut').value, 10) || 8;
+      e.target.disabled = true;
+      const { data, error } = await supabaseClient.from('brackets').insert({
+        owner_id: session.user.id, name, game: body.querySelector('#br_game').value, format: fmt.value, settings,
+        store_id: prefill.store_id || null, store_event_id: prefill.store_event_id || null, occurrence_date: prefill.occurrence_date || null,
+      }).select('id').single();
+      if(error || !data){ e.target.disabled = false; showToast(tr('brCouldNotSave')); return; }
+      overlay.remove();
+      openBracketModal(data.id);
+    };
+  }
+
+  // One bracket, for its organizer: players, the current round, standings.
+  async function openBracketModal(id){
+    const B = bracketEngine();
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2 id="brHeading">🏆 ${tr('brTitle')}</h2><div id="bracketBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#bracketBody');
+    let b = null, tab = 'round', busy = false;
+
+    async function load(){
+      const { data, error } = await supabaseClient.rpc('get_bracket', { p_bracket: id });
+      if(error || !data) throw error || new Error('bracket not found');
+      b = data;
+      b.players = b.players || []; b.matches = b.matches || [];
+    }
+    // Runs one change, then reloads and redraws. Errors from the server become a toast.
+    async function act(fn){
+      if(busy) return;
+      busy = true;
+      try{ await fn(); }
+      catch(e){ console.error('bracket action failed:', e); showToast(tr('brCouldNotSave')); }
+      try{ await load(); }catch(e){ /* keep showing what we had */ }
+      busy = false;
+      draw();
+    }
+    const must = r => { if(r && r.error) throw r.error; return r; };
+
+    try{ await load(); }
+    catch(e){
+      body.innerHTML = `<div class="modal-sub">${tr('brCouldNotLoad')}</div><div class="modal-actions"><button class="btn-secondary" id="closeBracket" style="flex:1;">${tr('close')}</button></div>`;
+      body.querySelector('#closeBracket').onclick = ()=>overlay.remove();
+      return;
+    }
+    if(!B){ overlay.remove(); showToast(tr('brEngineMissing')); return; }
+
+    // Results players report arrive while the screen is open; skip a tick while the organizer is typing.
+    const timer = setInterval(async ()=>{
+      if(!document.body.contains(overlay)){ clearInterval(timer); return; }
+      const typing = overlay.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+      if(busy || typing || document.hidden) return;
+      try{
+        const { data } = await supabaseClient.rpc('bracket_version', { p_bracket: id });
+        if(data != null && data !== b.version){ await load(); draw(); }
+      }catch(e){ /* try again next tick */ }
+    }, BRACKET_POLL_MS);
+
+    const opts = () => bracketOpts(b);
+    const nameOf = pid => { const p = b.players.find(x => x.id === pid); return p ? p.name : '?'; };
+    const totalRounds = () => (b.settings || {}).rounds || B.recommendedRounds(b.players.filter(p => !p.dropped).length);
+    const running = () => b.status === 'swiss' || b.status === 'top_cut';
+
+    const matchRow = (m, label, editable) => bracketMatchRow(b, m, label, running() && editable !== false);
+
+    // ---- actions ----
+    function saveRound(stage, round, pairs){
+      return supabaseClient.rpc('save_bracket_round', { p_bracket: id, p_stage: stage, p_round: round, p_pairings: pairs.map(p => ({ p1: p.p1, p2: p.p2 == null ? null : p.p2, table: p.table == null ? null : p.table })) }).then(must);
+    }
+    async function pairSwissRound(round){
+      const pairs = B.pairSwiss(bracketPlayers(b), bracketStageMatches(b, 'swiss'), round, opts());
+      if(pairs.rematch && !confirm(tr('brRematchWarn'))) return;
+      if(round === 1 && !(b.settings || {}).rounds){
+        const settings = Object.assign({}, b.settings, { rounds: B.recommendedRounds(b.players.filter(p => !p.dropped).length) });
+        must(await supabaseClient.from('brackets').update({ settings }).eq('id', id));
+      }
+      await saveRound('swiss', round, pairs);
+    }
+    async function setSeeds(seeds){
+      const results = await Promise.all(b.players.map(p => {
+        const seed = seeds.indexOf(p.id) + 1 || null;
+        return seed === p.seed ? null : supabaseClient.from('bracket_players').update({ seed }).eq('id', p.id);
+      }));
+      results.forEach(r => r && must(r));
+    }
+    async function saveElimRound(round, seeds){
+      const e = B.elimination(seeds, bracketStageMatches(b, 'elim'));
+      const pairs = e.rounds[round - 1].filter(m => !m.bye && m.p1 != null && m.p2 != null).map((m, i) => ({ p1: m.p1, p2: m.p2, table: i + 1 }));
+      if(!pairs.length) throw new Error('nothing to pair');
+      await saveRound('elim', round, pairs);
+    }
+    async function startElimination(){
+      const active = b.players.filter(p => !p.dropped).length;
+      const rows = B.standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), opts());
+      const size = b.format === 'single_elim' ? active : Math.min((b.settings || {}).topCut || 8, active);
+      const seeds = B.topCut(rows, size);   // straight elimination: no Swiss matches, so this is the seeded draw
+      await setSeeds(seeds);
+      await saveElimRound(1, seeds);
+    }
+
+    // ---- tabs ----
+    function playersTab(){
+      const canAdd = b.status === 'registration' || (b.status === 'swiss' && b.format !== 'single_elim');
+      const list = b.players.slice().sort((x, y) => (x.dropped - y.dropped) || x.name.localeCompare(y.name));
+      return `
+        ${canAdd ? `<div class="field" style="display:flex;gap:8px;align-items:center;">
+          <input id="brAddName" maxlength="40" placeholder="${escapeAttr(tr('brAddPlaceholder'))}" style="flex:1;min-width:0;"/>
+          <button class="mini-btn" id="brAddBtn">${tr('brAdd')}</button>
+        </div>${b.status === 'swiss' ? `<div class="hint" style="margin-bottom:10px;">${tr('brLateEntryHint')}</div>` : ''}` : ''}
+        <div class="modal-sub">${bracketPlayerCount(b.players.filter(p => !p.dropped).length)}</div>
+        ${list.map(p=>`
+          <div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(p.name)}</div>
+              <div class="m">${[p.guest ? tr('brGuest') : tr('brHasAccount'), p.dropped ? trf('brDroppedRound', { n: p.dropped_round || 0 }) : ''].filter(Boolean).map(escapeHtml).join(' · ')}</div></div>
+            <div style="display:flex;gap:6px;">
+              ${p.guest ? `<button class="mini-btn" data-guest-link="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brGuestLinkTitle', { name: p.name }))}">🔗</button>` : ''}
+              ${running() ? `<button class="mini-btn" data-drop="${escapeAttr(p.id)}">${p.dropped ? tr('brUndrop') : tr('brDrop')}</button>` : ''}
+              ${b.status === 'registration' ? `<button class="mini-btn decline" data-remove="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brRemoveName', { name: p.name }))}">✕</button>` : ''}
+            </div>
+          </div>`).join('')}`;
+    }
+
+    function roundTab(){
+      const swiss = bracketStageMatches(b, 'swiss'), elim = bracketStageMatches(b, 'elim');
+      const active = b.players.filter(p => !p.dropped).length;
+      if(b.status === 'registration'){
+        return `<div class="modal-sub">${bracketPlayerCount(active)}${b.format !== 'single_elim' ? ' · ' + trf('brRoundsPlanned', { n: totalRounds() }) : ''}</div>
+          <button class="btn-primary" id="brStart" style="width:100%;" ${active < 2 ? 'disabled' : ''}>${b.format === 'single_elim' ? tr('brStartBracket') : tr('brStartRound1')}</button>
+          ${active < 2 ? `<div class="hint" style="margin-top:8px;">${tr('brNeedTwo')}</div>` : ''}`;
+      }
+      if(b.status === 'swiss'){
+        const round = b.current_round, current = swiss.filter(m => m.round === round);
+        const done = current.every(bracketHasResult);
+        const untouched = current.every(m => !m.result && !m.p1_report && !m.p2_report);
+        const last = round >= totalRounds();
+        const left = current.filter(m => !bracketHasResult(m)).length;
+        return `<div class="section-label">${trf('brRoundOf', { n: round, total: totalRounds() })}</div>
+          ${current.map(m => matchRow(m, m.table ? trf('brTable', { n: m.table }) : '')).join('')}
+          <div class="modal-sub" style="margin-top:8px;">${done ? tr('brAllIn') : (left === 1 ? tr('brWaitingOn1') : trf('brWaitingOn', { n: left }))}</div>
+          <div class="modal-actions" style="flex-wrap:wrap;">
+            ${untouched ? `<button class="btn-secondary" id="brRepair" style="flex:1;">${tr('brRepair')}</button>` : ''}
+            ${done && !last ? `<button class="btn-primary" id="brNext" style="flex:1;">${trf('brStartRoundN', { n: round + 1 })}</button>` : ''}
+            ${done && last && b.format === 'swiss_top_cut' ? `<button class="btn-primary" id="brTopCut" style="flex:1;">${trf('brStartTopCut', { n: Math.min((b.settings || {}).topCut || 8, active) })}</button>` : ''}
+            ${done && last ? `<button class="${b.format === 'swiss_top_cut' ? 'btn-secondary' : 'btn-primary'}" id="brExtra" style="flex:1;">${tr('brExtraRound')}</button>` : ''}
+            ${done && last && b.format !== 'swiss_top_cut' ? `<button class="btn-primary" id="brFinish" style="flex:1;">${tr('brFinish')}</button>` : ''}
+          </div>`;
+      }
+      // Elimination (a top cut, or the whole event), and the finished view.
+      const { e, cur: curElim, html: elimHtml } = bracketElimView(b, (row, label, r, cur) => matchRow(row, label, r === cur));
+      let html = elimHtml;
+      if(b.status === 'top_cut' && e){
+        const cur = curElim;
+        const done = elim.filter(m => m.round === cur).every(bracketHasResult);
+        html = (e.champion ? `<div class="modal-sub" style="font-size:16px;">🏆 ${escapeHtml(trf('brChampion', { name: nameOf(e.champion) }))}</div>` : '') + html + `
+          <div class="modal-actions">
+            ${done && !e.champion ? `<button class="btn-primary" id="brNextElim" style="flex:1;">${escapeHtml(trf('brStartElimRound', { name: bracketElimRoundName(e.size, cur + 1) }))}</button>` : ''}
+            ${e.champion ? `<button class="btn-primary" id="brFinish" style="flex:1;">${tr('brFinish')}</button>` : ''}
+          </div>`;
+      }
+      if(b.status === 'finished' || b.status === 'cancelled'){
+        const winner = e && e.champion ? e.champion : (B.standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), opts())[0] || {}).id;
+        html = `<div class="modal-sub" style="font-size:16px;">${b.status === 'finished' && winner ? '🏆 ' + escapeHtml(trf('brChampion', { name: nameOf(winner) })) : escapeHtml(bracketStatusLabel(b))}</div>` + html;
+      }
+      return html || `<div class="modal-sub">${tr('nothingToShow')}</div>`;
+    }
+
+    function standingsTab(){
+      if(!bracketStageMatches(b, 'swiss').length) return `<div class="modal-sub">${tr('brNoStandings')}</div>`;
+      return `${bracketStandingsHtml(b)}
+        <button class="mini-btn" id="brCsv" style="margin-top:10px;">${tr('xDownloadCsv')}</button>`;
+    }
+
+    function draw(){
+      if(!document.body.contains(overlay)) return;
+      overlay.querySelector('#brHeading').textContent = '🏆 ' + b.name;
+      const tabs = [['round', b.status === 'top_cut' || b.format === 'single_elim' ? tr('brTabBracket') : tr('brTabRound')], ['players', tr('brTabPlayers')], ['standings', tr('brTabStandings')]];
+      body.innerHTML = `
+        <div class="modal-sub">${escapeHtml([b.game, bracketFormatLabel(b.format), (b.settings || {}).bestOf === 1 ? tr('brBestOf1') : tr('brBestOf3'), bracketStatusLabel(b)].filter(Boolean).join(' · '))}</div>
+        <div class="chip-row" style="margin-bottom:12px;">
+          ${tabs.map(([k, l])=>`<button type="button" class="chip ${tab === k ? 'active' : ''}" data-tab="${k}" aria-pressed="${tab === k}">${escapeHtml(l)}</button>`).join('')}
+        </div>
+        <div id="brTab">${tab === 'players' ? playersTab() : tab === 'standings' ? standingsTab() : roundTab()}</div>
+        <div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;">
+          <button class="btn-secondary" id="brShare" style="flex:1 1 100%;">📱 ${tr('brPlayerLink')}</button>
+          <button class="btn-secondary" id="brDelete" style="flex:1;">${tr('brDelete')}</button>
+          <button class="btn-secondary" id="closeBracket" style="flex:1;">${tr('close')}</button>
+        </div>`;
+      wire();
+    }
+
+    function wire(){
+      const $ = sel => body.querySelector(sel);
+      const on = (sel, fn) => { const el = $(sel); if(el) el.onclick = fn; };
+      body.querySelectorAll('[data-tab]').forEach(btn => { btn.onclick = ()=>{ tab = btn.dataset.tab; draw(); }; });
+      on('#closeBracket', ()=>overlay.remove());
+      on('#brShare', ()=>openBracketQrModal(tr('brPlayerLink'), b.name, bracketLink(id), tr('brPlayerLinkHint')));
+      body.querySelectorAll('[data-guest-link]').forEach(btn => {
+        btn.onclick = async ()=>{
+          const p = b.players.find(x => x.id === btn.dataset.guestLink);
+          const { data, error } = await supabaseClient.from('bracket_players').select('guest_token').eq('id', btn.dataset.guestLink).maybeSingle();
+          if(error || !data || !data.guest_token){ showToast(tr('brCouldNotLoad')); return; }
+          openBracketQrModal(trf('brGuestLinkTitle', { name: p ? p.name : '' }), b.name, bracketLink(id, data.guest_token), tr('brGuestLinkHint'));
+        };
+      });
+      on('#brDelete', ()=>{
+        if(!confirm(tr('brDeleteConfirm'))) return;
+        act(async ()=>{ must(await supabaseClient.from('brackets').delete().eq('id', id)); overlay.remove(); showToast(tr('brDeleted')); });
+      });
+
+      const addName = $('#brAddName');
+      const add = ()=>{
+        const name = addName.value.trim();
+        if(!name){ showToast(tr('brNameFirst')); return; }
+        act(async ()=>{ must(await supabaseClient.from('bracket_players').insert({ bracket_id: id, name: name.slice(0, 40) })); tab = 'players'; });
+      };
+      on('#brAddBtn', add);
+      if(addName) addName.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); add(); } };
+      body.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.onclick = ()=>act(async ()=>{ must(await supabaseClient.from('bracket_players').delete().eq('id', btn.dataset.remove)); });
+      });
+      body.querySelectorAll('[data-drop]').forEach(btn => {
+        btn.onclick = ()=>{
+          const p = b.players.find(x => x.id === btn.dataset.drop);
+          if(!p) return;
+          act(async ()=>{ must(await supabaseClient.from('bracket_players').update(p.dropped ? { dropped: false, dropped_round: null } : { dropped: true, dropped_round: b.current_round }).eq('id', p.id)); });
+        };
+      });
+
+      body.querySelectorAll('[data-result]').forEach(sel => {
+        sel.onchange = ()=>{
+          if(!sel.value) return;
+          const [result, g1, g2] = sel.value.split(':');
+          act(async ()=>{
+            must(await supabaseClient.rpc('report_bracket_result', { p_match: sel.dataset.result, p_result: result,
+              p_p1_games: g1 === '' ? null : Number(g1), p_p2_games: g2 === '' ? null : Number(g2) }));
+          });
+        };
+      });
+
+      on('#brStart', ()=>act(async ()=>{ if(b.format === 'single_elim') await startElimination(); else await pairSwissRound(1); tab = 'round'; }));
+      on('#brRepair', ()=>act(()=>pairSwissRound(b.current_round)));
+      on('#brNext', ()=>act(()=>pairSwissRound(b.current_round + 1)));
+      on('#brExtra', ()=>act(async ()=>{
+        const settings = Object.assign({}, b.settings, { rounds: totalRounds() + 1 });
+        must(await supabaseClient.from('brackets').update({ settings }).eq('id', id));
+        b.settings = settings;
+        await pairSwissRound(b.current_round + 1);
+      }));
+      on('#brTopCut', ()=>act(startElimination));
+      on('#brNextElim', ()=>act(()=>saveElimRound(Math.max(...bracketStageMatches(b, 'elim').map(m => m.round)) + 1, bracketSeeds(b))));
+      on('#brFinish', ()=>{
+        if(!confirm(tr('brFinishConfirm'))) return;
+        act(async ()=>{ must(await supabaseClient.from('brackets').update({ status: 'finished' }).eq('id', id)); tab = 'round'; });
+      });
+      on('#brCsv', ()=>{
+        const rows = B.standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), opts());
+        const table = [[tr('csvRank'), tr('csvName'), tr('csvWins'), tr('csvLosses'), tr('csvDraws'), tr('csvPoints'), tr('csvTiebreakers'), tr('csvDropped')]];
+        rows.forEach(r => table.push([r.rank, r.name, r.wins, r.losses, r.draws, r.points, r.tiebreak, r.dropped ? tr('yesWord') : tr('noWord')]));
+        const slug = String(b.name || 'bracket').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').slice(0, 50) || 'bracket';
+        downloadText('standings_' + slug + '.csv', toCsv(table));
+      });
+    }
+
+    draw();
+  }
+
+  // ---- a finished bracket → the player's own results ----
+  // "1st", "2nd", "3rd", "4th"... (Spanish "1º"): a placement is free text the player could have
+  // typed, so it's written in the app's language at the moment it's filled in.
+  function bracketOrdinal(n){
+    if(currentLang === 'es') return n + 'º';
+    const s = (n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th');
+    return n + s;
+  }
+  // The result form's fields for player `meId`: placement, record (byes count as wins, as on the
+  // standings) and one round per match actually played, in order, plus the bracket's id so the
+  // app knows this bracket's result is in. Unreported matches and byes are not rounds.
+  function bracketResultFor(b, meId){
+    const B = bracketEngine(), opts = bracketOpts(b);
+    let w = 0, l = 0, d = 0;
+    const matches = [];
+    b.matches.filter(m => m.p1 === meId || m.p2 === meId)
+      .sort((x, y) => (x.stage === y.stage ? 0 : x.stage === 'swiss' ? -1 : 1) || x.round - y.round)
+      .forEach(m => {
+        if(m.p2 == null){ w++; return; }
+        if(!m.result) return;
+        const mine = m.p1 === meId ? 'p1' : 'p2';
+        const outcome = m.result === 'draw' ? 'D' : m.result === mine ? 'W' : 'L';
+        if(outcome === 'W') w++; else if(outcome === 'L') l++; else d++;
+        matches.push({ opponent: bracketNameOf(b, mine === 'p1' ? m.p2 : m.p1), outcome, wentFirst: '', notes: '' });
+      });
+    // Placement: how far they got in the elimination bracket, otherwise their Swiss rank.
+    let placement = '';
+    const seeds = bracketSeeds(b);
+    if(seeds.includes(meId)){
+      const e = B.elimination(seeds, bracketStageMatches(b, 'elim'));
+      if(e.champion === meId) placement = bracketOrdinal(1);
+      else {
+        const lost = e.rounds.findIndex(list => list.some(m => !m.bye && (m.p1 === meId || m.p2 === meId) && m.winner && m.winner !== meId));
+        if(lost >= 0){ const left = e.size / Math.pow(2, lost); placement = left === 2 ? bracketOrdinal(2) : trf('brTopN', { n: left }); }
+      }
+    }
+    if(!placement && bracketStageMatches(b, 'swiss').length){
+      const row = B.standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), opts).find(r => r.id === meId);
+      if(row) placement = bracketOrdinal(row.rank);
+    }
+    return { placement, record: d ? `${w}-${l}-${d}` : `${w}-${l}`, notes: '', matches, bracketId: b.id };
+  }
+  // Where a bracket's result already is in the player's list, if anywhere: { t, date }.
+  function bracketResultLogged(bracketId){
+    for(const t of tournaments){
+      if(t.result && t.result.bracketId === bracketId) return { t, date: t.date };
+      for(const [date, o] of Object.entries(t.occurrences || {})) if(o && o.result && o.result.bracketId === bracketId) return { t, date };
+    }
+    return null;
+  }
+  // Opens the normal result form filled in from the bracket; the player adds their deck and saves.
+  // It goes on the store event the bracket was for when that's in their list (a followed store's
+  // event), otherwise on a new event named after the bracket.
+  function addBracketResult(b, meId, onSaved){
+    if(!userDataLoaded && !offlineMode){ showToast(tr('brEventsNotLoaded')); return; }
+    const done = bracketResultLogged(b.id);
+    if(done){ openResultModal(done.t.id, done.date, { onSaved }); return; }
+    const date = b.occurrence_date || (b.finished_at || new Date().toISOString()).slice(0, 10);
+    const prefill = bracketResultFor(b, meId);
+    const copy = b.store_event_id && tournaments.find(t => t.storeEventId === b.store_event_id);
+    if(copy && !getOcc(copy, date).result){ openResultModal(copy.id, date, { prefill, onSaved }); return; }
+    const draft = {
+      id: uid(), name: b.name, game: b.game || '', store: (b.store && b.store.name) || '', date, time: '',
+      format: '', fee: '', address: '', city: '', link: '', storeLink: '', deckLink: '', notes: '',
+      isCasual: false, onlineMode: '', simulatorLink: '', contactInfo: '',
+      repeat: 'none', rsvp: 'going', result: null, occurrences: {}, lat: null, lng: null, googleEventId: null,
+    };
+    openResultModal(draft.id, date, { draft, prefill, onSaved });
+  }
+
+  // ---- links: ?bracket=<id> (anyone: follow, join) and ?bracket=<id>&p=<token> (one guest) ----
+  // A guest's token is kept on this device (pairings-bracket-tokens, id → token) and taken out of
+  // the address bar, so a refresh or a second visit still knows who they are without the secret
+  // sitting in the URL bar or history.
+  const BRACKET_TOKENS_KEY = 'pairings-bracket-tokens';
+  function bracketTokens(){ try{ return JSON.parse(localStorage.getItem(BRACKET_TOKENS_KEY) || '{}') || {}; }catch(e){ return {}; } }
+  function bracketTokenFor(id){ const t = bracketTokens()[id]; return typeof t === 'string' && /^[0-9a-f]{32}$/.test(t) ? t : null; }
+  function rememberBracketToken(id, token){
+    try{
+      const all = bracketTokens(); all[id] = token;
+      const keys = Object.keys(all); while(keys.length > 30) delete all[keys.shift()];   // only the newest 30
+      localStorage.setItem(BRACKET_TOKENS_KEY, JSON.stringify(all));
+    }catch(e){ /* private mode: the link still works while it is open */ }
+  }
+  const bracketLink = (id, token) => baseAppUrl() + '?bracket=' + id + (token ? '&p=' + token : '');
+
+  // A link plus its QR code (a bracket's player link, or one guest's own link).
+  function openBracketQrModal(title, sub, url, hint){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal" style="text-align:center;">
+      <h2>${escapeHtml(title)}</h2>
+      <div class="modal-sub">${escapeHtml(sub)}</div>
+      <div id="brQrHolder" style="display:flex;justify-content:center;margin:12px auto;background:#fff;padding:12px;border-radius:12px;width:fit-content;"></div>
+      <div class="hint">${escapeHtml(hint)}</div>
+      <div class="share-link" style="margin:10px 0;word-break:break-all;">${escapeHtml(url)}</div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="brCopyLink" style="flex:1;">${tr('xCopyLink')}</button>
+        <button class="btn-secondary" id="brCloseQr" style="flex:1;">${tr('close')}</button>
+      </div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#brCloseQr').onclick = ()=>overlay.remove();
+    overlay.querySelector('#brCopyLink').onclick = ()=>showToast(copyText(url) ? tr('xLinkCopied') : tr('xCouldNotCopy'));
+    loadQrLib().then(()=>{
+      const holder = overlay.querySelector('#brQrHolder');
+      if(holder) new QRCode(holder, { text: url, width: 220, height: 220 });
+    }).catch(()=>{ /* the link is shown as text */ });
+  }
+
+  // The bracket as a player or viewer sees it (signed in or not): their own match and a way to
+  // report it, dropping, joining while registration is open, taking over a guest spot after
+  // signing up, the current pairings and the standings. Refreshes itself while open.
+  async function openBracketViewModal(id, token){
+    token = token || bracketTokenFor(id);
+    const B = bracketEngine();
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2 id="bvHeading">🏆 ${tr('brTitle')}</h2><div id="bvBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const body = overlay.querySelector('#bvBody');
+    let b = null, tab = 'mine', busy = false;
+    const closeRow = `<div class="modal-actions"><button class="btn-secondary" id="bvClose" style="flex:1;">${tr('close')}</button></div>`;
+
+    async function load(){
+      const { data, error } = await supabaseClient.rpc('get_bracket', { p_bracket: id, p_token: token || null });
+      if(error || !data) throw error || new Error('bracket not found');
+      b = data; b.players = b.players || []; b.matches = b.matches || [];
+    }
+    async function act(fn){
+      if(busy) return;
+      busy = true;
+      try{ await fn(); }
+      catch(e){ console.error('bracket action failed:', e); showToast(tr('brCouldNotSave')); }
+      try{ await load(); }catch(e){}
+      busy = false;
+      draw();
+    }
+    const must = r => { if(r && r.error) throw r.error; return r; };
+    try{ await load(); }
+    catch(e){ body.innerHTML = `<div class="modal-sub">${tr('brNotFound')}</div>${closeRow}`; body.querySelector('#bvClose').onclick = ()=>overlay.remove(); return; }
+    if(!B){ body.innerHTML = `<div class="modal-sub">${tr('brEngineMissing')}</div>${closeRow}`; body.querySelector('#bvClose').onclick = ()=>overlay.remove(); return; }
+    if(b.is_organizer){ overlay.remove(); openBracketModal(id); return; }
+
+    const timer = setInterval(async ()=>{
+      if(!document.body.contains(overlay)){ clearInterval(timer); return; }
+      const typing = overlay.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+      if(busy || typing || document.hidden) return;
+      try{
+        const { data } = await supabaseClient.rpc('bracket_version', { p_bracket: id });
+        if(data != null && data !== b.version){ await load(); draw(); }
+      }catch(e){}
+    }, BRACKET_POLL_MS);
+
+    const nameOf = pid => bracketNameOf(b, pid);
+    const me = () => b.players.find(p => p.id === b.me) || null;
+    const running = () => b.status === 'swiss' || b.status === 'top_cut';
+    // My match in the round being played now (the latest round of the current stage).
+    function myMatch(){
+      if(!b.me || !running()) return null;
+      const stage = b.status === 'swiss' ? 'swiss' : 'elim';
+      const list = bracketStageMatches(b, stage);
+      const round = Math.max(0, ...list.map(m => m.round));
+      return list.find(m => m.round === round && (m.p1 === b.me || m.p2 === b.me)) || null;
+    }
+
+    function mineTab(){
+      const p = me();
+      const parts = [];
+      if(!p){
+        if(b.status === 'registration' && session) parts.push(`<button class="btn-primary" id="bvJoin" style="width:100%;">${tr('brJoin')}</button>`);
+        else if(b.status === 'registration') parts.push(`<div class="modal-sub">${tr('brSignInToJoin')}</div>`);
+        else parts.push(`<div class="modal-sub">${tr('brWatching')}</div>`);
+        return parts.join('');
+      }
+      parts.push(`<div class="modal-sub">${escapeHtml(trf('brYouAre', { name: p.name }))}${p.dropped ? ' · ' + tr('brDroppedShort') : ''}</div>`);
+      if(token && p.guest && session) parts.push(`<div class="list-item"><div class="info"><div class="n">${tr('brClaimTitle')}</div><div class="m">${tr('brClaimHint')}</div></div><button class="mini-btn" id="bvClaim">${tr('brClaim')}</button></div>`);
+      else if(token && p.guest && !session) parts.push(`<div class="hint" style="margin-bottom:10px;">${tr('brGuestSignUpHint')}</div>`);
+      if(b.status === 'registration') parts.push(`<div class="modal-sub">${tr('brWaitingStart')}</div>`);
+      if(b.status === 'finished' && session && !p.guest){
+        const res = bracketResultFor(b, b.me), logged = bracketResultLogged(b.id);
+        parts.push(`<div class="list-item">
+          <div class="info"><div class="n">${escapeHtml(res.placement ? trf('brYouFinished', { place: res.placement, record: res.record }) : trf('brYourRecord', { record: res.record }))}</div>
+            <div class="m">${logged ? tr('brInYourResults') : tr('brAddResultsHint')}</div></div>
+          <button class="mini-btn" id="bvAddResults">${logged ? tr('brViewResult') : '📊 ' + tr('brAddResults')}</button>
+        </div>`);
+      }
+      const m = myMatch();
+      if(m && m.p2 == null){
+        parts.push(`<div class="list-item"><div class="info"><div class="n">${tr('brYourBye')}</div><div class="m">${tr('brBye')}</div></div></div>`);
+      } else if(m){
+        const opp = m.p1 === b.me ? m.p2 : m.p1;
+        const mine = m.p1 === b.me ? m.p1_report : m.p2_report, theirs = m.p1 === b.me ? m.p2_report : m.p1_report;
+        const locked = m.confirmed_by === 'organizer';
+        const where = m.stage === 'elim' ? bracketElimRoundName(bracketEngine().elimination(bracketSeeds(b), bracketStageMatches(b, 'elim')).size, m.round) : trf('brRoundTable', { n: m.round, table: m.table || '?' });
+        const current = bracketResultValue(b, mine || (locked ? m : null));
+        let state = '';
+        if(locked) state = `${tr('brOrganizerSet')}: ${escapeHtml(bracketResultLabel(b, m, m))}`;
+        else if(m.status === 'confirmed') state = `✓ ${tr('brBothAgree')}`;
+        else if(m.status === 'disputed') state = `<span style="color:var(--rose);">⚠ ${tr('brDisagreeHint')}</span>${theirs ? '<br>' + escapeHtml(trf('brSays', { name: nameOf(opp), result: bracketResultLabel(b, m, theirs) })) : ''}`;
+        else if(mine) state = tr('brWaitingOpponent');
+        else if(theirs) state = escapeHtml(trf('brOpponentReported', { name: nameOf(opp), result: bracketResultLabel(b, m, theirs) }));
+        parts.push(`<div class="section-label">${escapeHtml(where)}</div>
+          <div class="list-item" style="display:block;">
+            <div class="n" style="font-size:16px;margin-bottom:8px;">${escapeHtml(trf('brYouVs', { name: nameOf(opp) }))}</div>
+            ${!locked && !p.dropped ? `<div class="field" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+              <select id="bvResult" aria-label="${escapeAttr(tr('brYourResult'))}" style="flex:1;min-width:0;">
+                ${bracketResultOptions(b, m).map(o=>`<option value="${escapeAttr(o.v)}" ${o.v === current ? 'selected' : ''}>${escapeHtml(o.l)}</option>`).join('')}
+              </select>
+              <button class="mini-btn" id="bvReport" data-match="${escapeAttr(m.id)}">${mine ? tr('brChange') : tr('brReport')}</button>
+            </div>` : ''}
+            ${state ? `<div class="m">${state}</div>` : ''}
+          </div>`);
+      } else if(running() && !p.dropped){
+        parts.push(`<div class="modal-sub">${tr('brNoMatchYet')}</div>`);
+      }
+      if(running() && !p.dropped) parts.push(`<button class="btn-secondary" id="bvDrop" style="width:100%;margin-top:12px;">${tr('brDropMe')}</button>`);
+      return parts.join('');
+    }
+
+    function pairingsTab(){
+      if(b.status === 'registration') return `<div class="modal-sub">${bracketPlayerCount(b.players.filter(p => !p.dropped).length)}</div>
+        ${b.players.map(p=>`<div class="list-item"><div class="info"><div class="n">${escapeHtml(p.name)}</div></div></div>`).join('')}`;
+      if(b.status === 'swiss' || (b.format !== 'single_elim' && !bracketStageMatches(b, 'elim').length)){
+        const swiss = bracketStageMatches(b, 'swiss');
+        const round = Math.max(0, ...swiss.map(m => m.round));
+        if(!round) return `<div class="modal-sub">${tr('nothingToShow')}</div>`;
+        return `<div class="section-label">${trf('brRoundN', { n: round })}</div>
+          ${swiss.filter(m => m.round === round).map(m => bracketMatchRow(b, m, m.table ? trf('brTable', { n: m.table }) : '', false)).join('')}`;
+      }
+      const { e, html } = bracketElimView(b, (row, label) => bracketMatchRow(b, row, label, false));
+      return (e && e.champion ? `<div class="modal-sub" style="font-size:16px;">🏆 ${escapeHtml(trf('brChampion', { name: nameOf(e.champion) }))}</div>` : '') + html;
+    }
+
+    function draw(){
+      if(!document.body.contains(overlay)) return;
+      overlay.querySelector('#bvHeading').textContent = '🏆 ' + b.name;
+      const hasElim = b.format === 'single_elim' || bracketStageMatches(b, 'elim').length > 0;
+      const tabs = [['mine', tr('brTabMe')], ['pairings', b.status === 'registration' ? tr('brTabPlayers') : hasElim && b.status !== 'swiss' ? tr('brTabBracket') : tr('brTabPairings')]];
+      if(bracketStageMatches(b, 'swiss').length) tabs.push(['standings', tr('brTabStandings')]);
+      if(!tabs.some(([k]) => k === tab)) tab = 'mine';
+      const where = [b.store && b.store.name, b.organizer && trf('brRunBy', { name: b.organizer })].filter(Boolean).join(' · ');
+      body.innerHTML = `
+        <div class="modal-sub">${escapeHtml([b.game, bracketFormatLabel(b.format), bracketStatusLabel(b)].filter(Boolean).join(' · '))}${where ? '<br>' + escapeHtml(where) : ''}</div>
+        <div class="chip-row" style="margin-bottom:12px;">
+          ${tabs.map(([k, l])=>`<button type="button" class="chip ${tab === k ? 'active' : ''}" data-tab="${k}" aria-pressed="${tab === k}">${escapeHtml(l)}</button>`).join('')}
+        </div>
+        <div>${tab === 'pairings' ? pairingsTab() : tab === 'standings' ? bracketStandingsHtml(b, b.me) : mineTab()}</div>
+        <div class="hint" style="margin-top:12px;">${tr('brLiveHint')}</div>
+        ${closeRow}`;
+      wire();
+    }
+
+    function wire(){
+      const on = (sel, fn) => { const el = body.querySelector(sel); if(el) el.onclick = fn; };
+      body.querySelectorAll('[data-tab]').forEach(btn => { btn.onclick = ()=>{ tab = btn.dataset.tab; draw(); }; });
+      on('#bvClose', ()=>overlay.remove());
+      on('#bvAddResults', ()=>{ overlay.remove(); addBracketResult(b, b.me); });
+      on('#bvJoin', ()=>act(async ()=>{ must(await supabaseClient.rpc('join_bracket', { p_bracket: id })); showToast(tr('brJoined')); }));
+      on('#bvClaim', ()=>act(async ()=>{ must(await supabaseClient.rpc('claim_bracket_guest', { p_bracket: id, p_token: token })); showToast(tr('brClaimed')); }));
+      on('#bvDrop', ()=>{
+        if(!confirm(tr('brDropConfirm'))) return;
+        act(async ()=>{ must(await supabaseClient.rpc('drop_from_bracket', { p_bracket: id, p_token: token || null })); });
+      });
+      on('#bvReport', ()=>{
+        const v = body.querySelector('#bvResult').value;
+        if(!v){ showToast(tr('brPickResult')); return; }
+        const [result, g1, g2] = v.split(':');
+        const matchId = body.querySelector('#bvReport').dataset.match;
+        act(async ()=>{
+          const r = must(await supabaseClient.rpc('report_bracket_result', { p_match: matchId, p_result: result,
+            p_p1_games: g1 === '' ? null : Number(g1), p_p2_games: g2 === '' ? null : Number(g2), p_token: token || null }));
+          showToast(r.data === 'disputed' ? tr('brReportDisputed') : r.data === 'confirmed' ? tr('brReportConfirmed') : tr('brReportSent'));
+        });
+      });
+    }
+    draw();
+  }
+
   // ---------- Admin dashboard (only visible/functional if profile.is_admin) ----------
   function openAdminModal(){
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `<div class="modal"><h2>🛠 Admin</h2><div id="adminBody"><div class="modal-sub">Loading…</div></div></div>`;
+    // Bracket hosts: users allowed to run brackets without an approved store (admin_set_bracket_host).
+    async function drawBracketHosts(){
+      const el = overlay.querySelector('#adminBracketHosts');
+      if(!el) return;
+      const { data, error } = await supabaseClient.rpc('admin_bracket_hosts');
+      if(error){ el.innerHTML = '<div class="modal-sub">Could not load (has the Brackets SQL been run?)</div>'; return; }
+      const now = Date.now();
+      el.innerHTML = (data || []).length ? data.map(h => {
+        const expired = h.until && new Date(h.until).getTime() < now;
+        return `<div class="list-item">
+          <div class="info"><div class="n">${escapeHtml(h.name)}</div>
+            <div class="m">${h.until ? (expired ? 'Expired ' : 'Until ') + escapeHtml(new Date(h.until).toLocaleDateString()) : 'No end date'}</div></div>
+          <div style="display:flex;gap:6px;">
+            <button class="mini-btn" data-bh-extend="${escapeAttr(h.user_id)}">+30 days</button>
+            <button class="mini-btn decline" data-bh-remove="${escapeAttr(h.user_id)}">Remove</button>
+          </div></div>`;
+      }).join('') : '<div class="modal-sub">Nobody yet.</div>';
+      const set = async (args, msg) => {
+        const { error: e } = await supabaseClient.rpc('admin_set_bracket_host', args);
+        showToast(e ? 'Could not save' : msg);
+        drawBracketHosts();
+      };
+      el.querySelectorAll('[data-bh-extend]').forEach(btn => {
+        btn.onclick = ()=>{
+          const h = data.find(x => x.user_id === btn.dataset.bhExtend);
+          const from = Math.max(now, h && h.until ? new Date(h.until).getTime() : now);
+          set({ p_user: h.user_id, p_until: new Date(from + 30 * 864e5).toISOString() }, 'Extended by 30 days');
+        };
+      });
+      el.querySelectorAll('[data-bh-remove]').forEach(btn => {
+        btn.onclick = ()=>{ if(confirm('Stop this user running brackets?')) set({ p_user: btn.dataset.bhRemove, p_remove: true }, 'Removed'); };
+      });
+    }
+    function wireBracketHosts(){
+      const btn = overlay.querySelector('#bhAllow');
+      if(!btn) return;
+      btn.onclick = async ()=>{
+        const who = overlay.querySelector('#bhWho').value.trim();
+        if(!who) return;
+        let found = null;
+        if(who.startsWith('@') || !who.includes('@')){
+          const { data } = await supabaseClient.from('profiles').select('id, username, display_name').ilike('username', who.replace(/^@/, '')).limit(1);
+          found = data && data[0];
+        } else {
+          const { data } = await supabaseClient.rpc('find_profile_by_email', { p_email: who });
+          found = Array.isArray(data) ? data[0] : data;
+        }
+        if(!found || !found.id){ showToast('No user found'); return; }
+        const days = parseInt(overlay.querySelector('#bhFor').value, 10);
+        const { error } = await supabaseClient.rpc('admin_set_bracket_host', { p_user: found.id, p_until: days ? new Date(Date.now() + days * 864e5).toISOString() : null });
+        if(error){ showToast('Could not save'); return; }
+        showToast('Allowed: ' + (found.display_name || found.username || who));
+        overlay.querySelector('#bhWho').value = '';
+        drawBracketHosts();
+      };
+      drawBracketHosts();
+    }
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     const body = overlay.querySelector('#adminBody');
@@ -5901,6 +6753,17 @@
         <button class="mini-btn" id="loadImagesBtn" style="margin-bottom:10px;">Load all images</button>
         <div id="adminImages"></div>
 
+        <div class="section-label">🏆 Who can run brackets</div>
+        <div class="modal-sub">Owners of an approved store always can. Allow anyone else here (by the email they signed up with, or @username).</div>
+        <div class="field" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="bhWho" placeholder="email or @username" aria-label="Email or username" style="flex:1 1 180px;min-width:0;"/>
+          <select id="bhFor" aria-label="For how long" style="flex:0 0 auto;width:auto;">
+            <option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option><option value="">No end date</option>
+          </select>
+          <button class="mini-btn" id="bhAllow">Allow</button>
+        </div>
+        <div id="adminBracketHosts"><div class="modal-sub">Loading…</div></div>
+
         <div class="section-label">Post an announcement</div>
         <div class="field"><label>Title</label><input id="ann_title" placeholder="e.g. New features!"/></div>
         <div class="field"><label>Message</label><textarea id="ann_message" placeholder="What's new…"></textarea></div>
@@ -5909,6 +6772,7 @@
         <div class="modal-actions"><button class="btn-secondary" id="closeAdmin" style="flex:1;">${tr('close')}</button></div>
       `;
       overlay.querySelector('#closeAdmin').onclick = ()=>overlay.remove();
+      wireBracketHosts();
       body.querySelectorAll('[data-approve-store]').forEach(btn=>{
         btn.onclick = async ()=>{
           try{
@@ -6336,7 +7200,7 @@
       if(bh.status === 'signedout'){
         box.innerHTML = `${title}
           <div class="hint" style="margin-bottom:6px;">${tr('bhSignInHint')}</div>
-          <form id="bhForm" style="display:flex;flex-wrap:wrap;gap:8px;">
+          <form id="bhForm" class="field" style="display:flex;flex-wrap:wrap;gap:8px;">
             <input id="bhEmail" type="email" autocomplete="email" placeholder="${escapeAttr(tr('bhEmail'))}" style="flex:1 1 160px;"/>
             <input id="bhPassword" type="password" autocomplete="current-password" placeholder="${escapeAttr(tr('bhPassword'))}" style="flex:1 1 160px;"/>
             <button class="parse-btn" id="bhConnectBtn" type="submit" style="margin-top:0;white-space:nowrap;">${tr('bhConnect')}</button>
@@ -6822,6 +7686,7 @@
         <div class="section-label">${tr('menuCommunity')}</div>
         ${row('mFriends','🤝', tr('friends'))}
         ${row('mStores','🏪', tr('storesWord'))}
+        ${row('mBrackets','🏆', tr('brTitle'))}
         ${row('mShare','🔗', tr('shareMyList'))}
 
         <div class="section-label">${tr('menuFindEvents')}</div>
@@ -6848,6 +7713,7 @@
     go('mTheme', openThemeModal);
     go('mFriends', openFriendsModal);
     go('mStores', openStoresModal);
+    go('mBrackets', ()=>openBracketsModal());
     go('mShare', openShareModal);
     go('mPoke', openPokedataModal);
     go('mRift', ()=>openEventFinderModal(riftboundFinderSource()));
@@ -8062,6 +8928,8 @@
         pendingCheckin = null;
         await performCheckin(id);
         if(profileLoaded && profile && profile.onboarded === false) openWelcomeModal();
+      } else if(pendingBracket){
+        openPendingBracket(true);
       } else if(profileLoaded && profile && profile.onboarded === false){
         openWelcomeModal();
       } else if(pendingOpen){
@@ -8179,6 +9047,14 @@
     }
   }
   function baseAppUrl(){ return window.location.origin + window.location.pathname; }
+  // Opens the bracket from the link the app was started with. Signed out, the link is kept, so
+  // signing in (e.g. a guest making an account to claim their spot) opens it again.
+  function openPendingBracket(signedIn){
+    const id = pendingBracket;
+    if(pendingBracketToken){ rememberBracketToken(id, pendingBracketToken); pendingBracketToken = null; }
+    if(signedIn) pendingBracket = null;
+    openBracketViewModal(id);
+  }
 
   (async ()=>{
     registerServiceWorker();
@@ -8198,7 +9074,7 @@
     }
     if(session && recoveryPending) renderSetNewPassword();
     else if(session) await bootstrapApp();
-    else { renderAuth('signin'); if(emailLinkError) showToast(tr('emailLinkExpired')); }
+    else { renderAuth('signin'); if(emailLinkError) showToast(tr('emailLinkExpired')); if(pendingBracket) openPendingBracket(false); }
     // Try to send queued changes as soon as the connection or the tab comes back.
     window.addEventListener('online', ()=>{ syncPending(); });
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) syncPending(); });
