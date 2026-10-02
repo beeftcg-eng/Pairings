@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-jRs4f3OOmbHuSEgz9wpgg92K06y3WY6UlkF0alSaY5g=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-2cO+n0rckD7pvfqjlC3OCmfKZYq5gId9Dpp7h2uIPwc=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -319,6 +319,12 @@
   }
   .profile-warn{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 12px;padding:10px 14px;border-radius:10px;
     background:color-mix(in srgb,var(--amber) 14%,transparent);border:1px solid color-mix(in srgb,var(--amber) 45%,transparent);color:var(--text);font-size:13px;}
+  .today-banner{display:flex;align-items:flex-start;gap:10px;margin:0 0 14px;padding:10px 14px;border-radius:10px;
+    background:color-mix(in srgb,var(--rift) 14%,transparent);border:1px solid color-mix(in srgb,var(--rift) 45%,transparent);color:var(--text);font-size:13px;}
+  .today-banner .tb-body{flex:1;min-width:0;}
+  .today-banner .tb-title{font-weight:600;margin-bottom:4px;}
+  .today-banner .tb-item{display:block;color:var(--text-dim);cursor:pointer;padding:2px 0;}
+  .today-banner .tb-item strong{color:var(--text);font-weight:600;}
   .sync-pill{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:60;max-width:calc(100vw - 32px);
     background:var(--panel-2);color:var(--text);border:1px solid var(--border, color-mix(in srgb,var(--text) 18%,transparent));
     border-radius:999px;padding:6px 14px;font-size:12.5px;box-shadow:0 4px 14px rgba(0,0,0,.35);text-align:center;}
@@ -366,7 +372,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.30.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.31.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -1839,6 +1845,16 @@
     const o = (t.occurrences && t.occurrences[date]) || {};
     return { rsvp: o.rsvp||null, result: o.result||null, skip: !!o.skip, googleEventId: o.googleEventId||null };
   }
+  // A store can cancel a whole event (cancelled) or single dates of a repeating one (cancelled_dates
+  // on the store_events row, copied to followers' events as cancelledDates).
+  function cancelledDatesOf(x){ return (x && (x.cancelledDates || x.cancelled_dates)) || []; }
+  function isCancelledOn(x, date){ return !!(x && (x.cancelled || cancelledDatesOf(x).includes(date))); }
+  // A repeating store event's next dates from today (at most `n`), for the owner's "cancel which date?".
+  function upcomingDatesOf(e, n){
+    const today = todayStr();
+    const until = new Date(); until.setDate(until.getDate() + 400);
+    return getOccurrenceDates(e, today, dateToStr(until)).filter(d=>d >= today).slice(0, n);
+  }
   function setOcc(t, date, patch){
     if(!isRepeating(t)){ Object.assign(t, patch); return; }
     t.occurrences = t.occurrences || {};
@@ -3237,6 +3253,32 @@
   // ============================================================
   // RENDER: MAIN APP
   // ============================================================
+  // "A store you follow has an event today": a banner on the main screen listing today's followed-store
+  // events (not cancelled, not marked Skip). Hiding it lasts for the rest of the day on this device.
+  const TODAY_BANNER_KEY = 'pairings-today-banner';
+  function storeEventsToday(){
+    const today = todayStr();
+    // getOccurrenceDates returns a one-off event's own date for any window, so compare with includes().
+    return tournaments.filter(t=>t.storeEventId && !isCancelledOn(t, today) && getOccurrenceDates(t, today, today).includes(today)
+      && !getOcc(t, today).skip && getOcc(t, today).rsvp !== 'skip')
+      .sort((a, b)=>combineDateTime(today, a.time) - combineDateTime(today, b.time));
+  }
+  function todayBannerHidden(){
+    try{ return localStorage.getItem(TODAY_BANNER_KEY) === session.user.id + ':' + todayStr(); }catch(e){ return false; }
+  }
+  function todayBannerHtml(){
+    if(!session || todayBannerHidden()) return '';
+    const list = storeEventsToday();
+    if(!list.length) return '';
+    return `<div class="today-banner" role="status">
+        <div class="tb-body">
+          <div class="tb-title">📍 ${list.length === 1 ? tr('todayStoreOne') : trf('todayStoreN', { n: list.length })}</div>
+          ${list.map(t=>`<a class="tb-item" href="#" data-today-event="${escapeAttr(t.id)}"><strong>${escapeHtml(t.name)}</strong>${t.store ? ' · ' + escapeHtml(t.store) : ''}${t.time ? ' · ' + escapeHtml(t.time) : ''}</a>`).join('')}
+        </div>
+        <button class="mini-btn" id="hideTodayBanner" type="button" aria-label="${escapeAttr(tr('todayDismiss'))}" title="${escapeAttr(tr('todayDismiss'))}">✕</button>
+      </div>`;
+  }
+
   function render(){
     const today = todayStr();
     let instances = buildInstances();
@@ -3337,8 +3379,8 @@
               ${t.prizing ? `<span class="badge result">🏆 ${escapeHtml(t.prizing)}</span>` : ''}
               ${repLabel ? `<span class="badge repeat">↻ ${escapeHtml(repLabel)}</span>` : ''}
               ${t.storeEventId ? `<span class="badge repeat">${tr('xFromAStoreYouFollow')}</span>` : (t.readOnly ? `<span class="badge repeat">${tr('sharedWithYou')}</span>` : '')}
-              ${t.cancelled ? `<span class="badge fee" style="background:var(--rose);color:var(--void);">${tr('xCancelled')}</span>` : ''}
-              ${(!t.cancelled && t.isFull) ? `<span class="badge fee" style="background:var(--extra,#f5b942);color:#1a1a1a;">${tr('xFull')}</span>` : ''}
+              ${isCancelledOn(t, date) ? `<span class="badge fee" style="background:var(--rose);color:var(--void);">${tr('xCancelled')}</span>` : ''}
+              ${(!isCancelledOn(t, date) && t.isFull) ? `<span class="badge fee" style="background:var(--extra,#f5b942);color:#1a1a1a;">${tr('xFull')}</span>` : ''}
               ${resultBadge}
             </div>
             <div class="rsvp-row">
@@ -3370,6 +3412,7 @@
 
     app.innerHTML = `
       ${profileLoaded ? '' : `<div class="profile-warn" role="alert"><span>⚠️ ${tr('profileLoadFailed')}</span><button class="mini-btn" id="retryProfile" type="button">${tr('profileRetry')}</button></div>`}
+      ${todayBannerHtml()}
       <div class="head">
         <div class="brand">
           <div class="mark">Pairings</div>
@@ -3410,6 +3453,19 @@
       render();
     };
     document.getElementById('openNotif').onclick = ()=>openNotificationsModal();
+    const hideToday = document.getElementById('hideTodayBanner');
+    if(hideToday) hideToday.onclick = ()=>{
+      try{ localStorage.setItem(TODAY_BANNER_KEY, session.user.id + ':' + todayStr()); }catch(e){}
+      render();
+    };
+    // Tapping one of today's events shows its card (clearing the filters that could hide it).
+    app.querySelectorAll('[data-today-event]').forEach(a=>a.onclick = (e)=>{
+      e.preventDefault();
+      const sel = `.card[data-id="${CSS.escape(a.dataset.todayEvent)}"][data-date="${todayStr()}"]`;
+      if(!app.querySelector(sel)){ viewMode = 'upcoming'; filterGame = 'All'; filterFormat = 'All'; searchTerm = ''; render(); }
+      const card = app.querySelector(sel);
+      if(card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
     let searchDebounceTimer = null;
     document.getElementById('searchInput').oninput = (e)=>{
       searchTerm = e.target.value;
@@ -5047,11 +5103,11 @@
   // already see (owners may read attendance for their own events).
   async function performCheckin(eventId){
     try{
-      const { data: ev, error } = await supabaseClient.from('store_events').select('id, name, date, time, repeat, cancelled, store_id').eq('id', eventId).maybeSingle();
+      const { data: ev, error } = await supabaseClient.from('store_events').select('*').eq('id', eventId).maybeSingle();
       if(error) throw error;
       if(!ev){ showToast(tr('checkinInvalid')); return false; }
-      if(ev.cancelled){ showToast(tr('checkinCancelled')); return false; }
       const today = todayStr();
+      if(isCancelledOn(ev, today)){ showToast(tr('checkinCancelled')); return false; }
       // getOccurrenceDates returns a one-off event's own date whatever window it is given, so the
       // date has to be compared, not just counted.
       if(!getOccurrenceDates(ev, today, today).includes(today)){ showToast(tr('checkinWrongDay')); return false; }
@@ -5094,6 +5150,34 @@
     a.href = url; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }
+
+  // A store event's public link, /?storeevent=<id>: anyone can open it (signed out too) and see the
+  // event with a button to follow the store (renderPublicStoreEventPage).
+  function storeEventUrl(ev){ return baseAppUrl() + '?storeevent=' + ev.id; }
+  function openStoreEventShareModal(ev, store){
+    const url = storeEventUrl(ev);
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal" style="text-align:center;">
+      <h2>${tr('seShareTitle')}</h2>
+      <div class="modal-sub"><strong>${escapeHtml(ev.name)}</strong><br>${escapeHtml(fmtFriendly(ev.date, ev.time))}${isRepeating({repeat:ev.repeat}) ? ' · ' + tr('repeatsWord') : ''}</div>
+      <div class="hint">${tr('seShareHint')}</div>
+      <div class="share-link" style="margin:10px 0;word-break:break-all;">${escapeHtml(url)}</div>
+      <div class="modal-actions">
+        ${navigator.share ? `<button class="btn-primary" id="shareSeNative" style="flex:1;">${tr('share')}</button>` : ''}
+        <button class="btn-secondary" id="copySeLink" style="flex:1;">${tr('xCopyLink')}</button>
+        <button class="btn-secondary" id="closeSeShare" style="flex:1;">${tr('close')}</button>
+      </div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#closeSeShare').onclick = ()=>overlay.remove();
+    overlay.querySelector('#copySeLink').onclick = ()=>showToast(copyText(url) ? tr('xLinkCopied') : tr('xCouldNotCopy'));
+    const native = overlay.querySelector('#shareSeNative');
+    if(native) native.onclick = async ()=>{
+      try{ await navigator.share({ title: ev.name, text: ev.name + (store && store.name ? ' · ' + store.name : ''), url }); }
+      catch(e){ /* cancelled, or not allowed here: the link is on screen to copy */ }
+    };
   }
 
   // Printable check-in QR for one store event.
@@ -5904,9 +5988,12 @@
           return `
             <div class="list-item">
               <div class="info"><div class="n">${e.cancelled?'<span style="color:var(--rose);">[' + tr('cancelledWord') + '] </span>':''}${isFull?'<span style="color:var(--extra,#f5b942);">[' + tr('fullWord') + '] </span>':''}${escapeHtml(e.name)}</div>
-                <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · '+tr('repeatsWord'):''} · ${trf('goingCountN', { n: going + (e.capacity ? '/' + e.capacity : '') })}</div></div>
+                <div class="m">${fmtFriendly(e.date, e.time)}${isRepeating({repeat:e.repeat})?' · '+tr('repeatsWord'):''} · ${trf('goingCountN', { n: going + (e.capacity ? '/' + e.capacity : '') })}</div>
+                ${!e.cancelled && cancelledDatesOf(e).some(d=>d >= todayStr()) ? `<div class="m" style="color:var(--rose);">${tr('seCancelledDatesLabel')} ${cancelledDatesOf(e).filter(d=>d >= todayStr()).sort().map(d=>
+                  `${escapeHtml(fmtFriendly(d))} <button class="mini-btn" data-restore-se="${e.id}" data-date="${d}" aria-label="${escapeAttr(trf('seRestoreDate', { date: fmtFriendly(d) }))}">${tr('uncancel')}</button>`).join(' ')}</div>` : ''}</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
                 ${going ? `<button class="mini-btn" data-view-attendees="${e.id}" data-event-name="${escapeAttr(e.name)}">${tr('xAttendees')}</button>` : ''}
+                <button class="mini-btn" data-share-se="${e.id}">${tr('seShareBtn')}</button>
                 <button class="mini-btn" data-qr-se="${e.id}">${tr('xCheckInQr')}</button>
                 <button class="mini-btn" data-bracket-se="${e.id}">🏆 ${tr('brRunBracket')}</button>
                 <button class="mini-btn" data-edit-se="${e.id}">${tr('xEdit2')}</button>
@@ -6074,6 +6161,9 @@
           const cancelDupBtn = body.querySelector('#cancelDuplicateBtn');
           if(cancelDupBtn) cancelDupBtn.onclick = ()=>{ prefillEvent = null; editingEvent = null; render(); };
 
+          body.querySelectorAll('[data-share-se]').forEach(btn=>{
+            btn.onclick = ()=>{ const ev = myEvents.find(x=>x.id===btn.dataset.shareSe); if(ev) openStoreEventShareModal(ev, myStore); };
+          });
           body.querySelectorAll('[data-qr-se]').forEach(btn=>{
             btn.onclick = ()=>{ const ev = myEvents.find(x=>x.id===btn.dataset.qrSe); if(ev) openCheckinQrModal(ev); };
           });
@@ -6111,10 +6201,54 @@
           body.querySelectorAll('[data-view-attendees]').forEach(btn=>{
             btn.onclick = ()=>openAttendeesModal(btn.dataset.viewAttendees, btn.dataset.eventName);
           });
+          // Cancel: a one-off event (or un-cancelling) flips `cancelled`; a repeating one asks whether
+          // to cancel one date (the next one, by default) or the whole series.
+          const saveCancelledDates = async (ev, dates)=>{
+            const today = todayStr();
+            const keep = [...new Set(dates)].filter(d=>d >= today).sort();   // past dates no longer matter
+            const { error } = await supabaseClient.from('store_events').update({ cancelled_dates: keep }).eq('id', ev.id);
+            if(error) throw error;
+          };
           body.querySelectorAll('[data-cancel-se]').forEach(btn=>{
             btn.onclick = async ()=>{
               const ev = myEvents.find(x=>x.id===btn.dataset.cancelSe);
-              try{ const { error } = await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); if(error) throw error; drawManageStore(myStore); }
+              if(!ev) return;
+              const dates = isRepeating(ev) && !ev.cancelled ? upcomingDatesOf(ev, 12).filter(d=>!cancelledDatesOf(ev).includes(d)) : [];
+              if(!dates.length){
+                try{ const { error } = await supabaseClient.from('store_events').update({ cancelled: !ev.cancelled }).eq('id', ev.id); if(error) throw error; drawManageStore(myStore); }
+                catch(e){ showToast(tr('xCouldNotUpdate')); }
+                return;
+              }
+              const ov = document.createElement('div');
+              ov.className = 'overlay';
+              ov.innerHTML = `<div class="modal" style="max-width:420px;">
+                <h2>${tr('seCancelWhich')}</h2>
+                <div class="modal-sub"><strong>${escapeHtml(ev.name)}</strong></div>
+                <select id="seCancelDate" aria-label="${escapeAttr(tr('seCancelWhich'))}">${dates.map(d=>`<option value="${d}">${escapeHtml(fmtFriendly(d, ev.time))}</option>`).join('')}</select>
+                <div class="hint" style="margin-top:8px;">${tr('seCancelHint')}</div>
+                <div class="modal-actions" style="flex-wrap:wrap;">
+                  <button class="btn-primary" id="seCancelOne" style="flex:1;">${tr('seCancelOneDate')}</button>
+                  <button class="btn-secondary" id="seCancelAll" style="flex:1;">${tr('seCancelSeries')}</button>
+                  <button class="btn-secondary" id="seCancelBack" style="flex:1;">${tr('close')}</button>
+                </div></div>`;
+              document.body.appendChild(ov);
+              ov.onclick = (e)=>{ if(e.target===ov) ov.remove(); };
+              ov.querySelector('#seCancelBack').onclick = ()=>ov.remove();
+              ov.querySelector('#seCancelOne').onclick = async ()=>{
+                try{ await saveCancelledDates(ev, [...cancelledDatesOf(ev), ov.querySelector('#seCancelDate').value]); ov.remove(); drawManageStore(myStore); }
+                catch(e){ showToast(tr('xCouldNotUpdate')); }
+              };
+              ov.querySelector('#seCancelAll').onclick = async ()=>{
+                try{ const { error } = await supabaseClient.from('store_events').update({ cancelled: true }).eq('id', ev.id); if(error) throw error; ov.remove(); drawManageStore(myStore); }
+                catch(e){ showToast(tr('xCouldNotUpdate')); }
+              };
+            };
+          });
+          body.querySelectorAll('[data-restore-se]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              const ev = myEvents.find(x=>x.id===btn.dataset.restoreSe);
+              if(!ev) return;
+              try{ await saveCancelledDates(ev, cancelledDatesOf(ev).filter(d=>d !== btn.dataset.date)); drawManageStore(myStore); }
               catch(e){ showToast(tr('xCouldNotUpdate')); }
             };
           });
@@ -6169,7 +6303,7 @@
           const { data: events } = await supabaseClient.from('store_events').select('*').eq('store_id', s.id).gte('date', today).order('date').limit(5);
           const rows = (events||[]).map(e=>`
             <div class="list-item">
-              <div class="info"><div class="n">${e.cancelled?'<span style="color:var(--rose);">[' + tr('cancelledWord') + '] </span>':''}${escapeHtml(e.name)}</div>
+              <div class="info"><div class="n">${isCancelledOn(e, e.date)?'<span style="color:var(--rose);">[' + tr('cancelledWord') + '] </span>':''}${escapeHtml(e.name)}</div>
                 <div class="m">${fmtFriendly(e.date, e.time)}</div></div>
             </div>`).join('');
           return `
@@ -9329,10 +9463,11 @@
         const storeName = storeNameById[e.store_id] || 'Store';
         const fresh = { name: e.name, game: e.game||'', format: e.format||'', date: e.date, time: e.time||'',
           fee: e.fee||'', address: e.address||'', link: e.link||'', storeLink: e.store_link||'',
-          notes: e.notes||'', repeat: e.repeat||'none', cancelled: !!e.cancelled, store: storeName,
+          notes: e.notes||'', repeat: e.repeat||'none', cancelled: !!e.cancelled, cancelledDates: cancelledDatesOf(e), store: storeName,
           prizing: e.prizing||'',
           capacity: e.capacity||null, isFull: !!(e.capacity && (goingCountById[e.id]||0) >= e.capacity) };
-        Object.keys(fresh).forEach(k=>{ if(t[k] !== fresh[k]){ t[k] = fresh[k]; changed = true; } });
+        // Compared as JSON: cancelledDates is a list, and a new list each time.
+        Object.keys(fresh).forEach(k=>{ if(JSON.stringify(t[k]) !== JSON.stringify(fresh[k])){ t[k] = fresh[k]; changed = true; } });
       });
 
       if(changed) await saveTournaments();
@@ -9454,7 +9589,7 @@
         <div class="card">
           <div class="date-block"><div class="dow">${fmtDateParts(e.date).dow}</div><div class="dom">${fmtDateParts(e.date).dom}</div></div>
           <div class="card-body">
-            <div class="card-top"><div class="card-name">${e.cancelled?'<span style="color:var(--rose);">[' + tr('cancelledWord') + '] </span>':''}${escapeHtml(e.name)}</div></div>
+            <div class="card-top"><div class="card-name">${isCancelledOn(e, e.date)?'<span style="color:var(--rose);">[' + tr('cancelledWord') + '] </span>':''}${escapeHtml(e.name)}</div></div>
             <div class="card-meta">
               ${e.time ? `<span>${escapeHtml(e.time)}</span>` : ''}
               ${e.game ? `<span class="badge game">${gameIcon(e.game)} ${escapeHtml(e.game)}</span>` : ''}
@@ -9490,6 +9625,61 @@
       app.innerHTML = `<div class="wrap"><div class="empty-state" style="margin-top:60px;"><div class="big">${tr('xSomethingWentWrong')}</div></div></div>`;
     }
   }
+  // A store event's shared link (?storeevent=<id>): the event, its store, and a button to follow the store.
+  async function renderPublicStoreEventPage(id){
+    const notFound = ()=>{ app.innerHTML = `<div class="wrap"><div class="empty-state" style="margin-top:60px;"><div class="big">${tr('seNotFound')}</div><div>${tr('seNotFoundSub')}</div></div></div>`; };
+    app.innerHTML = `<div class="wrap"><div class="modal-sub" style="text-align:center;margin-top:60px;">${tr('loadingDots')}</div></div>`;
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '')) return notFound();
+    try{
+      const { data: e, error } = await supabaseClient.from('store_events').select('*').eq('id', id).maybeSingle();
+      if(error) throw error;
+      if(!e) return notFound();
+      const { data: store, error: storeError } = await supabaseClient.from('stores').select('*').eq('id', e.store_id).eq('approved', true).maybeSingle();
+      if(storeError) throw storeError;
+      if(!store) return notFound();
+      // A repeating event shows its next date; a one-off that is over says so.
+      const today = todayStr();
+      const until = new Date(); until.setDate(until.getDate() + 400);
+      const next = isRepeating(e) ? (getOccurrenceDates(e, today, dateToStr(until)).filter(d=>d >= today)[0] || e.date) : e.date;
+      const past = next < today;
+      const repeatLabel = isRepeating(e) ? (REPEATS.find(r=>r.v === e.repeat) || {}).l : '';
+      const storePage = `${baseAppUrl()}?storepage=${encodeURIComponent(store.follow_code)}`;
+      app.innerHTML = `
+        <div class="wrap">
+          <div class="home-hero" style="text-align:center;padding:30px 0 10px;">
+            <div class="brand">Pairings</div>
+          </div>
+          <div class="card">
+            <div class="date-block"><div class="dow">${fmtDateParts(next).dow}</div><div class="dom">${fmtDateParts(next).dom}</div></div>
+            <div class="card-body">
+              <div class="card-top"><div class="card-name">${isCancelledOn(e, next)?'<span style="color:var(--rose);">[' + tr('cancelledWord') + '] </span>':''}${escapeHtml(e.name)}</div></div>
+              <div class="card-meta">
+                <span>${escapeHtml(isRepeating(e) ? trf('seNextDate', { date: fmtFriendly(next, e.time) }) : fmtFriendly(next, e.time))}</span>
+                ${repeatLabel ? `<span>${escapeHtml(repeatLabel)}</span>` : ''}
+                ${e.game ? `<span class="badge game">${gameIcon(e.game)} ${escapeHtml(e.game)}</span>` : ''}
+                ${e.format ? `<span class="badge format">${escapeHtml(e.format)}</span>` : ''}
+                ${e.fee ? `<span class="badge fee">${escapeHtml(e.fee)}</span>` : ''}
+                ${e.prizing ? `<span class="badge result">🏆 ${escapeHtml(e.prizing)}</span>` : ''}
+              </div>
+              <div class="card-meta"><span>🏪 ${escapeHtml(store.name)}${store.city ? ' · ' + escapeHtml(store.city) : ''}</span>${e.address ? `<span>📍 ${escapeHtml(e.address)}</span>` : ''}</div>
+              ${past ? `<div class="card-notes">${tr('sePast')}</div>` : ''}
+              ${e.notes ? `<div class="card-notes" style="white-space:pre-wrap;">${escapeHtml(e.notes)}</div>` : ''}
+              <div class="card-links">
+                ${safeUrl(e.link) ? `<a class="card-link" href="${safeHref(e.link)}" target="_blank" rel="noopener">${tr('eventPage')}</a>` : ''}
+                ${past || isCancelledOn(e, next) ? '' : `<a class="card-link gold" href="${gcalQuickLink({name:e.name, time:e.time, fee:e.fee, notes:e.notes, link:e.link, address:e.address}, next)}" target="_blank" rel="noopener">${tr('addToGCal')}</a>`}
+                <a class="card-link" href="${escapeAttr(storePage)}">${escapeHtml(trf('seSeeAllEvents', { store: store.name }))}</a>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" style="margin-top:24px;">
+            <div>${tr('xWantTheseEventsToShow')}</div>
+            <div style="margin-top:12px;"><a href="${baseAppUrl()}?follow=${encodeURIComponent(store.follow_code)}" class="btn-primary" style="display:inline-block;text-decoration:none;padding:12px 22px;border-radius:10px;">${trf('getPairingsCta', { code: escapeHtml(store.follow_code) })}</a></div>
+          </div>
+        </div>`;
+    }catch(err){
+      app.innerHTML = `<div class="wrap"><div class="empty-state" style="margin-top:60px;"><div class="big">${tr('xSomethingWentWrong')}</div></div></div>`;
+    }
+  }
   function baseAppUrl(){ return window.location.origin + window.location.pathname; }
   // Opens the bracket from the link the app was started with. Signed out, the link is kept, so
   // signing in (e.g. a guest making an account to claim their spot) opens it again.
@@ -9508,6 +9698,10 @@
     const publicParams = new URLSearchParams(window.location.search);
     if(publicParams.has('storepage')){
       await renderPublicStorePage(publicParams.get('storepage'));
+      return;
+    }
+    if(publicParams.has('storeevent')){
+      await renderPublicStoreEventPage(publicParams.get('storeevent'));
       return;
     }
     const { data: { session: s } } = await supabaseClient.auth.getSession();
