@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-V7SsyOdtGzO2nbIXXvtbO7OHf6ObnxF0hvoe4qwyffs=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-jRs4f3OOmbHuSEgz9wpgg92K06y3WY6UlkF0alSaY5g=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -366,7 +366,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.29.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.30.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -718,6 +718,39 @@
     "Zed","Shen","Akali","Nasus","Renekton","Mel","Ambessa","Jayce","Kennen","Ekko","Dr. Mundo",
     "Master Yi","Lux","Annie","Garen"
   ];
+  // Each legend's card picture (the base printing), for result cards when riftcodex can't be
+  // reached or hasn't got one. Taken from Riot's card gallery (playriftbound.com/en-us/card-gallery,
+  // each card's `cardImage`, champion from its `tags`); the value is the picture's id on Riot's CDN.
+  const RIFTBOUND_LEGEND_IMAGES = {
+    "Ahri":"56457c7986d3f140b7123a988149cc30a83493a7","Akali":"0d53b477ed43fb9bbed84858443a606b2b51a2b5",
+    "Ambessa":"49e81916d7ae72b24de845223e1798652d26e789","Annie":"89963e1d1cffd69c620fb5d6b037f50d5c334463",
+    "Azir":"0472274c49f6540858758ebf9bd2f107a601541a","Darius":"5b9a904048b7fb936377844ec2d31564b7fedf81",
+    "Diana":"b00d922d62daca19190e13149fe3cf725c900330","Draven":"b01b2d0454ceeffdc106c4c64a390b275ebf390b",
+    "Ekko":"8ca3ef446631784ce1d261e30f6a163843ffcb2b","Ezreal":"d0e143d9edbc14971b2a7b463b3c25b2b6a0c098",
+    "Fiora":"37064aa79c13316b5dd28f0a2b054821a43f6650","Garen":"e7185deb46f17770802d06aeddfe3b929afff880",
+    "Irelia":"656ef2d1724b818e9e737ec5dcce923de067a316","Ivern":"a2ca02d26c1e95db03690729bd31113bda7e4140",
+    "Jarvan IV":"e85c005f938e44655f926bb406a47359ae51ecc1","Jax":"c6ddf49d7249bc8ac194fd9b194bfcb8857a4466",
+    "Jayce":"670b7efd367a42beba11c18fb59e240a7c574a57","Jhin":"d1e6947cf43a19488a2c31f71a4887aa0423a966",
+    "Jinx":"f57c14381b126e9f5a7b5bc4913151cb24c14fc3","K'Sante":"190a27bf844fa21105824efc19de4e71c3137df6",
+    "Kai'Sa":"3ea826277086945a2cdfda4e41b771075aa8b15b","Kennen":"0eab83392b310417d2630d50a3bfee3dd02b31c4",
+    "Kha'Zix":"a5db0b3340a189de1cf9d8174b11eb583f19ea28","LeBlanc":"c17d29602d61d6702372fec4db44c6fb2a29e8a2",
+    "Lee Sin":"ffe064e002d3b9a366748eb85102a769b2545835","Leona":"822b8bc7987a47498550708b18ef166b121fd620",
+    "Lillia":"7e1554365120c5042947aef8bcac48a07445e9f3","Lucian":"450cfb71b8890904d48b37a24bbdc78f8d849614",
+    "Lux":"44885d811b70621b188d9813b2b10b5cff1b81e6","Master Yi":"8231ced23eaf22ca3bf62ec8cb86b83a3e222da6",
+    "Mel":"2e9e60b3f161b41219c40ef0426049634fb7ba1a","Miss Fortune":"e0635cebc3dd8ee5355dbbc090ca27ebeacebad7",
+    "Nasus":"f26a25c5fddba7da788455c3d82b85c5abc7a2eb","Orianna":"d1f940425d4d913d8f56c017254343bc898f4892",
+    "Ornn":"ed58d654034d545e54c85d836f3a6552772dd75b","Poppy":"ee1393b9bace7bfea4e87405b793bb5462305ed0",
+    "Pyke":"8ca1bfde8d898a11a6abc73bbab8fc7092b0dcb4","Rek'Sai":"2db78549c30d8f9012af797fe075c4dc2355ec5d",
+    "Renata Glasc":"4bd289c281ad64229061ff909abf88c12a574833","Renekton":"7620595b36b40a0c3d05c4c5469b016d1c18c6f2",
+    "Rengar":"b3d3085f62aee993b9f5b80d4659a88439da83be","Rumble":"f311115e4c527ce82010596ce462d4050a9201b2",
+    "Seraphine":"399262205b15aa3b6306eb1d80a308791dcbe2ca","Sett":"b132becb843b2cf418cb110ead64758f49f51554",
+    "Shen":"54388a3124b7e1f0331e5970f952778db5f24500","Sivir":"fd060882c32a8deac04aea4241c6ab7b97236a05",
+    "Teemo":"9723181e3392bb61c2aabc804a44f7b0558cedf1","Vex":"653e9b8fc4989bba59aa7ade4e0c33ffd5596e5a",
+    "Vi":"b52fca3d644599008c4b1a67ffd359a9f9c4d8d7","Viktor":"913236dabf1e4f71650bbba46870fff8163e2eff",
+    "Volibear":"8ef9c1827ccbba313d4591275e831854afffa5b1","Yasuo":"33e3d5596de0f560087d40414d62b8245d1dbb0d",
+    "Zed":"aa316eb1b01c8d036eaba84b03909027fe69f6e2","Ziggs":"69899f4d5e05ff0a060b9f38894cd77f9e17d195"
+  };
+  const riftboundLegendImage = id => `https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data_live/${id}-744x1039.png?accountingTag=RB`;
 
   // ---------- Leader / legend names (One Piece, Riftbound) ----------
   // Suggestions for "your leader" and each round's opponent on the result form. The full lists come
@@ -761,13 +794,21 @@
   function cachedLeaders(gameKey){
     const entry = readLeaderCache()[gameKey];
     if(entry && Array.isArray(entry.names) && entry.names.length) return entry.names;
-    return gameKey === 'riftbound' ? RIFTBOUND_LEGENDS : [];
+    return gameKey === 'riftbound' ? [...new Set([...RIFTBOUND_LEGENDS, ...Object.keys(RIFTBOUND_LEGEND_IMAGES)])] : [];
   }
+  // `complete` is false when some pages of the list failed: what did arrive is used for this
+  // visit but not cached, so a half list isn't kept for two weeks.
   async function fetchLeaderNames(gameKey){
+    let complete = true;
+    // A card API that hangs (riftcodex sometimes does) gives up after 20 s instead of never.
     const getJson = async url => {
-      const res = await fetch(url);
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      return res.json();
+      const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = ctrl && setTimeout(()=>ctrl.abort(), 20000);
+      try{
+        const res = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+      } finally { if(timer) clearTimeout(timer); }
     };
     const names = [], images = {};
     // The base printing's picture wins; an alternate art only fills in when there's no other.
@@ -779,7 +820,7 @@
       const page = p => getJson(`https://api.riftcodex.com/cards?size=100&page=${p}`);
       const first = await page(1);
       const rest = [];
-      for(let p = 2; p <= Math.min(first.pages || 1, 60); p++) rest.push(page(p));
+      for(let p = 2; p <= Math.min(first.pages || 1, 60); p++) rest.push(page(p).catch(()=>{ complete = false; return {}; }));
       [first, ...(await Promise.all(rest))].forEach(r => (r.items || []).forEach(c=>{
         if(c && c.classification && c.classification.type === 'Legend' && / - /.test(c.name || '')){
           const n = cleanLeaderName('riftbound', c.name), md = c.metadata || {};
@@ -789,7 +830,7 @@
       }));
     } else if(gameKey === 'onepiece'){
       const lists = await Promise.all(['allSetCards', 'allSTCards', 'allPromos']
-        .map(k => getJson(`https://www.optcgapi.com/api/${k}/`).catch(()=>[])));
+        .map(k => getJson(`https://www.optcgapi.com/api/${k}/`).catch(()=>{ complete = false; return []; })));
       lists.forEach(list => (Array.isArray(list) ? list : []).forEach(c=>{
         if(c && c.card_type === 'Leader'){
           const n = cleanLeaderName('onepiece', c.card_name, c.card_color);
@@ -800,7 +841,7 @@
     }
     const urls = {};
     Object.keys(images).forEach(n=>{ if(n) urls[n] = images[n].url; });
-    return { names: names.filter(Boolean), images: urls };
+    return { names: names.filter(Boolean), images: urls, complete };
   }
   // Resolves to the list (fresh or cached); refreshes the cache when it's older than two weeks.
   function ensureLeaderList(gameKey){
@@ -809,8 +850,9 @@
     // A list cached before pictures were kept (no `images`) is fetched again once.
     if(entry && Array.isArray(entry.names) && entry.names.length && entry.images && Date.now() - (entry.at || 0) < LEADER_CACHE_MS) return Promise.resolve(entry.names);
     if(!leaderFetches[gameKey]){
-      leaderFetches[gameKey] = fetchLeaderNames(gameKey).then(({ names, images })=>{
+      leaderFetches[gameKey] = fetchLeaderNames(gameKey).then(({ names, images, complete })=>{
         const unique = [...new Set(names)].sort((a,b)=>a.localeCompare(b));
+        if(unique.length && !complete) return [...new Set([...unique, ...cachedLeaders(gameKey)])].sort((a,b)=>a.localeCompare(b));
         if(unique.length){
           try{
             const cache = readLeaderCache();
@@ -826,14 +868,23 @@
   }
   // The card picture for a leader/legend name (as cleanLeaderName writes it), or '' when the list
   // hasn't got one. Matching ignores case, so a hand-typed "kai'sa" finds Kai'Sa.
+  // Riftbound legends also have a built-in picture (RIFTBOUND_LEGEND_IMAGES), used at once when the
+  // cached list hasn't got one, so a slow or unreachable riftcodex never holds up the card.
   async function leaderImageUrl(gameKey, name){
     name = String(name || '').trim();
     if(!gameKey || !name) return '';
+    const lookup = images => {
+      images = images || {};
+      if(images[name]) return images[name];
+      const k = Object.keys(images).find(n => n.toLowerCase() === name.toLowerCase());
+      return k ? images[k] : '';
+    };
+    const builtIn = gameKey === 'riftbound' ? lookup(RIFTBOUND_LEGEND_IMAGES) : '';
+    const cached = lookup((readLeaderCache()[gameKey] || {}).images);
+    if(cached) return cached;
+    if(builtIn){ ensureLeaderList(gameKey); return riftboundLegendImage(builtIn); }
     await ensureLeaderList(gameKey);
-    const images = (readLeaderCache()[gameKey] || {}).images || {};
-    if(images[name]) return images[name];
-    const k = Object.keys(images).find(n => n.toLowerCase() === name.toLowerCase());
-    return k ? images[k] : '';
+    return lookup((readLeaderCache()[gameKey] || {}).images);
   }
   // A deck's leader/legend in the same form: Brewhouse's raw card name cleaned, or what was typed
   // here (already in that form, and cleaning it again would drop its colours).
@@ -4963,6 +5014,22 @@
 
   // ---------- Decks modal ----------
   // ---------- Stores: browse/follow, and manage your own store ----------
+  // Finds an account by the email it signed up with or its @username, for appointing someone
+  // (store admins, bracket hosts). Resolves to { id, username, display_name } or null.
+  async function findUserByRef(who){
+    who = String(who || '').trim();
+    if(!who) return null;
+    try{
+      if(who.startsWith('@') || !who.includes('@')){
+        const name = who.replace(/^@/, '').replace(/[\\%_]/g, '\\$&');   // ilike would read % and _ as wildcards
+        const { data } = await supabaseClient.from('profiles').select('id, username, display_name').ilike('username', name).limit(1);
+        return (data && data[0]) || null;
+      }
+      const { data } = await supabaseClient.rpc('find_profile_by_email', { p_email: who });
+      const row = Array.isArray(data) ? data[0] : data;
+      return row && row.id ? row : null;
+    }catch(e){ return null; }
+  }
   function storeShareCode(){
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let s = ''; for(let i=0;i<6;i++) s += chars[Math.floor(Math.random()*chars.length)];
@@ -5720,6 +5787,15 @@
         const { data } = await supabaseClient.from('stores').select('*').eq('owner_id', session.user.id).order('created_at');
         myStores = data || [];
       }catch(e){}
+      // Stores you help run (store_admins). No table yet (older schema) = none.
+      try{
+        const { data: rows, error } = await supabaseClient.from('store_admins').select('store_id').eq('user_id', session.user.id);
+        const ids = error ? [] : (rows || []).map(r=>r.store_id).filter(id => !myStores.some(s=>s.id===id));
+        if(ids.length){
+          const { data } = await supabaseClient.from('stores').select('*').in('id', ids).order('name');
+          (data || []).forEach(st => myStores.push({ ...st, _admin: true }));
+        }
+      }catch(e){}
 
       function requestFormHtml(hasExisting){
         return `
@@ -5763,7 +5839,7 @@
           <div class="section-label">${tr('xYourStores')}</div>
           ${myStores.map(s=>`
             <div class="list-item">
-              <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${s.approved ? '✅ ' + tr('approvedWord') : '⏳ ' + tr('pendingApproval')}</div></div>
+              <div class="info"><div class="n">${escapeHtml(s.name)}</div><div class="m">${s.approved ? '✅ ' + tr('approvedWord') : '⏳ ' + tr('pendingApproval')}${s._admin ? ' · 🛡 ' + tr('storeAdminBadge') : ''}</div></div>
               ${s.approved ? `<button class="mini-btn" data-manage-store="${s.id}">${tr('xManage')}</button>` : ''}
             </div>`).join('')}
           <div class="section-label">${tr('xAddAnotherStore')}</div>
@@ -5841,6 +5917,67 @@
             </div>`;
         }
 
+        // Store admins: people who help run this store (set_store_admin). The owner adds and removes
+        // them; an admin sees who else is one and can leave. Hidden until the SQL is run.
+        async function drawStoreAdmins(){
+          const el = body.querySelector('#storeAdminsSection');
+          if(!el) return;
+          let res;
+          try{ res = await supabaseClient.rpc('store_admin_list', { p_store: myStore.id }); }catch(e){ res = { error: e }; }
+          if(res.error || !el.isConnected){ el.innerHTML = ''; return; }
+          const admins = res.data || [];
+          const isOwner = myStore.owner_id === session.user.id;
+          el.innerHTML = `
+            <div class="section-label">🛡 ${tr('storeAdminsTitle')}</div>
+            <div class="modal-sub" style="margin-bottom:8px;">${isOwner ? tr('storeAdminsHintOwner') : tr('storeAdminsHintAdmin')}</div>
+            ${admins.length ? admins.map(a=>`
+              <div class="list-item">
+                <div class="info"><div class="n">${escapeHtml(a.name)}${a.user_id === session.user.id ? ' ' + tr('storeAdminYou') : ''}</div>${a.username ? `<div class="m">@${escapeHtml(a.username)}</div>` : ''}</div>
+                ${isOwner ? `<button class="mini-btn decline" data-remove-admin="${escapeAttr(a.user_id)}">${tr('remove')}</button>` : ''}
+              </div>`).join('') : `<div class="modal-sub">${tr('storeAdminsNone')}</div>`}
+            ${isOwner ? `
+              <div class="field" style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+                <input id="storeAdminWho" placeholder="${escapeAttr(tr('storeAdminWhoPh'))}" aria-label="${escapeAttr(tr('storeAdminWhoPh'))}" autocomplete="off" style="flex:1;min-width:0;"/>
+                <button class="mini-btn" id="addStoreAdminBtn">${tr('storeAdminAdd')}</button>
+              </div>` : `<button class="mini-btn decline" id="leaveStoreBtn" style="margin-top:8px;">${tr('storeAdminLeave')}</button>`}`;
+          const setAdmin = (args)=> supabaseClient.rpc('set_store_admin', Object.assign({ p_store: myStore.id }, args));
+          const addBtn = el.querySelector('#addStoreAdminBtn');
+          if(addBtn){
+            const who = el.querySelector('#storeAdminWho');
+            who.addEventListener('keydown', e=>{ e.stopPropagation(); if(e.key === 'Enter') addBtn.click(); });
+            addBtn.onclick = async ()=>{
+              if(!who.value.trim()) return;
+              addBtn.disabled = true;
+              const found = await findUserByRef(who.value);
+              if(!found){ addBtn.disabled = false; showToast(tr('storeAdminNotFound')); return; }
+              if(found.id === myStore.owner_id){ addBtn.disabled = false; showToast(tr('storeAdminIsOwner')); return; }
+              const { error } = await setAdmin({ p_user: found.id });
+              addBtn.disabled = false;
+              if(error){ showToast(tr('storeAdminCouldNot')); return; }
+              showToast(trf('storeAdminAdded', { name: found.display_name || found.username || who.value.trim() }));
+              drawStoreAdmins();
+            };
+          }
+          el.querySelectorAll('[data-remove-admin]').forEach(btn=>{
+            btn.onclick = async ()=>{
+              const a = admins.find(x => x.user_id === btn.dataset.removeAdmin);
+              if(!confirm(trf('storeAdminRemoveConfirm', { name: a ? a.name : '' }))) return;
+              const { error } = await setAdmin({ p_user: btn.dataset.removeAdmin, p_remove: true });
+              if(error){ showToast(tr('storeAdminCouldNot')); return; }
+              showToast(tr('storeAdminRemoved'));
+              drawStoreAdmins();
+            };
+          });
+          const leaveBtn = el.querySelector('#leaveStoreBtn');
+          if(leaveBtn) leaveBtn.onclick = async ()=>{
+            if(!confirm(trf('storeAdminLeaveConfirm', { name: myStore.name }))) return;
+            const { error } = await setAdmin({ p_user: session.user.id, p_remove: true });
+            if(error){ showToast(tr('storeAdminCouldNot')); return; }
+            showToast(tr('storeAdminLeft'));
+            renderMyStoreTab();
+          };
+        }
+
         function render(){
           body.innerHTML = `
             <button class="mini-btn" id="backToStoreList" style="margin-bottom:10px;">${tr('xAllYourStores')}</button>
@@ -5875,8 +6012,11 @@
                 <button class="mini-btn decline" data-del-ann="${a.id}">${tr('delete')}</button>
               </div>`).join('') : ''}
 
+            <div id="storeAdminsSection"></div>
+
             <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
           `;
+          drawStoreAdmins();
           loadQrLib().then(()=>{
             const holder = document.getElementById('storeQrHolder');
             if(holder) new QRCode(holder, { text: `${baseAppUrl()}?storepage=${myStore.follow_code}`, width:150, height:150 });
@@ -6849,15 +6989,8 @@
       btn.onclick = async ()=>{
         const who = overlay.querySelector('#bhWho').value.trim();
         if(!who) return;
-        let found = null;
-        if(who.startsWith('@') || !who.includes('@')){
-          const { data } = await supabaseClient.from('profiles').select('id, username, display_name').ilike('username', who.replace(/^@/, '')).limit(1);
-          found = data && data[0];
-        } else {
-          const { data } = await supabaseClient.rpc('find_profile_by_email', { p_email: who });
-          found = Array.isArray(data) ? data[0] : data;
-        }
-        if(!found || !found.id){ showToast('No user found'); return; }
+        const found = await findUserByRef(who);
+        if(!found){ showToast('No user found'); return; }
         const days = parseInt(overlay.querySelector('#bhFor').value, 10);
         const { error } = await supabaseClient.rpc('admin_set_bracket_host', { p_user: found.id, p_until: days ? new Date(Date.now() + days * 864e5).toISOString() : null });
         if(error){ showToast('Could not save'); return; }
@@ -6866,6 +6999,45 @@
         drawBracketHosts();
       };
       drawBracketHosts();
+    }
+    // Store admins at any store (set_store_admin; owners do the same from Stores → My store).
+    async function wireStoreAdmins(){
+      const pick = overlay.querySelector('#saStore');
+      if(!pick) return;
+      const list = overlay.querySelector('#adminStoreAdmins');
+      const { data: stores, error } = await supabaseClient.from('stores').select('id, name, city, approved').order('name');
+      if(error){ list.innerHTML = '<div class="modal-sub">Could not load stores.</div>'; return; }
+      pick.innerHTML = '<option value="">Choose a store…</option>' + (stores || []).map(st =>
+        `<option value="${escapeAttr(st.id)}">${escapeHtml(st.name)}${st.city ? ' — ' + escapeHtml(st.city) : ''}${st.approved ? '' : ' (pending)'}</option>`).join('');
+      async function drawList(){
+        if(!pick.value){ list.innerHTML = ''; return; }
+        const { data, error: e } = await supabaseClient.rpc('store_admin_list', { p_store: pick.value });
+        if(e){ list.innerHTML = '<div class="modal-sub">Could not load (has the store admins SQL been run?)</div>'; return; }
+        list.innerHTML = (data || []).length ? data.map(a => `<div class="list-item">
+            <div class="info"><div class="n">${escapeHtml(a.name)}</div>${a.username ? `<div class="m">@${escapeHtml(a.username)}</div>` : ''}</div>
+            <button class="mini-btn decline" data-sa-remove="${escapeAttr(a.user_id)}">Remove</button></div>`).join('')
+          : '<div class="modal-sub">No admins at this store.</div>';
+        list.querySelectorAll('[data-sa-remove]').forEach(btn => {
+          btn.onclick = async ()=>{
+            if(!confirm('Remove this admin from the store?')) return;
+            const { error: re } = await supabaseClient.rpc('set_store_admin', { p_store: pick.value, p_user: btn.dataset.saRemove, p_remove: true });
+            showToast(re ? 'Could not save' : 'Removed');
+            drawList();
+          };
+        });
+      }
+      pick.onchange = drawList;
+      overlay.querySelector('#saAdd').onclick = async ()=>{
+        const whoEl = overlay.querySelector('#saWho');
+        if(!pick.value){ showToast('Choose a store first'); return; }
+        const found = await findUserByRef(whoEl.value);
+        if(!found){ showToast('No user found'); return; }
+        const { error: ae } = await supabaseClient.rpc('set_store_admin', { p_store: pick.value, p_user: found.id });
+        if(ae){ showToast('Could not save'); return; }
+        showToast('Added: ' + (found.display_name || found.username || whoEl.value.trim()));
+        whoEl.value = '';
+        drawList();
+      };
     }
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
@@ -6912,6 +7084,15 @@
         </div>
         <div id="adminBracketHosts"><div class="modal-sub">Loading…</div></div>
 
+        <div class="section-label">🛡 Store admins</div>
+        <div class="modal-sub">People who help run a store: they can post and edit its events, message its followers, see attendees and run brackets. Owners add their own in Stores → My store; you can add or remove them at any store here.</div>
+        <select id="saStore" aria-label="Store" style="margin-bottom:8px;"><option value="">Loading stores…</option></select>
+        <div class="field" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input id="saWho" placeholder="email or @username" aria-label="Email or username of the new store admin" style="flex:1 1 180px;min-width:0;"/>
+          <button class="mini-btn" id="saAdd">Add admin</button>
+        </div>
+        <div id="adminStoreAdmins"></div>
+
         <div class="section-label">Post an announcement</div>
         <div class="field"><label>Title</label><input id="ann_title" placeholder="e.g. New features!"/></div>
         <div class="field"><label>Message</label><textarea id="ann_message" placeholder="What's new…"></textarea></div>
@@ -6921,6 +7102,7 @@
       `;
       overlay.querySelector('#closeAdmin').onclick = ()=>overlay.remove();
       wireBracketHosts();
+      wireStoreAdmins();
       body.querySelectorAll('[data-approve-store]').forEach(btn=>{
         btn.onclick = async ()=>{
           try{
