@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-5n+WxKq451uWdw6MjBpYm+KH21y8e//xqOWH3nsWwOU=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-V7SsyOdtGzO2nbIXXvtbO7OHf6ObnxF0hvoe4qwyffs=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -366,7 +366,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.28.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.29.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -727,6 +727,8 @@
   // a Riftbound legend is its champion ("Kai'Sa"), a One Piece leader its name and colours
   // ("Charlotte Katakuri (Purple)"), with printing tags like "(062)" or "(Alternate Art)" dropped.
   // Brewhouse decks store the raw card name, which goes through the same cleaning.
+  // Each name also keeps its card picture (`images`, name → URL; the base printing, not a
+  // signature or alternate art), which the result card draws (leaderImageUrl).
   const LEADER_CACHE_KEY = 'pairings-leaders:v1';
   const LEADER_CACHE_MS = 14 * 24 * 3600 * 1000;
   const leaderFetches = {};
@@ -767,36 +769,52 @@
       if(!res.ok) throw new Error('HTTP ' + res.status);
       return res.json();
     };
-    const names = [];
+    const names = [], images = {};
+    // The base printing's picture wins; an alternate art only fills in when there's no other.
+    const keepImage = (name, url, alt)=>{
+      if(!name || !/^https:\/\//.test(url || '')) return;
+      if(!images[name] || (images[name].alt && !alt)) images[name] = { url, alt };
+    };
     if(gameKey === 'riftbound'){
       const page = p => getJson(`https://api.riftcodex.com/cards?size=100&page=${p}`);
       const first = await page(1);
       const rest = [];
       for(let p = 2; p <= Math.min(first.pages || 1, 60); p++) rest.push(page(p));
       [first, ...(await Promise.all(rest))].forEach(r => (r.items || []).forEach(c=>{
-        if(c && c.classification && c.classification.type === 'Legend' && / - /.test(c.name || '')) names.push(cleanLeaderName('riftbound', c.name));
+        if(c && c.classification && c.classification.type === 'Legend' && / - /.test(c.name || '')){
+          const n = cleanLeaderName('riftbound', c.name), md = c.metadata || {};
+          names.push(n);
+          keepImage(n, c.media && c.media.image_url, !!(md.signature || md.alternate_art || md.overnumbered || /\(/.test(c.name)));
+        }
       }));
     } else if(gameKey === 'onepiece'){
       const lists = await Promise.all(['allSetCards', 'allSTCards', 'allPromos']
         .map(k => getJson(`https://www.optcgapi.com/api/${k}/`).catch(()=>[])));
       lists.forEach(list => (Array.isArray(list) ? list : []).forEach(c=>{
-        if(c && c.card_type === 'Leader') names.push(cleanLeaderName('onepiece', c.card_name, c.card_color));
+        if(c && c.card_type === 'Leader'){
+          const n = cleanLeaderName('onepiece', c.card_name, c.card_color);
+          names.push(n);
+          keepImage(n, c.card_image, /_|\(.*(Parallel|Alternate)/i.test((c.card_image_id || '') + ' ' + (c.card_name || '')));
+        }
       }));
     }
-    return names.filter(Boolean);
+    const urls = {};
+    Object.keys(images).forEach(n=>{ if(n) urls[n] = images[n].url; });
+    return { names: names.filter(Boolean), images: urls };
   }
   // Resolves to the list (fresh or cached); refreshes the cache when it's older than two weeks.
   function ensureLeaderList(gameKey){
     if(!gameKey) return Promise.resolve([]);
     const entry = readLeaderCache()[gameKey];
-    if(entry && Array.isArray(entry.names) && entry.names.length && Date.now() - (entry.at || 0) < LEADER_CACHE_MS) return Promise.resolve(entry.names);
+    // A list cached before pictures were kept (no `images`) is fetched again once.
+    if(entry && Array.isArray(entry.names) && entry.names.length && entry.images && Date.now() - (entry.at || 0) < LEADER_CACHE_MS) return Promise.resolve(entry.names);
     if(!leaderFetches[gameKey]){
-      leaderFetches[gameKey] = fetchLeaderNames(gameKey).then(names=>{
+      leaderFetches[gameKey] = fetchLeaderNames(gameKey).then(({ names, images })=>{
         const unique = [...new Set(names)].sort((a,b)=>a.localeCompare(b));
         if(unique.length){
           try{
             const cache = readLeaderCache();
-            cache[gameKey] = { at: Date.now(), names: unique };
+            cache[gameKey] = { at: Date.now(), names: unique, images };
             localStorage.setItem(LEADER_CACHE_KEY, JSON.stringify(cache));
           }catch(e){ /* storage full or blocked: the list still serves this visit */ }
           return unique;
@@ -805,6 +823,17 @@
       }).catch(()=>cachedLeaders(gameKey)).finally(()=>{ delete leaderFetches[gameKey]; });
     }
     return leaderFetches[gameKey];
+  }
+  // The card picture for a leader/legend name (as cleanLeaderName writes it), or '' when the list
+  // hasn't got one. Matching ignores case, so a hand-typed "kai'sa" finds Kai'Sa.
+  async function leaderImageUrl(gameKey, name){
+    name = String(name || '').trim();
+    if(!gameKey || !name) return '';
+    await ensureLeaderList(gameKey);
+    const images = (readLeaderCache()[gameKey] || {}).images || {};
+    if(images[name]) return images[name];
+    const k = Object.keys(images).find(n => n.toLowerCase() === name.toLowerCase());
+    return k ? images[k] : '';
   }
   // A deck's leader/legend in the same form: Brewhouse's raw card name cleaned, or what was typed
   // here (already in that form, and cleaning it again would drop its colours).
@@ -834,6 +863,46 @@
     const n = Number(result && result.deckVersion);
     return Number.isInteger(n) && n > 0 && deckVersions(d).some(v=>v.n === n) ? n : versionForDate(d, date);
   }
+  // ---------- A deck and game per round (testing sessions, casual play) ----------
+  // In a casual event each round can name its own deck (`m.deckId`, with `m.deckVersion`) and game
+  // (`m.game`); a round without them was played with the result's deck in the event's game.
+  // resultPieces splits such a result into one piece per deck + game, each a result of its own with
+  // its record counted from its rounds, so stats, deck stats and the result card file every round
+  // under the deck it was played with. Any other result is one piece: the result itself.
+  function roundGame(t, m){ return (m && m.game) || (t && t.game) || ''; }
+  function isMixedResult(result){
+    return !!(result && Array.isArray(result.matches) && result.matches.some(m => m && (m.deckId || m.game)));
+  }
+  function resultPieces(t, result, decksArr){
+    decksArr = decksArr || decks;
+    if(!isMixedResult(result)) return [{ game: (t && t.game) || '', result }];
+    const groups = new Map();
+    result.matches.forEach(m=>{
+      if(!m) return;
+      const own = !!m.deckId && m.deckId !== result.deckId;
+      const deckId = own ? m.deckId : (result.deckId || '');
+      const game = roundGame(t, m);
+      const key = deckId + '\u0000' + game;
+      if(!groups.has(key)){
+        const piece = { placement: '', notes: result.notes || '', matches: [] };
+        if(deckId){
+          piece.deckId = deckId;
+          const v = own ? m.deckVersion : result.deckVersion;
+          if(v) piece.deckVersion = v;
+        } else if(result.deck) piece.deck = result.deck;
+        // Your leader: the round's deck's, or the result's for rounds played with the result's deck.
+        const leader = own ? deckLeaderName(decksArr.find(x=>x.id===deckId))
+          : (game === ((t && t.game) || '') ? (result.leader || '') : '');
+        if(leader) piece.leader = leader;
+        if(result.inProgress) piece.inProgress = true;
+        groups.set(key, { game, result: piece });
+      }
+      groups.get(key).result.matches.push(m);
+    });
+    const pieces = [...groups.values()];
+    pieces.forEach(p=>{ p.result.record = resultRecordText({ matches: p.result.matches }); });
+    return pieces;
+  }
   function forEachOwnResult(cb){
     tournaments.forEach(t=>{
       if(!isRepeating(t)){ if(t.result) cb(t.result, t.date, t); return; }
@@ -842,7 +911,9 @@
   }
   function deckVersionHasResults(d, n){
     let found = false;
-    forEachOwnResult((r, date)=>{ if(!found && r.deckId === d.id && resultDeckVersion(r, d, date) === n) found = true; });
+    forEachOwnResult((r, date, t)=>{
+      if(!found) resultPieces(t, r).forEach(p=>{ if(p.result.deckId === d.id && resultDeckVersion(p.result, d, date) === n) found = true; });
+    });
     return found;
   }
   // Starts version n+1. Unless `always`, a current version nothing was logged with just takes the
@@ -874,8 +945,8 @@
     const g = String(game || '').trim().toLowerCase();
     const seen = new Set(), out = [];
     forEachOwnResult((r, date, t)=>{
-      if(g && String(t.game || '').trim().toLowerCase() !== g) return;
       (r.matches || []).forEach(m=>{
+        if(!m || (g && String(roundGame(t, m)).trim().toLowerCase() !== g)) return;
         const n = String(m.opponent || '').trim(), k = n.toLowerCase();
         if(n && !seen.has(k)){ seen.add(k); out.push(n); }
       });
@@ -890,9 +961,11 @@
     const add = n => { n = String(n || '').trim(); const k = n.toLowerCase(); if(n && !seen.has(k)){ seen.add(k); out.push(n); } };
     (list || cachedLeaders(gameKey)).forEach(add);
     tournaments.forEach(t=>{
-      if(leaderGameKey(t.game) !== gameKey) return;
       const results = [t.result, ...Object.values(t.occurrences || {}).map(o=>o && o.result)].filter(Boolean);
-      results.forEach(r=>{ add(r.leader); (r.matches || []).forEach(m=>add(m.opponent)); });
+      results.forEach(r=>{
+        if(leaderGameKey(t.game) === gameKey) add(r.leader);
+        (r.matches || []).forEach(m=>{ if(m && leaderGameKey(roundGame(t, m)) === gameKey) add(m.opponent); });
+      });
     });
     decks.forEach(d=>{ if(leaderGameKey(d.game) === gameKey) add(deckLeaderName(d)); });
     return out.sort((a,b)=>a.localeCompare(b));
@@ -2793,39 +2866,49 @@
 
     function accumulate(t, date, occ){
       if(occ.skip) return;
-      if(gameFilter && t.game !== gameFilter) return;
       if(sinceDate && date < sinceDate) return;
-      if(opts.deckId){
-        if(!occ.result || occ.result.deckId !== opts.deckId) return;
-        if(opts.version && resultDeckVersion(occ.result, decksArr.find(x=>x.id===opts.deckId), date) !== opts.version) return;
-      }
+      // A testing session played with several decks or games counts each round under its own
+      // (resultPieces); the filters below keep only the pieces asked for.
+      const pieces = (occ.result ? resultPieces(t, occ.result, decksArr) : [{ game: t.game || '', result: null }]).filter(p=>{
+        if(gameFilter && p.game !== gameFilter) return false;
+        if(opts.deckId){
+          if(!p.result || p.result.deckId !== opts.deckId) return false;
+          if(opts.version && resultDeckVersion(p.result, decksArr.find(x=>x.id===opts.deckId), date) !== opts.version) return false;
+        }
+        return true;
+      });
+      if(!pieces.length) return;
       if(occ.rsvp === 'going' || occ.result){
         attendedSet.add(t.id + '::' + date);
         if(t.format) formatCounts[t.format] = (formatCounts[t.format]||0) + 1;
         if(t.store) storeCounts[t.store] = (storeCounts[t.store]||0) + 1;
-        if(t.game) gameCounts[t.game] = (gameCounts[t.game]||0) + 1;
+        [...new Set(pieces.map(p=>p.game).filter(Boolean))].forEach(g=>{ gameCounts[g] = (gameCounts[g]||0) + 1; });
       }
-      if(occ.result){
-        allResults.push({ name: t.name, store: t.store, date, result: occ.result });
-        if(occ.result.placement){
-          placementCounts[occ.result.placement] = (placementCounts[occ.result.placement]||0) + 1;
+      if(!occ.result) return;
+      allResults.push({ name: t.name, store: t.store, date, result: occ.result });
+      if(occ.result.placement){
+        placementCounts[occ.result.placement] = (placementCounts[occ.result.placement]||0) + 1;
+      }
+      const eventRec = { w:0, l:0, d:0 };
+      let eventHasRec = false;
+      pieces.forEach(({ game, result })=>{
+        const rec = parseRecord(result.record);
+        if(rec){
+          totalWins += rec.w; totalLosses += rec.l; totalDraws += rec.d;
+          eventRec.w += rec.w; eventRec.l += rec.l; eventRec.d += rec.d; eventHasRec = true;
         }
-        const rec = parseRecord(occ.result.record);
-        if(rec){ totalWins += rec.w; totalLosses += rec.l; totalDraws += rec.d; }
-        const deckKey = occ.result.deckId ? ('id:'+occ.result.deckId) : (occ.result.deck ? ('legacy:'+occ.result.deck.trim()) : null);
+        const deckKey = result.deckId ? ('id:'+result.deckId) : (result.deck ? ('legacy:'+result.deck.trim()) : null);
         if(deckKey && rec){
           deckStats[deckKey] = deckStats[deckKey] || {w:0,l:0,d:0};
           deckStats[deckKey].w += rec.w; deckStats[deckKey].l += rec.l; deckStats[deckKey].d += rec.d;
         }
-        const leaderName = leaderGameKey(t.game)
-          ? (occ.result.leader || (occ.result.deckId ? deckLeaderName(decksArr.find(x=>x.id===occ.result.deckId)) : '')) : '';
+        const leaderName = leaderGameKey(game)
+          ? (result.leader || (result.deckId ? deckLeaderName(decksArr.find(x=>x.id===result.deckId)) : '')) : '';
         if(leaderName && rec){
           const ls = leaderStats[leaderName] = leaderStats[leaderName] || {w:0,l:0,d:0};
           ls.w += rec.w; ls.l += rec.l; ls.d += rec.d;
         }
-        // An event still in progress has a partial record; it would distort a trend or a streak.
-        if(rec && !occ.result.inProgress) trendRows.push({ date, name: t.name, w: rec.w, l: rec.l, d: rec.d });
-        (occ.result.matches||[]).forEach(m=>{
+        (result.matches||[]).forEach(m=>{
           const side = m.wentFirst === 'yes' ? turnOrder.first : (m.wentFirst === 'no' ? turnOrder.second : null);
           if(side && m.outcome){
             if(m.outcome === 'W') side.w++; else if(m.outcome === 'L') side.l++; else if(m.outcome === 'D') side.d++;
@@ -2840,7 +2923,9 @@
           else if(m.outcome==='L') matchupStats[key].l++;
           else if(m.outcome==='D') matchupStats[key].d++;
         });
-      }
+      });
+      // An event still in progress has a partial record; it would distort a trend or a streak.
+      if(eventHasRec && !occ.result.inProgress) trendRows.push({ date, name: t.name, ...eventRec });
     }
 
     tournamentsArr.forEach(t=>{
@@ -3658,7 +3743,12 @@
     const leaderOptionsHtml = list => (leaderKey ? leaderSuggestions(leaderKey, list) : opponentSuggestions(t.game)).map(l=>`<option value="${escapeAttr(l)}">`).join('');
     const legendDatalist = `<datalist id="legendOptions">${leaderOptionsHtml()}</datalist>`;
     const leaderWord = leaderKey === 'riftbound' ? tr('yourLegend') : tr('yourLeader');
-    const matchingDecks = decks.filter(d => !t.game || !d.game || d.game === t.game).sort((a,b)=>(b.active?1:0)-(a.active?1:0));
+    // Testing sessions and casual play can switch decks and games between rounds: each round can
+    // name its own deck (any game) and game (resultPieces counts them apart). The deck above is
+    // the event game's, for the rounds that don't.
+    const perRound = !!t.isCasual;
+    const byActive = (a,b)=>(b.active?1:0)-(a.active?1:0);
+    const matchingDecks = decks.filter(d => !t.game || !d.game || d.game === t.game).sort(byActive);
     const currentDeckId = r.deckId || '';
     const initialLeader = r.leader || deckLeaderName(decks.find(d=>d.id===currentDeckId));
 
@@ -3679,7 +3769,7 @@
           <label>${tr('xYourDeck')}</label>
           <select id="r_deckSelect">
             <option value="">${tr('xNoDeckSelected')}</option>
-            ${matchingDecks.map(d=>`<option value="${d.id}" ${currentDeckId===d.id?'selected':''}>${escapeHtml(d.name)}${d.active?'':' (retired)'}</option>`).join('')}
+            ${matchingDecks.map(d=>`<option value="${d.id}" ${currentDeckId===d.id?'selected':''}>${escapeHtml(d.name)}${d.active?'':' ' + tr('retiredSuffix')}</option>`).join('')}
             <option value="__new__">${tr('xAddANewDeck')}</option>
           </select>
           <div id="newDeckInline" style="display:none;margin-top:8px;">
@@ -3694,6 +3784,7 @@
         <div class="hint" style="margin:-6px 0 12px;">${tr('xRecordFillsInAutomaticallyFrom')}</div>
 
         <div class="section-label">${tr('xMatchLog')}</div>
+        ${perRound ? `<div class="hint" style="margin:-4px 0 10px;">${tr('perRoundDeckHint')}</div>` : ''}
         <div id="matchRows"></div>
         <button class="mini-btn" id="addMatchBtn" type="button" style="margin-bottom:14px;">${tr('xAddARound')}</button>
 
@@ -3721,6 +3812,39 @@
 
     const inputStyle = 'background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;';
 
+    // Opponent suggestions for a round's game: the form's own list for the event's game, and one
+    // more list per other game a round is played in.
+    const extraLists = {};
+    function datalistFor(game){
+      const g = game || t.game || '';
+      if(g === (t.game || '')) return 'legendOptions';
+      if(extraLists[g]) return extraLists[g];
+      const id = extraLists[g] = 'oppOptions' + Object.keys(extraLists).length;
+      const key = leaderGameKey(g);
+      const dl = document.createElement('datalist');
+      dl.id = id;
+      const fillList = list => { dl.innerHTML = (key ? leaderSuggestions(key, list) : opponentSuggestions(g)).map(l=>`<option value="${escapeAttr(l)}">`).join(''); };
+      fillList();
+      overlay.querySelector('.modal').appendChild(dl);
+      if(key) ensureLeaderList(key).then(list=>{ if(overlay.isConnected) fillList(list); });
+      return id;
+    }
+    function roundDeckHtml(m, idx){
+      const roundDecks = decks.slice().sort(byActive);
+      const games = GAMES.includes(m.game) || !m.game ? GAMES : [m.game, ...GAMES];
+      return `
+            <div class="row2" style="margin-top:6px;">
+              <select data-round-deck="${idx}" aria-label="${escapeAttr(trf('roundDeckLabel', { n: idx+1 }))}" style="${inputStyle}">
+                <option value="">${tr('roundDeckSame')}</option>
+                ${roundDecks.map(d=>`<option value="${escapeAttr(d.id)}" ${m.deckId===d.id?'selected':''}>${escapeHtml(d.name)}${d.game && d.game !== t.game ? ' · ' + escapeHtml(d.game) : ''}${d.active?'':' ' + tr('retiredSuffix')}</option>`).join('')}
+              </select>
+              <select data-round-game="${idx}" aria-label="${escapeAttr(trf('roundGameLabel', { n: idx+1 }))}" style="${inputStyle}">
+                <option value="">${t.game ? escapeHtml(trf('roundGameSame', { game: t.game })) : tr('roundGameNone')}</option>
+                ${games.filter(g => g !== t.game).map(g=>`<option value="${escapeAttr(g)}" ${m.game===g?'selected':''}>${escapeHtml(g)}</option>`).join('')}
+              </select>
+            </div>`;
+    }
+
     function drawMatches(){
       const rowsEl = overlay.querySelector('#matchRows');
       if(matches.length === 0){
@@ -3732,7 +3856,7 @@
           <div class="info" style="flex:1;min-width:220px;">
             <div class="n" style="margin-bottom:6px;">${trf('roundN', { n: idx+1 })}</div>
             <div class="row2" style="margin-bottom:6px;">
-              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="${escapeAttr(tr('xOpponentSDeckLeader'))}" style="${inputStyle}" list="legendOptions"/>
+              <input data-m="${idx}" data-f="opponent" value="${escapeAttr(m.opponent||'')}" placeholder="${escapeAttr(tr('xOpponentSDeckLeader'))}" style="${inputStyle}" list="${datalistFor(roundGame(t, m))}"/>
               <select data-m="${idx}" data-f="outcome" style="${inputStyle}">
                 <option value="">${tr('xResult')}</option>
                 <option value="W" ${m.outcome==='W'?'selected':''}>${tr('xWin')}</option>
@@ -3748,6 +3872,7 @@
               </select>
               <input data-m="${idx}" data-f="notes" value="${escapeAttr(m.notes||'')}" placeholder="${escapeAttr(tr('xNotesOptional'))}" style="${inputStyle}"/>
             </div>
+            ${perRound ? roundDeckHtml(m, idx) : ''}
           </div>
           <button class="icon-btn" data-remove-match="${idx}" title="${escapeAttr(tr('xRemoveRound'))}">✕</button>
         </div>`).join('');
@@ -3757,6 +3882,23 @@
           const idx = parseInt(el.dataset.m,10);
           matches[idx][el.dataset.f] = el.value;
           recomputeRecordFromMatches();
+        };
+      });
+      // A round's deck brings its game (and the version in use on that date) along with it.
+      rowsEl.querySelectorAll('[data-round-deck]').forEach(el=>{
+        el.onchange = ()=>{
+          const m = matches[parseInt(el.dataset.roundDeck,10)];
+          const d = decks.find(x=>x.id===el.value);
+          m.deckId = d ? d.id : '';
+          m.deckVersion = d ? versionForDate(d, date) : '';
+          if(d && d.game) m.game = d.game === t.game ? '' : d.game;
+          drawMatches();
+        };
+      });
+      rowsEl.querySelectorAll('[data-round-game]').forEach(el=>{
+        el.onchange = ()=>{
+          matches[parseInt(el.dataset.roundGame,10)].game = el.value;
+          drawMatches();
         };
       });
       rowsEl.querySelectorAll('[data-remove-match]').forEach(btn=>{
@@ -3836,7 +3978,13 @@
       const record = overlay.querySelector('#r_record').value.trim();
       const deckId = deckSelect.value && deckSelect.value !== '__new__' ? deckSelect.value : '';
       const notes = overlay.querySelector('#r_notes').value.trim();
-      const cleanMatches = matches.filter(m=>m.opponent || m.outcome || m.notes);
+      const cleanMatches = matches.filter(m=>m.opponent || m.outcome || m.notes).map(m=>{
+        const c = { ...m };
+        // Only a casual event's rounds carry their own deck and game, and only when one was picked.
+        if(!perRound || !c.deckId){ delete c.deckId; delete c.deckVersion; }
+        if(!perRound || !c.game || c.game === t.game) delete c.game;
+        return c;
+      });
       if(!placement && !record && !deckId && !r.deck && !notes && cleanMatches.length===0){ showToast(tr('xAddAtLeastOneDetail')); return; }
       const leader = leaderInput ? leaderInput.value.trim() : (r.leader || '');
       const resultObj = { placement, record, notes, matches: cleanMatches };
@@ -7392,19 +7540,109 @@
     return n.W + '-' + n.L + (n.D ? '-' + n.D : '');
   }
   function resultCardData(t, date, result){
-    const deck = result.deckId ? decks.find(d=>d.id===result.deckId) : null;
-    return {
-      game: t.game || '', icon: t.game ? gameIcon(t.game) : '🎴',
+    const base = {
       name: t.name || tr('untitledEvent'), where: [t.store, t.city].filter(Boolean).join(' · '),
       date: new Date(date + 'T00:00:00').toLocaleDateString(dateLocale(), { weekday:'short', month:'short', day:'numeric', year:'numeric' }),
       placement: String(result.placement || '').trim(), record: resultRecordText(result),
-      deck: deck ? deck.name : (result.deck || ''),
-      leader: String(result.leader || (deck ? deckLeaderName(deck) : '') || '').trim(),
+    };
+    const pieceDeckName = r => { const d = r.deckId && decks.find(x=>x.id===r.deckId); return d ? d.name : (r.deck || ''); };
+    const pieceLeader = r => String(r.leader || deckLeaderName(r.deckId && decks.find(x=>x.id===r.deckId)) || '').trim();
+    if(isMixedResult(result)){
+      // A session with several decks: every deck on the card, each round labelled with its own,
+      // and the picture of the one played the most.
+      const pieces = resultPieces(t, result).filter(p => p.result.matches.some(m => m.opponent || m.outcome));
+      const games = [...new Set(pieces.map(p=>p.game).filter(Boolean))];
+      const deckNames = [...new Set(pieces.map(p=>pieceDeckName(p.result)).filter(Boolean))];
+      const labelOf = new Map();
+      pieces.forEach(p=>{ const label = pieceDeckName(p.result) || pieceLeader(p.result); p.result.matches.forEach(m=>labelOf.set(m, label)); });
+      const top = pieces.filter(p=>pieceLeader(p.result) && leaderGameKey(p.game)).sort((a,b)=>b.result.matches.length - a.result.matches.length)[0];
+      return { ...base,
+        game: games.join(' / '), icon: games.length === 1 ? gameIcon(games[0]) : '🎴',
+        deck: deckNames.join(' · '), decksLabel: deckNames.length > 1, leader: '',
+        artGame: top ? top.game : '', artLeader: top ? pieceLeader(top.result) : '',
+        matches: (result.matches || []).filter(m => m.opponent || m.outcome).map(m => ({ ...m, deckLabel: labelOf.get(m) || '' })),
+      };
+    }
+    const leader = pieceLeader(result);
+    return { ...base,
+      game: t.game || '', icon: t.game ? gameIcon(t.game) : '🎴',
+      deck: pieceDeckName(result), leader,
+      artGame: t.game || '', artLeader: leader,
       matches: (result.matches || []).filter(m => m.opponent || m.outcome),
     };
   }
 
-  function drawResultCard(canvas, d){
+  // The leader/legend's card picture, for the result card. The card sites (Riot's CDN, optcgapi)
+  // send no CORS header, so a canvas that drew their pictures straight could no longer be saved;
+  // they come through wsrv.nl, a free image proxy that adds one (Brewhouse does the same), which
+  // only ever sees the card picture's address. Resolves to a loaded image, or null (no picture,
+  // offline, or nothing after 6 s), and the card is drawn without one.
+  const CARD_ART_PROXY = 'https://wsrv.nl/?url=';
+  async function loadCardArt(gameKey, leader){
+    const url = await leaderImageUrl(gameKey, leader).catch(()=>'');
+    if(!url) return null;
+    return new Promise(resolve=>{
+      const img = new Image();
+      const done = ok => { clearTimeout(timer); img.onload = img.onerror = null; resolve(ok && img.naturalWidth ? img : null); };
+      const timer = setTimeout(()=>done(false), 6000);
+      img.crossOrigin = 'anonymous';
+      img.onload = ()=>done(true);
+      img.onerror = ()=>done(false);
+      img.src = CARD_ART_PROXY + encodeURIComponent(url) + '&w=800&output=jpg';
+    });
+  }
+  // '#rrggbb' / '#rgb' with an alpha, for gradients over the art.
+  function colorWithAlpha(color, a){
+    let h = String(color || '').trim().replace(/^#/, '');
+    if(h.length === 3) h = h.split('').map(c=>c+c).join('');
+    if(!/^[0-9a-f]{6}$/i.test(h)) return `rgba(16,14,26,${a})`;
+    return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;
+  }
+  // The card's art (its top part, where the illustration is) across the whole background,
+  // slightly blurred and faded into the theme's background so the text stays readable. One Piece
+  // scans carry a "SAMPLE" mark across the middle (every public source has it), so only the part
+  // above it is used.
+  function drawCardArtBackground(ctx, img, bg, gameKey){
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    const sh = ih * (gameKey === 'onepiece' ? 0.4 : 0.58), sy = ih * (gameKey === 'onepiece' ? 0.02 : 0.04);
+    const sw = Math.min(iw, sh * CARD_W / CARD_H), sx = (iw - sw) / 2;
+    const bleed = 40;   // drawn past the edges so the blur doesn't fade them
+    if('filter' in ctx){
+      ctx.save(); ctx.filter = 'blur(7px)';
+      ctx.drawImage(img, sx, sy, sw, sh, -bleed, -bleed, CARD_W + bleed * 2, CARD_H + bleed * 2);
+      ctx.restore();
+    } else {
+      // Safari has no canvas filters: drawing it small and scaling it back up blurs it about as much.
+      const small = document.createElement('canvas');
+      small.width = Math.round(CARD_W / 6); small.height = Math.round(CARD_H / 6);
+      small.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, small.width, small.height);
+      ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(small, -bleed, -bleed, CARD_W + bleed * 2, CARD_H + bleed * 2);
+      ctx.restore();
+    }
+    const fade = ctx.createLinearGradient(0, 0, 0, CARD_H);
+    fade.addColorStop(0, colorWithAlpha(bg, 0.55));
+    fade.addColorStop(0.35, colorWithAlpha(bg, 0.72));
+    fade.addColorStop(0.7, colorWithAlpha(bg, 0.9));
+    fade.addColorStop(1, colorWithAlpha(bg, 0.96));
+    ctx.fillStyle = fade; ctx.fillRect(0, 0, CARD_W, CARD_H);
+  }
+  // The whole card, small and slightly tilted, in the top-right corner.
+  function drawCornerCard(ctx, img, box, line){
+    ctx.save();
+    ctx.translate(box.x + box.w / 2, box.y + box.h / 2);
+    ctx.rotate(4 * Math.PI / 180);
+    const x = -box.w / 2, y = -box.h / 2, r = box.w * 0.05;
+    const shape = ()=>{ ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x, y, box.w, box.h, r); else ctx.rect(x, y, box.w, box.h); };
+    ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 18;
+    shape(); ctx.fillStyle = '#000'; ctx.fill();
+    ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    shape(); ctx.save(); ctx.clip(); ctx.drawImage(img, x, y, box.w, box.h); ctx.restore();
+    shape(); ctx.lineWidth = 3; ctx.strokeStyle = line; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawResultCard(canvas, d, art){
     canvas.width = CARD_W; canvas.height = CARD_H;
     const ctx = canvas.getContext('2d');
     const css = getComputedStyle(document.documentElement);
@@ -7415,8 +7653,9 @@
     const HEAD = "'Space Grotesk', 'Inter', sans-serif", BODY = "'Inter', sans-serif";
     const P = 84, maxW = CARD_W - P * 2;
 
-    // Background with the app's two soft glows.
+    // Background (the leader's card art when there is one) with the app's two soft glows.
     ctx.fillStyle = C.bg; ctx.fillRect(0, 0, CARD_W, CARD_H);
+    if(art) drawCardArtBackground(ctx, art, C.bg, leaderGameKey(d.artGame));
     const glow = (x, y, r, color, a)=>{
       const g = ctx.createRadialGradient(x, y, 0, x, y, r);
       ctx.globalAlpha = a; g.addColorStop(0, color); g.addColorStop(1, 'transparent');
@@ -7424,6 +7663,14 @@
     };
     glow(120, -60, 820, C.rift, 0.30);
     glow(CARD_W + 60, CARD_H + 60, 760, C.teal, 0.16);
+    // The card itself in the corner; the text beside it is kept narrower until it's past it.
+    let cardBox = null;
+    if(art){
+      const w = 250, h = Math.round(w * ((art.naturalHeight || art.height) / (art.naturalWidth || art.width) || 1.4));
+      cardBox = { x: CARD_W - P - w + 6, y: P + 86, w, h };
+      drawCornerCard(ctx, art, cardBox, C.line);
+    }
+    const widthAt = top => cardBox && top < cardBox.y + cardBox.h + 30 ? maxW - cardBox.w - 44 : maxW;
 
     const fit = (text, font, width)=>{   // one line, shortened with … if needed
       ctx.font = font; let s = String(text);
@@ -7449,8 +7696,8 @@
 
     // Event name and place.
     ctx.fillStyle = C.text;
-    wrap(d.name, `700 76px ${HEAD}`, maxW, 2).forEach(l=>{ ctx.font = `700 76px ${HEAD}`; ctx.fillText(l, P, y); y += 88; });
-    if(d.where){ ctx.fillStyle = C.dim; ctx.font = `500 36px ${BODY}`; ctx.fillText(fit(d.where, ctx.font, maxW), P, y); y += 20; }
+    wrap(d.name, `700 76px ${HEAD}`, widthAt(y - 70), 2).forEach(l=>{ ctx.font = `700 76px ${HEAD}`; ctx.fillText(l, P, y); y += 88; });
+    if(d.where){ ctx.fillStyle = C.dim; ctx.font = `500 36px ${BODY}`; ctx.fillText(fit(d.where, ctx.font, widthAt(y - 36)), P, y); y += 20; }
     y += 70;
 
     // The result: placement big in the accent gradient, record beside or below it.
@@ -7458,8 +7705,9 @@
     const small = d.placement ? d.record : '';
     if(big){
       const bigFont = `700 ${big.length > 7 ? 120 : 170}px ${HEAD}`;
+      const bigW = widthAt(y);
       ctx.font = bigFont;
-      const bigText = fit(big, bigFont, maxW);
+      const bigText = fit(big, bigFont, bigW);
       const bw = ctx.measureText(bigText).width;
       const g = ctx.createLinearGradient(P, 0, P + Math.max(bw, 1), 0);
       g.addColorStop(0, C.accent); g.addColorStop(1, C.teal);
@@ -7468,7 +7716,7 @@
         ctx.font = `700 76px ${HEAD}`;
         const sw = ctx.measureText(small).width;
         ctx.fillStyle = C.text;
-        if(P + bw + 50 + sw <= CARD_W - P) ctx.fillText(small, P + bw + 50, y + 130);
+        if(bw + 50 + sw <= bigW) ctx.fillText(small, P + bw + 50, y + 130);
         else { y += 100; ctx.fillText(fit(small, ctx.font, maxW), P, y + 130); }
       }
       y += 200;
@@ -7477,8 +7725,8 @@
     // Deck and leader.
     const deckLine = [d.deck, d.leader && d.leader !== d.deck ? d.leader : ''].filter(Boolean).join(' · ');
     if(deckLine){
-      ctx.fillStyle = C.dim; ctx.font = `600 30px ${BODY}`; ctx.fillText(tr('cardDeck').toUpperCase(), P, y); y += 50;
-      ctx.fillStyle = C.text; ctx.font = `600 44px ${BODY}`; ctx.fillText(fit(deckLine, ctx.font, maxW), P, y); y += 70;
+      ctx.fillStyle = C.dim; ctx.font = `600 30px ${BODY}`; ctx.fillText(tr(d.decksLabel ? 'cardDecks' : 'cardDeck').toUpperCase(), P, y); y += 50;
+      ctx.fillStyle = C.text; ctx.font = `600 44px ${BODY}`; ctx.fillText(fit(deckLine, ctx.font, widthAt(y - 44)), P, y); y += 70;
     }
 
     // Rounds, as many as fit above the footer.
@@ -7497,7 +7745,8 @@
         const mid = top + (rowH - 12) / 2 + 12;
         ctx.fillStyle = C.dim; ctx.font = `600 30px ${BODY}`; ctx.fillText(tr('cardRoundShort') + (i + 1), P + 26, mid);
         ctx.fillStyle = C.text; ctx.font = `500 34px ${BODY}`;
-        ctx.fillText(fit(m.opponent ? tr('cardVs') + ' ' + m.opponent : '—', ctx.font, maxW - 280), P + 110, mid);
+        const vs = m.opponent ? tr('cardVs') + ' ' + m.opponent : '—';
+        ctx.fillText(fit(m.deckLabel ? m.deckLabel + ' ' + vs : vs, ctx.font, maxW - 280), P + 110, mid);
         if(oc[m.outcome]){ ctx.fillStyle = oc[m.outcome][0]; ctx.font = `700 34px ${HEAD}`; ctx.textAlign = 'right'; ctx.fillText(oc[m.outcome][1], CARD_W - P - 26, mid); ctx.textAlign = 'left'; }
       });
       if(shown.length < d.matches.length){
@@ -7538,9 +7787,22 @@
     ]), new Promise(r => setTimeout(r, 2500))]); }catch(_){}
     const data = resultCardData(t, date, result);
     try{ drawResultCard(canvas, data); }catch(e){ showToast(tr('cardFailed')); return; }
+    // The leader's card art arrives in the background; the card is drawn again with it.
+    let withArt = false;
+    const artKey = leaderGameKey(data.artGame);
+    if(artKey && data.artLeader) loadCardArt(artKey, data.artLeader).then(img=>{
+      if(!img || !overlay.isConnected) return;
+      try{ drawResultCard(canvas, data, img); withArt = true; }catch(_){ drawResultCard(canvas, data); }
+    });
 
     const fileName = ('pairings-' + (t.name || 'result') + '-' + date).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.png';
-    const toBlob = ()=> new Promise(res => { try{ canvas.toBlob(b => res(b), 'image/png'); }catch(_){ res(null); } });
+    const blobOf = ()=> new Promise(res => { try{ canvas.toBlob(b => res(b), 'image/png'); }catch(_){ res(null); } });
+    // If the browser won't export the art after all, the plain card still saves.
+    const toBlob = async ()=>{
+      let b = await blobOf();
+      if(!b && withArt){ withArt = false; drawResultCard(canvas, data); b = await blobOf(); }
+      return b;
+    };
     const save = async ()=>{
       const blob = await toBlob();
       if(!blob){ showToast(tr('cardFailed')); return; }
