@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-2cO+n0rckD7pvfqjlC3OCmfKZYq5gId9Dpp7h2uIPwc=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-IusoEhG8+XydgdE3ughdokL7ijtmfQx3inBJluV+adk=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -372,7 +372,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.31.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.32.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -1058,6 +1058,9 @@
     }
   }
   let statsRangeFilter = 'all'; // 'week' | 'month' | '3months' | 'all'
+  // Which events Stats counts: 'all', 'events' (real tournaments) or 'casual' (casual play and
+  // testing sessions, i.e. isCasual). Like the range, it applies to every stats screen.
+  let statsKindFilter = 'all';
   function getStatsRangeCutoff(){
     if(statsRangeFilter === 'all') return null;
     const days = { week: 7, month: 30, '3months': 90 }[statsRangeFilter];
@@ -2911,6 +2914,7 @@
   // opts.deckId limits everything to results logged with that deck, and opts.version (with deckId)
   // to one version of it; opts.minMatchupGames is how many games an opponent needs before it can
   // top "what you beat / lose to" (2 by default, so one fluke doesn't; a single deck has fewer games).
+  // opts.kind 'events' keeps only real tournaments, 'casual' only casual events and testing sessions.
   function computeStats(tournamentsArr, decksArr, gameFilter, sinceDate, opts){
     tournamentsArr = tournamentsArr || tournaments;
     decksArr = decksArr || decks;
@@ -2934,6 +2938,8 @@
     function accumulate(t, date, occ){
       if(occ.skip) return;
       if(sinceDate && date < sinceDate) return;
+      if(opts.kind === 'events' && t.isCasual) return;
+      if(opts.kind === 'casual' && !t.isCasual) return;
       // A testing session played with several decks or games counts each round under its own
       // (resultPieces); the filters below keep only the pieces asked for.
       const pieces = (occ.result ? resultPieces(t, occ.result, decksArr) : [{ game: t.game || '', result: null }]).filter(p=>{
@@ -4364,17 +4370,23 @@
 
   // ---------- Stats modal ----------
   function openStatsModal(){
-    const s = computeStats(tournaments, decks, null, getStatsRangeCutoff());
+    const s = computeStats(tournaments, decks, null, getStatsRangeCutoff(), { kind: statsKindFilter });
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
 
     const rangeChipsHtml = `
       <div class="chip-row" style="margin-bottom:16px;">
         ${['week','month','3months','all'].map(r=>`<button class="chip ${statsRangeFilter===r?'active':''}" data-range="${r}">${tr('range'+(r==='3months'?'3Months':r.charAt(0).toUpperCase()+r.slice(1)))}</button>`).join('')}
+      </div>
+      <div class="chip-row" style="margin:-8px 0 16px;">
+        ${[['all','statsKindAll'],['events','statsKindEvents'],['casual','statsKindCasual']].map(([k,key])=>`<button class="chip ${statsKindFilter===k?'active':''}" data-stats-kind="${k}" aria-pressed="${statsKindFilter===k}">${tr(key)}</button>`).join('')}
       </div>`;
     function wireRangeChips(){
       overlay.querySelectorAll('[data-range]').forEach(b=>{
         b.onclick = ()=>{ statsRangeFilter = b.dataset.range; overlay.remove(); openStatsModal(); };
+      });
+      overlay.querySelectorAll('[data-stats-kind]').forEach(b=>{
+        b.onclick = ()=>{ statsKindFilter = b.dataset.statsKind; overlay.remove(); openStatsModal(); };
       });
     }
     // The Stats page stays open underneath; after a save it is rebuilt so the new result shows.
@@ -4654,7 +4666,7 @@
 
   // ---------- Per-game detailed stats (opened from the general stats page) ----------
   function openGameStatsModal(game, tournamentsArr, decksArr, ownerLabel){
-    const s = computeStats(tournamentsArr, decksArr, game, getStatsRangeCutoff());
+    const s = computeStats(tournamentsArr, decksArr, game, getStatsRangeCutoff(), { kind: statsKindFilter });
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
 
@@ -4763,7 +4775,7 @@
       return;
     }
 
-    const s = computeStats(friendTournaments, friendDecks, null, getStatsRangeCutoff());
+    const s = computeStats(friendTournaments, friendDecks, null, getStatsRangeCutoff(), { kind: statsKindFilter });
     if(s.attended === 0 && s.resultsLogged === 0){
       overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(trf('friendStatsTitle', { name: friendName }))}</h2>
         <div class="empty-state"><div class="big">${tr('nothingToShow')}</div><div>${escapeHtml(trf('friendNoResults', { name: friendName }))}</div></div>
