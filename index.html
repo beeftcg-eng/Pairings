@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-I0kMCTwD5kk9/lnnip/P+ANgB+rgLMFyuY8/9Jvbe48=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-BvZxB/sT5qhXsR7OEh5UUXIOHqD+rfbjshq2CqXtkCM=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -372,7 +372,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.33.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.34.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -4559,7 +4559,7 @@
 
   // ---------- Trend, streak and matrix sections (shared by the stats screens) ----------
   function monthLabel(ym){
-    try{ return new Date(ym + '-01T00:00:00').toLocaleDateString(dateLocale(), { month: 'short' }); }
+    try{ return fmtDate(new Date(ym + '-01T00:00:00'), { month: 'short' }); }
     catch(e){ return ym; }
   }
   // Bars of win rate per month. The text alternative lists every value, because a bar chart is
@@ -4831,7 +4831,7 @@
         <div class="p" style="color:${rate >= 50 ? 'var(--teal)' : 'var(--rose)'};">${rate}%</div>
       </div>
       ${rounds.slice(0, 5).map(r => `<div class="m" style="display:flex;justify-content:space-between;gap:8px;padding:4px 2px;">
-        <span>${escapeHtml(new Date(r.date + 'T00:00:00').toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric', year: 'numeric' }))} · ${escapeHtml(r.t.name || '')}</span>
+        <span>${escapeHtml(fmtDate(new Date(r.date + 'T00:00:00'), { month: 'short', day: 'numeric', year: 'numeric' }))} · ${escapeHtml(r.t.name || '')}</span>
         <span style="color:${color[r.outcome]};flex:none;">${escapeHtml(label[r.outcome])}</span></div>`).join('')}`;
   }
   async function openFriendStatsModal(friendUserId, friendName){
@@ -6113,6 +6113,72 @@
 
         // Store admins: people who help run this store (set_store_admin). The owner adds and removes
         // them; an admin sees who else is one and can leave. Hidden until the SQL is run.
+        // Seasons: points across this store's brackets between two dates (store_seasons). Hidden
+        // until the SQL is run.
+        async function drawStoreSeasons(){
+          const el = body.querySelector('#storeSeasonsSection');
+          if(!el) return;
+          let res;
+          try{ res = await supabaseClient.from('store_seasons').select('*').eq('store_id', myStore.id).order('starts_on', { ascending: false }); }catch(e){ res = { error: e }; }
+          if(res.error || !el.isConnected){ el.innerHTML = ''; return; }
+          const seasons = res.data || [];
+          const today = todayStr();
+          const d = new Date(); const in3 = new Date(d.getFullYear(), d.getMonth() + 3, d.getDate());
+          el.innerHTML = `
+            <div class="section-label">🏅 ${tr('seasonsTitle')}</div>
+            <div class="modal-sub" style="margin-bottom:8px;">${tr('seasonsHint')}</div>
+            ${seasons.map(x=>`
+              <div class="list-item">
+                <div class="info"><div class="n">${escapeHtml(x.name)}${x.starts_on <= today && x.ends_on >= today ? ` <span class="badge result">${tr('seasonNow')}</span>` : ''}</div>
+                  <div class="m">${escapeHtml([seasonDates(x), x.game].filter(Boolean).join(' · '))}</div></div>
+                <div style="display:flex;gap:6px;">
+                  <button class="mini-btn" data-season-standings="${escapeAttr(x.id)}">${tr('seasonStandings')}</button>
+                  <button class="mini-btn decline" data-season-delete="${escapeAttr(x.id)}" aria-label="${escapeAttr(trf('seasonDeleteName', { name: x.name }))}">✕</button>
+                </div>
+              </div>`).join('')}
+            <details style="margin-top:8px;"${seasons.length ? '' : ' open'}>
+              <summary class="hint" style="cursor:pointer;">+ ${tr('seasonNew')}</summary>
+              <div class="field" style="margin-top:8px;"><label>${tr('seasonName')}</label><input id="ssName" maxlength="80" placeholder="${escapeAttr(tr('seasonNamePh'))}"/></div>
+              <div class="field"><label>${tr('seasonGame')}</label>
+                <select id="ssGame"><option value="">${tr('seasonAnyGame')}</option>${((myStore.games || []).length ? myStore.games : GAMES).map(g=>`<option value="${escapeAttr(g)}">${escapeHtml(g)}</option>`).join('')}</select></div>
+              <div class="row2">
+                <div class="field"><label>${tr('seasonStarts')}</label><input id="ssStart" type="date" value="${today}"/></div>
+                <div class="field"><label>${tr('seasonEnds')}</label><input id="ssEnd" type="date" value="${dateToStr(in3)}"/></div>
+              </div>
+              <div class="row2" style="grid-template-columns:1fr 1fr 1fr;">
+                <div class="field"><label>${tr('seasonPtsWin')}</label><input id="ssWin" type="number" min="0" max="100" value="3"/></div>
+                <div class="field"><label>${tr('seasonPtsDraw')}</label><input id="ssDraw" type="number" min="0" max="100" value="1"/></div>
+                <div class="field"><label>${tr('seasonPtsAttend')}</label><input id="ssAttend" type="number" min="0" max="100" value="1"/></div>
+              </div>
+              <button class="mini-btn" id="ssCreate">${tr('seasonCreate')}</button>
+            </details>`;
+          el.querySelectorAll('[data-season-standings]').forEach(b=>{
+            b.onclick = ()=>openSeasonStandingsModal(seasons.find(x => x.id === b.dataset.seasonStandings), myStore);
+          });
+          el.querySelectorAll('[data-season-delete]').forEach(b=>{
+            b.onclick = async ()=>{
+              const x = seasons.find(y => y.id === b.dataset.seasonDelete);
+              if(!x || !confirm(trf('seasonDeleteConfirm', { name: x.name }))) return;
+              const { error } = await supabaseClient.from('store_seasons').delete().eq('id', x.id);
+              if(error){ showToast(tr('storeAdminCouldNot')); return; }
+              drawStoreSeasons();
+            };
+          });
+          el.querySelector('#ssCreate').onclick = async ()=>{
+            const name = el.querySelector('#ssName').value.trim();
+            const starts = el.querySelector('#ssStart').value, ends = el.querySelector('#ssEnd').value;
+            if(!name){ showToast(tr('seasonNeedName')); return; }
+            if(!starts || !ends || ends < starts){ showToast(tr('seasonBadDates')); return; }
+            const pts = id => Math.max(0, Math.min(100, parseInt(el.querySelector(id).value, 10) || 0));
+            const { error } = await supabaseClient.from('store_seasons').insert({ store_id: myStore.id, name: name.slice(0, 80),
+              game: el.querySelector('#ssGame').value || null, starts_on: starts, ends_on: ends,
+              points: { win: pts('#ssWin'), draw: pts('#ssDraw'), attend: pts('#ssAttend') } });
+            if(error){ showToast(tr('storeAdminCouldNot')); return; }
+            showToast(tr('seasonCreated'));
+            drawStoreSeasons();
+          };
+        }
+
         async function drawStoreAdmins(){
           const el = body.querySelector('#storeAdminsSection');
           if(!el) return;
@@ -6233,11 +6299,13 @@
                 <button class="mini-btn decline" data-del-ann="${a.id}">${tr('delete')}</button>
               </div>`).join('') : ''}
 
+            <div id="storeSeasonsSection"></div>
             <div id="storeAdminsSection"></div>
 
             <div class="modal-actions"><button class="btn-secondary" id="closeStores" style="flex:1;">${tr('close')}</button></div>
           `;
           drawStoreAdmins();
+          drawStoreSeasons();
           loadQrLib().then(()=>{
             const holder = document.getElementById('storeQrHolder');
             if(holder) new QRCode(holder, { text: `${baseAppUrl()}?storepage=${myStore.follow_code}`, width:150, height:150 });
@@ -6718,6 +6786,76 @@
       <table><thead><tr><th>#</th><th>${escapeHtml(tr('brPrintPlayer'))}</th><th>${escapeHtml(tr('csvPoints'))}</th><th>${escapeHtml(tr('brPrintRecord'))}</th><th>${escapeHtml(tr('csvTiebreakers'))}</th></tr></thead><tbody>
         ${rows.map(r => `<tr><td class="n">${r.rank}</td><td>${escapeHtml(r.name)}${r.dropped ? ' (' + escapeHtml(tr('brDroppedShort')) + ')' : ''}</td><td>${r.points}</td><td>${escapeHtml(trf('brRecord', { w: r.wins, l: r.losses, d: r.draws }))}</td><td>${escapeHtml(r.tiebreak)}</td></tr>`).join('')}
       </tbody></table><p class="hint" style="margin-top:10px;">${escapeHtml(tr('brTiebreakHint'))}</p>`);
+  }
+
+  // ---- store seasons: points across a store's brackets (store_season_standings) ----
+  function seasonDates(x){
+    const f = d => fmtDate(new Date(d + 'T00:00:00'), { month: 'short', day: 'numeric', year: 'numeric' });
+    return f(x.starts_on) + ' – ' + f(x.ends_on);
+  }
+  function seasonPointsText(x){
+    const p = Object.assign({ win: 3, draw: 1, attend: 1 }, x.points || {});
+    return trf('seasonPointsRule', { win: p.win, draw: p.draw, attend: p.attend });
+  }
+  async function loadSeasonStandings(id){
+    const { data, error } = await supabaseClient.rpc('store_season_standings', { p_season: id });
+    if(error) throw error;
+    return data || [];
+  }
+  function seasonRowsHtml(rows, limit){
+    const shown = limit ? rows.slice(0, limit) : rows;
+    return shown.map(r=>`
+      <div class="result-row">
+        <div><div class="n">${r.rank}. ${escapeHtml(r.name)}</div>
+          <div class="m">${escapeHtml(trf(r.events === 1 ? 'seasonEvents1' : 'seasonEventsN', { n: r.events }))} · ${escapeHtml(trf('brRecord', { w: r.wins, l: r.losses, d: r.draws }))}</div></div>
+        <div class="p" style="color:var(--teal);">${escapeHtml(trf('seasonPts', { n: r.points }))}</div>
+      </div>`).join('') + (limit && rows.length > limit ? `<div class="hint" style="text-align:center;">${escapeHtml(trf('seasonMorePlayers', { n: rows.length - limit }))}</div>` : '');
+  }
+  async function openSeasonStandingsModal(season, store){
+    if(!season) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    const head = `<h2>🏅 ${escapeHtml(season.name)}</h2>
+      <div class="modal-sub">${escapeHtml([store && store.name, seasonDates(season), season.game].filter(Boolean).join(' · '))}<br>${escapeHtml(seasonPointsText(season))}</div>`;
+    overlay.innerHTML = `<div class="modal">${head}<div class="modal-sub">${tr('loadingDots')}</div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    let rows;
+    try{ rows = await loadSeasonStandings(season.id); }
+    catch(e){ rows = null; }
+    overlay.querySelector('.modal').innerHTML = `${head}
+      ${rows === null ? `<div class="modal-sub">${tr('seasonLoadFail')}</div>` : rows.length ? seasonRowsHtml(rows) : `<div class="modal-sub">${tr('seasonEmpty')}</div>`}
+      <div class="modal-actions">
+        ${rows && rows.length ? `<button class="btn-secondary" id="ssPrint" style="flex:1;">🖨 ${tr('brPrintStandings')}</button>` : ''}
+        <button class="btn-secondary" id="ssClose" style="flex:1;">${tr('close')}</button>
+      </div>`;
+    overlay.querySelector('#ssClose').onclick = ()=>overlay.remove();
+    const pr = overlay.querySelector('#ssPrint');
+    if(pr) pr.onclick = ()=>{
+      trackFeature('bracket_print');
+      openPrintSheet(season.name, `<h1>${escapeHtml(season.name)}</h1>
+        <p class="sub">${escapeHtml([store && store.name, seasonDates(season), season.game].filter(Boolean).join(' · '))}</p>
+        <table><thead><tr><th>#</th><th>${escapeHtml(tr('brPrintPlayer'))}</th><th>${escapeHtml(tr('seasonEventsCol'))}</th><th>${escapeHtml(tr('brPrintRecord'))}</th><th>${escapeHtml(tr('csvPoints'))}</th></tr></thead><tbody>
+          ${rows.map(r => `<tr><td class="n">${r.rank}</td><td>${escapeHtml(r.name)}</td><td>${r.events}</td><td>${escapeHtml(trf('brRecord', { w: r.wins, l: r.losses, d: r.draws }))}</td><td><b>${r.points}</b></td></tr>`).join('')}
+        </tbody></table><p class="hint" style="margin-top:10px;">${escapeHtml(seasonPointsText(season))}</p>`);
+    };
+  }
+  // The store's running season(s) for its public page: the top 10 of each, or '' (none, or the SQL
+  // isn't there yet).
+  async function publicSeasonsHtml(store){
+    try{
+      const today = todayStr();
+      const { data, error } = await supabaseClient.from('store_seasons').select('*').eq('store_id', store.id).lte('starts_on', today).gte('ends_on', today).order('starts_on', { ascending: false }).limit(2);
+      if(error || !data || !data.length) return '';
+      const parts = await Promise.all(data.map(async x => {
+        const rows = await loadSeasonStandings(x.id).catch(()=>null);
+        if(!rows || !rows.length) return '';
+        return `<div class="section-label" style="text-align:center;">🏅 ${escapeHtml(x.name)}</div>
+          <div class="modal-sub" style="text-align:center;">${escapeHtml([seasonDates(x), x.game].filter(Boolean).join(' · '))} · ${escapeHtml(seasonPointsText(x))}</div>
+          ${seasonRowsHtml(rows, 10)}`;
+      }));
+      return parts.join('');
+    }catch(e){ return ''; }
   }
 
   // My brackets, and a form for a new one (prefill: from a store event's 🏆 button).
@@ -8488,32 +8626,45 @@
   }
 
   // Stats → "Share a result": every finished result, so older events work too.
+  // Every result ever logged, newest first, drawn LIST_PAGE rows at a time ("Show N more"): years
+  // of weekly results are thousands of rows, which took over a second to draw on a phone.
   function openResultPickerModal(){
     const list = allLoggedResults();
+    let shown = 0;
+    const rowHtml = (r, i) => `
+          <div class="result-row">
+            <div>
+              <div class="n">${escapeHtml(r.t.name || tr('untitledEvent'))}</div>
+              <div class="m">${fmtFriendly(r.date)}${r.t.store ? ' · ' + escapeHtml(r.t.store) : ''}${r.t.game ? ' · ' + escapeHtml(r.t.game) : ''}</div>
+            </div>
+            <button class="mini-btn" data-card="${i}" aria-label="${escapeAttr(trf('cardShareFor', { name: r.t.name || tr('untitledEvent') }))}" ${isShareableResult(r.result) ? '' : 'disabled'}>${escapeHtml([r.result.placement, resultRecordText(r.result)].filter(Boolean).join(' · ') || '—')} 📸</button>
+          </div>`;
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `
       <div class="modal">
         <h2>📸 ${tr('cardPickTitle')}</h2>
         <div class="modal-sub">${tr('cardPickSub')}</div>
-        ${list.length ? list.map((r, i)=>`
-          <div class="result-row">
-            <div>
-              <div class="n">${escapeHtml(r.t.name || tr('untitledEvent'))}</div>
-              <div class="m">${fmtFriendly(r.date)}${r.t.store ? ' · ' + escapeHtml(r.t.store) : ''}${r.t.game ? ' · ' + escapeHtml(r.t.game) : ''}</div>
-            </div>
-            <button class="mini-btn" data-card="${i}" ${isShareableResult(r.result) ? '' : 'disabled'}>${escapeHtml([r.result.placement, resultRecordText(r.result)].filter(Boolean).join(' · ') || '—')} 📸</button>
-          </div>`).join('') : `<div class="modal-sub">${tr('cardNoResults')}</div>`}
+        ${list.length ? '<div id="cardPickRows"></div><button class="btn-secondary" id="cardPickMore" style="width:100%;margin-top:6px;"></button>' : `<div class="modal-sub">${tr('cardNoResults')}</div>`}
         <div class="modal-actions"><button class="btn-secondary" id="closeCardPick" style="flex:1;">${tr('close')}</button></div>
       </div>`;
     document.body.appendChild(overlay);
-    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.onclick = (e)=>{
+      if(e.target===overlay){ overlay.remove(); return; }
+      const b = e.target.closest && e.target.closest('[data-card]');
+      if(b && !b.disabled){ const r = list[parseInt(b.dataset.card, 10)]; if(r) openResultCardModal(r.t, r.date, r.result); }
+    };
     overlay.querySelector('#closeCardPick').onclick = ()=>overlay.remove();
-    overlay.querySelectorAll('[data-card]').forEach(b=>{
-      const r = list[parseInt(b.dataset.card, 10)];
-      b.setAttribute('aria-label', trf('cardShareFor', { name: r.t.name || tr('untitledEvent') }));
-      b.onclick = ()=>openResultCardModal(r.t, r.date, r.result);
-    });
+    const rows = overlay.querySelector('#cardPickRows'), more = overlay.querySelector('#cardPickMore');
+    const showMore = ()=>{
+      const next = list.slice(shown, shown + (shown ? LIST_PAGE * 2 : LIST_PAGE));
+      rows.insertAdjacentHTML('beforeend', next.map((r, k) => rowHtml(r, shown + k)).join(''));
+      shown += next.length;
+      const left = list.length - shown;
+      more.hidden = left <= 0;
+      more.textContent = trf('showMoreN', { n: Math.min(left, LIST_PAGE * 2) });
+    };
+    if(rows){ more.onclick = showMore; showMore(); }
   }
 
   // ---------- Themes ----------
@@ -9925,7 +10076,10 @@
         return;
       }
       const today = todayStr();
-      const { data: events } = await supabaseClient.from('store_events').select('*').eq('store_id', store.id).gte('date', today).order('date').limit(30);
+      const [{ data: events }, seasonsHtml] = await Promise.all([
+        supabaseClient.from('store_events').select('*').eq('store_id', store.id).gte('date', today).order('date').limit(30),
+        publicSeasonsHtml(store),
+      ]);
 
       const rows = (events||[]).map(e=>`
         <div class="card">
@@ -9958,6 +10112,7 @@
           </div>
           <div class="section-label" style="text-align:center;">${tr('xUpcomingEvents')}</div>
           ${rows || `<div class="modal-sub" style="text-align:center;">${tr('xNoUpcomingEventsPostedRight')}</div>`}
+          ${seasonsHtml}
           <div class="empty-state" style="margin-top:24px;">
             <div>${tr('xWantTheseEventsToShow')}</div>
             <div style="margin-top:12px;"><a href="${baseAppUrl()}?follow=${encodeURIComponent(store.follow_code)}" class="btn-primary" style="display:inline-block;text-decoration:none;padding:12px 22px;border-radius:10px;">${trf('getPairingsCta', { code: escapeHtml(store.follow_code) })}</a></div>
