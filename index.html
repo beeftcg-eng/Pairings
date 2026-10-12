@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-BvZxB/sT5qhXsR7OEh5UUXIOHqD+rfbjshq2CqXtkCM=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-WJOq+/fyCWe4E3r4kxtsUyhPgc37eGUkDa1wrk0uQ/4=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -236,6 +236,32 @@
     width:32px;height:32px;display:flex;align-items:center;justify-content:center;margin:-4px -4px 0 0;}
   .modal-x:hover{color:var(--text);border-color:var(--rose);}
   @media(min-width:640px){.modal{border-radius:18px;}}
+  /* Bracket player view: the whole screen on a phone, big tap targets for reporting. */
+  @media(max-width:639px){
+    .overlay.bv-full{padding-top:0;}
+    .overlay.bv-full .modal{max-height:none;height:100vh;height:100dvh;border-radius:0;border:none;
+      padding-top:calc(18px + env(safe-area-inset-top));}
+  }
+  .bv-match{text-align:center;background:var(--panel-2);border:1px solid var(--line);border-radius:16px;padding:16px 14px;margin-bottom:12px;}
+  .bv-where{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);font-weight:700;}
+  .bv-table{font-family:'Space Grotesk',sans-serif;font-size:56px;line-height:1;font-weight:800;color:var(--rift-2);margin:8px 0 2px;}
+  .bv-table small{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700;margin-bottom:4px;}
+  .bv-vs{font-family:'Space Grotesk',sans-serif;font-size:24px;font-weight:700;margin-top:8px;overflow-wrap:anywhere;}
+  .bv-bye{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;color:var(--teal);margin:10px 0 4px;}
+  .bv-ask{font-size:13px;color:var(--text-dim);font-weight:600;margin:4px 0 8px;text-align:center;}
+  .bv-results{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+  .bv-res{min-height:68px;border-radius:14px;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);
+    color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;cursor:pointer;padding:10px 8px;line-height:1.15;position:relative;}
+  .bv-res.win{--c:var(--teal);} .bv-res.loss{--c:var(--rose);} .bv-res.draw{--c:var(--amber);} .bv-res.other{--c:var(--field-border);}
+  .bv-res.wide{grid-column:1 / -1;min-height:52px;font-size:16px;}
+  .bv-res.picked{background:var(--c);color:var(--void);box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 35%,transparent);}
+  .bv-res .tag{display:block;font-family:inherit;font-size:11px;font-weight:600;opacity:.85;margin-top:3px;}
+  .bv-send{width:100%;min-height:60px;font-size:18px;border-radius:14px;}
+  .bv-send:disabled{opacity:.45;cursor:default;}
+  .bv-state{border-radius:14px;padding:14px;font-size:15px;font-weight:600;text-align:center;margin-bottom:12px;
+    border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);--c:var(--amber);}
+  .bv-state.ok{--c:var(--teal);} .bv-state.bad{--c:var(--rose);}
+  .bv-state .m{font-size:13px;font-weight:400;color:var(--text-dim);margin-top:4px;}
   .modal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 4px;font-size:17px;}
   .modal .modal-sub{color:var(--text-dim);font-size:12px;margin-bottom:14px;}
   .field{margin-bottom:12px;}
@@ -372,7 +398,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.34.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.35.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -7332,12 +7358,13 @@
     token = token || bracketTokenFor(id);
     const B = bracketEngine();
     const overlay = document.createElement('div');
-    overlay.className = 'overlay';
+    overlay.className = 'overlay bv-full';
     overlay.innerHTML = `<div class="modal"><h2 id="bvHeading">🏆 ${tr('brTitle')}</h2><div id="bvBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     const body = overlay.querySelector('#bvBody');
     let b = null, tab = 'mine', busy = false;
+    let picked = null;   // { match, v }: a result button tapped but not sent yet (kept across live redraws)
     const closeRow = `<div class="modal-actions"><button class="btn-secondary" id="bvClose" style="flex:1;">${tr('close')}</button></div>`;
 
     async function load(){
@@ -7403,24 +7430,47 @@
         const mine = m.p1 === b.me ? m.p1_report : m.p2_report, theirs = m.p1 === b.me ? m.p2_report : m.p1_report;
         const locked = m.confirmed_by === 'organizer';
         const where = m.stage === 'elim' ? bracketElimRoundName(bracketEngine().elimination(bracketSeeds(b), bracketStageMatches(b, 'elim')).size, m.round) : trf('brRoundTable', { n: m.round, table: m.table || '?' });
-        const current = bracketResultValue(b, mine || (locked ? m : null));
-        let state = '';
-        if(locked) state = `${tr('brOrganizerSet')}: ${escapeHtml(bracketResultLabel(b, m, m))}`;
-        else if(m.status === 'confirmed') state = `✓ ${tr('brBothAgree')}`;
-        else if(m.status === 'disputed') state = `<span style="color:var(--rose);">⚠ ${tr('brDisagreeHint')}</span>${theirs ? '<br>' + escapeHtml(trf('brSays', { name: nameOf(opp), result: bracketResultLabel(b, m, theirs) })) : ''}`;
-        else if(mine) state = tr('brWaitingOpponent');
+        const mineV = bracketResultValue(b, mine || (locked ? m : null)), theirsV = bracketResultValue(b, theirs);
+        if(picked && picked.match !== m.id) picked = null;
+        const chosen = picked ? picked.v : mineV;
+        let state = '', tone = '';
+        if(locked){ state = `${tr('brOrganizerSet')}: ${escapeHtml(bracketResultLabel(b, m, m))}`; tone = 'ok'; }
+        else if(m.status === 'confirmed'){ state = `✓ ${tr('brBothAgree')}<div class="m">${escapeHtml(bracketResultLabel(b, m, m))}</div>`; tone = 'ok'; }
+        else if(m.status === 'disputed'){ state = `⚠ ${tr('brDisagreeHint')}${theirs ? '<div class="m">' + escapeHtml(trf('brSays', { name: nameOf(opp), result: bracketResultLabel(b, m, theirs) })) + '</div>' : ''}`; tone = 'bad'; }
+        else if(mine) state = `⏳ ${tr('brWaitingOpponent')}`;
         else if(theirs) state = escapeHtml(trf('brOpponentReported', { name: nameOf(opp), result: bracketResultLabel(b, m, theirs) }));
-        parts.push(`<div class="section-label">${escapeHtml(where)}</div>
-          <div class="list-item" style="display:block;">
-            <div class="n" style="font-size:16px;margin-bottom:8px;">${escapeHtml(trf('brYouVs', { name: nameOf(opp) }))}</div>
-            ${!locked && !p.dropped ? `<div class="field" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
-              <select id="bvResult" aria-label="${escapeAttr(tr('brYourResult'))}" style="flex:1;min-width:0;">
-                ${bracketResultOptions(b, m).map(o=>`<option value="${escapeAttr(o.v)}" ${o.v === current ? 'selected' : ''}>${escapeHtml(o.l)}</option>`).join('')}
-              </select>
-              <button class="mini-btn" id="bvReport" data-match="${escapeAttr(m.id)}">${mine ? tr('brChange') : tr('brReport')}</button>
-            </div>` : ''}
-            ${state ? `<div class="m">${state}</div>` : ''}
-          </div>`);
+        parts.push(`<div class="bv-match">
+            <div class="bv-where">${escapeHtml(m.stage !== 'elim' && m.table ? trf('brRoundN', { n: m.round }) : where)}</div>
+            ${m.stage !== 'elim' && m.table ? `<div class="bv-table"><small>${tr('brTableLabel')}</small>${escapeHtml(String(m.table))}</div>` : ''}
+            <div class="bv-vs">${escapeHtml(trf('brYouVs', { name: nameOf(opp) }))}</div>
+          </div>
+          ${state ? `<div class="bv-state ${tone}">${state}</div>` : ''}`);
+        if(!locked && !p.dropped){
+          // The result buttons, worded from this player's side: wins, draws, losses, then a double loss.
+          const iAm = m.p1 === b.me ? 'p1' : 'p2';
+          const need = bracketEngine().winsNeeded(bracketOpts(b).bestOf);
+          let btns = bracketResultOptions(b, m).filter(o => o.v).map(o => {
+            const [r, g1, g2] = o.v.split(':');
+            const my = iAm === 'p1' ? g1 : g2, their = iAm === 'p1' ? g2 : g1;
+            const score = my === '' ? '' : `${my}-${their}`;
+            const kind = r === 'double_loss' ? 'other' : r === 'draw' ? 'draw' : r === iAm ? 'win' : 'loss';
+            const label = kind === 'win' ? trf('brIWon', { score }) : kind === 'loss' ? trf('brILost', { score }) : o.l;
+            const tags = [];
+            if(need > 1 && (kind === 'win' || kind === 'loss') && Math.max(Number(my), Number(their)) < need) tags.push(tr('brWonOnTime'));
+            if(o.v === mineV && mine) tags.push(tr('brYourReportTag'));
+            if(o.v === theirsV) tags.push(trf('brTheirReport', { name: nameOf(opp) }));
+            return { v: o.v, kind, label: label.trim(), tags };
+          });
+          // Two columns: each win on the left with the same score lost on the right, then draws, then the double loss.
+          const of = k => btns.filter(o => o.kind === k), wins = of('win'), losses = of('loss');
+          btns = [].concat(...wins.map((w, i) => [w, losses[i]]), of('draw'), of('other')).filter(Boolean);
+          parts.push(`<div class="bv-ask">${tr('brTapResult')}</div>
+            <div class="bv-results">
+              ${btns.map(o => `<button type="button" class="bv-res ${o.kind} ${o.kind === 'other' ? 'wide' : ''} ${o.v === chosen ? 'picked' : ''}" data-pick="${escapeAttr(o.v)}" aria-pressed="${o.v === chosen}">${escapeHtml(o.label)}${o.tags.length ? `<span class="tag">${escapeHtml(o.tags.join(' · '))}</span>` : ''}</button>`).join('')}
+            </div>
+            <input type="hidden" id="bvResult" value="${escapeAttr(picked ? picked.v : '')}">
+            <button class="btn-primary bv-send" id="bvReport" data-match="${escapeAttr(m.id)}" ${mine && !picked ? 'disabled' : ''}>${mine ? tr('brChange') : tr('brSendResult')}</button>`);
+        }
       } else if(running() && !p.dropped){
         parts.push(`<div class="modal-sub">${tr('brNoMatchYet')}</div>`);
       }
@@ -7472,11 +7522,16 @@
         if(!confirm(tr('brDropConfirm'))) return;
         act(async ()=>{ must(await supabaseClient.rpc('drop_from_bracket', { p_bracket: id, p_token: token || null })); });
       });
+      body.querySelectorAll('[data-pick]').forEach(btn => { btn.onclick = ()=>{
+        picked = { match: body.querySelector('#bvReport').dataset.match, v: btn.dataset.pick };
+        draw();
+      }; });
       on('#bvReport', ()=>{
         const v = body.querySelector('#bvResult').value;
         if(!v){ showToast(tr('brPickResult')); return; }
         const [result, g1, g2] = v.split(':');
         const matchId = body.querySelector('#bvReport').dataset.match;
+        picked = null;
         act(async ()=>{
           const r = must(await supabaseClient.rpc('report_bracket_result', { p_match: matchId, p_result: result,
             p_p1_games: g1 === '' ? null : Number(g1), p_p2_games: g2 === '' ? null : Number(g2), p_token: token || null }));
