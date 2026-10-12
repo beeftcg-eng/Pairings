@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-WJOq+/fyCWe4E3r4kxtsUyhPgc37eGUkDa1wrk0uQ/4=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-SEJeBDshlWGzL2QNDPfv9RslEYb16MA1NYAn+9tTmII=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -262,6 +262,16 @@
     border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);--c:var(--amber);}
   .bv-state.ok{--c:var(--teal);} .bv-state.bad{--c:var(--rose);}
   .bv-state .m{font-size:13px;font-weight:400;color:var(--text-dim);margin-top:4px;}
+  /* A new round was just paired: the match card pulses so it can't be missed. */
+  @keyframes bvFlash{0%{transform:scale(1.04);box-shadow:0 0 0 0 color-mix(in srgb,var(--rift) 70%,transparent);}100%{transform:none;box-shadow:0 0 0 22px transparent;}}
+  .bv-match.bv-flash{animation:bvFlash .9s ease-out 3;border-color:var(--rift);}
+  .bv-out{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;white-space:nowrap;color:var(--text-dim);}
+  .bv-out.win{color:var(--teal);} .bv-out.loss{color:var(--rose);} .bv-out.draw{color:var(--amber);}
+  .br-deck{color:var(--text-dim);font-weight:500;font-size:.88em;}
+  .br-bar{height:6px;border-radius:3px;background:var(--panel);margin-top:6px;overflow:hidden;}
+  .br-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--rift),var(--teal));}
+  .br-progress{height:10px;border-radius:5px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin:6px 0 4px;}
+  .br-progress span{display:block;height:100%;background:var(--teal);}
   .modal h2{font-family:'Space Grotesk',sans-serif;margin:0 0 4px;font-size:17px;}
   .modal .modal-sub{color:var(--text-dim);font-size:12px;margin-bottom:14px;}
   .field{margin-bottom:12px;}
@@ -379,12 +389,12 @@
   updated pairings.html, you just drop it in and config.js stays untouched.
   ============================================================
 -->
-<!-- supabase.js is supabase-js 2.117.2 (dist/umd/supabase.js from jsdelivr), hosted next to
+<!-- supabase.js is supabase-js 2.117.3 (dist/umd/supabase.js from jsdelivr), hosted next to
      this file so the service worker can cache it and the app starts with no connection.
      The integrity hash pins the exact file. To upgrade: download the new version over
      supabase.js, then regenerate the hash with
      openssl dgst -sha384 -binary supabase.js | openssl base64 -A -->
-<script src="/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok"></script>
+<script src="/supabase.js" integrity="sha384-BWcjm9OdFth9TbhCxZPdm+gAOUMAzQy9nmTs12ioXdCcbVnJaPMn+fMUoQCLt60R"></script>
 <script src="/config.js"></script>
 <script src="/i18n.js"></script>
 <!-- bracket.js: the tournament bracket engine (Swiss pairings, tiebreakers, single elimination).
@@ -398,7 +408,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.35.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.36.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -526,6 +536,8 @@
     bracket_pairing:        { re: /^Your next match in (.+): table (.+?) vs (.+)$/,            key: 'notifBracketPairing', vars: ['event', 'table', 'name'] },
     bracket_bye:            { re: /^You have a bye this round in (.+)$/,                       key: 'notifBracketBye',     vars: ['event'] },
     bracket_finished:       { re: /^(.+) has finished: add your results to your stats$/,       key: 'notifBracketFinished', vars: ['event'] },
+    bracket_nudge:          { re: /^Please report your result in (.+) \(table (.+?)\)$/,       key: 'notifBracketNudge',   vars: ['event', 'table'] },
+    bracket_open:           { re: /^(.+?) opened registration for (.+)$/,                       key: 'notifBracketOpen',    vars: ['store', 'event'] },
     store_admin:            { re: /^(.+?) made you an admin of (.+)$/,                          key: 'notifStoreAdmin',     vars: ['name', 'store'] },
     store_owner:            { re: /^(.+?) made you the owner of (.+)$/,                         key: 'notifStoreOwner',     vars: ['name', 'store'] },
   };
@@ -6658,7 +6670,7 @@
   // One match as a list row; `editable` adds the organizer's result picker.
   function bracketMatchRow(b, m, label, editable){
     const nameOf = pid => bracketNameOf(b, pid);
-    if(m.p2 == null) return `<div class="list-item"><div class="info"><div class="n">${escapeHtml(nameOf(m.p1))}</div><div class="m">${tr('brBye')}</div></div></div>`;
+    if(m.p2 == null) return `<div class="list-item"><div class="info"><div class="n">${bracketNameHtml(b, m.p1)}</div><div class="m">${tr('brBye')}</div></div></div>`;
     const current = bracketResultValue(b, m);
     const picker = editable ? `<div class="field" style="margin:0;flex:0 0 auto;max-width:150px;"><select data-result="${escapeAttr(m.id)}" aria-label="${escapeAttr(trf('brResultFor', { a: nameOf(m.p1), b: nameOf(m.p2) }))}" style="padding:7px 8px;">
         ${bracketResultOptions(b, m).map(o=>`<option value="${escapeAttr(o.v)}" ${o.v === current ? 'selected' : ''}>${escapeHtml(o.l)}</option>`).join('')}
@@ -6668,7 +6680,7 @@
     const reports = m.status === 'disputed' ? [said(m.p1, m.p1_report), said(m.p2, m.p2_report)].filter(Boolean).join(' · ') : '';
     const result = !editable && m.result ? bracketResultLabel(b, m, m) : '';
     return `<div class="list-item">
-      <div class="info"><div class="n">${escapeHtml(nameOf(m.p1))} <span style="color:var(--text-dim);">${tr('brVs')}</span> ${escapeHtml(nameOf(m.p2))}</div>
+      <div class="info"><div class="n">${bracketNameHtml(b, m.p1)} <span style="color:var(--text-dim);">${tr('brVs')}</span> ${bracketNameHtml(b, m.p2)}</div>
         <div class="m">${escapeHtml([label, result].filter(Boolean).join(' · '))}${bracketStatusBadge(m) ? ' · ' + bracketStatusBadge(m) : ''}</div>
         ${reports ? `<div class="m">${escapeHtml(reports)}</div>` : ''}</div>
       ${picker}
@@ -6703,9 +6715,81 @@
     return `<div class="hint" style="margin-bottom:8px;">${tr('brTiebreakHint')}</div>
       ${rows.map(r=>`
         <div class="list-item"${r.id === meId ? ' style="border-color:var(--rift);"' : ''}>
-          <div class="info"><div class="n">${r.rank}. ${escapeHtml(r.name)}${r.dropped ? ` <span style="color:var(--text-dim);">(${tr('brDroppedShort')})</span>` : ''}</div>
+          <div class="info"><div class="n">${r.rank}. ${bracketNameHtml(b, r.id)}${r.dropped ? ` <span style="color:var(--text-dim);">(${tr('brDroppedShort')})</span>` : ''}</div>
             <div class="m">${escapeHtml(trf('brRecord', { w: r.wins, l: r.losses, d: r.draws }))} · <span title="${escapeAttr(tr('brTiebreakTitle'))}">${escapeHtml(r.tiebreak)}</span></div></div>
         </div>`).join('')}`;
+  }
+
+  // Decks, nudges and announcing need the 1.36 SQL (master-schema.sql); until it has run,
+  // get_bracket has no `announced` and those controls stay hidden.
+  const bracketHasDepth = b => typeof b.announced === 'boolean';
+  // A player's name with the legend / leader / deck they're on after it, as HTML.
+  function bracketNameHtml(b, pid){
+    const p = b.players.find(x => x.id === pid);
+    if(!p) return '?';
+    return escapeHtml(p.name) + (p.deck ? ` <span class="br-deck">${escapeHtml(p.deck)}</span>` : '');
+  }
+  // Each deck in the bracket: how many play it and how its matches went (byes left out; a mirror
+  // match counts for both sides). [] when nobody gave a deck. Decks are matched case-insensitively.
+  function bracketMetagame(b){
+    const deckOf = {};
+    b.players.forEach(p => { deckOf[p.id] = String(p.deck || '').trim(); });
+    if(!b.players.some(p => deckOf[p.id])) return [];
+    const rows = {};
+    const row = name => rows[name.toLowerCase()] || (rows[name.toLowerCase()] = { name, players: 0, w: 0, l: 0, d: 0 });
+    b.players.forEach(p => { row(deckOf[p.id]).players++; });
+    b.matches.forEach(m => {
+      if(m.p2 == null || !m.result) return;
+      const a = row(deckOf[m.p1] || ''), c = row(deckOf[m.p2] || '');
+      if(m.result === 'draw'){ a.d++; c.d++; }
+      else if(m.result === 'double_loss'){ a.l++; c.l++; }
+      else if(m.result === 'p1'){ a.w++; c.l++; }
+      else { c.w++; a.l++; }
+    });
+    return Object.values(rows).sort((x, y) => (!x.name) - (!y.name) || y.players - x.players || x.name.localeCompare(y.name));
+  }
+  function bracketMetagameHtml(b){
+    const rows = bracketMetagame(b);
+    if(!rows.length) return '';
+    const total = b.players.length || 1;
+    return `<div class="section-label">📊 ${tr('brMetagame')}</div>` + rows.map(r => {
+      const games = r.w + r.l + r.d;
+      const bits = [r.players === 1 ? tr('brMetaPlayers1') : trf('brMetaPlayersN', { n: r.players })];
+      if(games) bits.push(trf('brRecord', { w: r.w, l: r.l, d: r.d }), trf('brMetaWinPct', { pct: Math.round(r.w * 100 / games) }));
+      return `<div class="list-item" style="display:block;">
+          <div class="n">${escapeHtml(r.name || tr('brMetaUnknown'))}</div>
+          <div class="m">${escapeHtml(bits.join(' · '))}</div>
+          <div class="br-bar"><span style="width:${Math.round(r.players * 100 / total)}%;"></span></div>
+        </div>`;
+    }).join('');
+  }
+  // One player's matches so far, round by round, with their record and place (Swiss).
+  function bracketRunHtml(b, meId){
+    const mine = b.matches.filter(m => m.p1 === meId || m.p2 === meId)
+      .sort((x, y) => (x.stage === y.stage ? 0 : x.stage === 'swiss' ? -1 : 1) || x.round - y.round);
+    if(!mine.length) return '';
+    const seeds = bracketSeeds(b), elim = bracketStageMatches(b, 'elim');
+    const size = seeds.length && elim.length ? bracketEngine().elimination(seeds, elim).size : 0;
+    const rows = mine.map(m => {
+      const label = m.stage === 'elim' && size ? bracketElimRoundName(size, m.round) : trf('brRoundN', { n: m.round });
+      if(m.p2 == null) return `<div class="list-item"><div class="info"><div class="n">${escapeHtml(label)}</div><div class="m">${tr('brBye')}</div></div><span class="bv-out win">${tr('brOutcomeWon')}</span></div>`;
+      const side = m.p1 === meId ? 'p1' : 'p2', opp = side === 'p1' ? m.p2 : m.p1;
+      let out = tr('brOutcomePlaying'), cls = '';
+      if(m.result === 'draw'){ out = tr('brDraw'); cls = 'draw'; }
+      else if(m.result === 'double_loss'){ out = tr('brOutcomeDoubleLoss'); cls = 'loss'; }
+      else if(m.result === side){ out = tr('brOutcomeWon'); cls = 'win'; }
+      else if(m.result){ out = tr('brOutcomeLost'); cls = 'loss'; }
+      const score = m.result && m.p1Games != null && m.result !== 'double_loss' ? ' ' + (side === 'p1' ? `${m.p1Games}-${m.p2Games}` : `${m.p2Games}-${m.p1Games}`) : '';
+      return `<div class="list-item"><div class="info"><div class="n">${escapeHtml(trf('brYouVs', { name: bracketNameOf(b, opp) }))}</div>
+          <div class="m">${escapeHtml(label)}${(b.players.find(p => p.id === opp) || {}).deck ? ' · ' + escapeHtml(b.players.find(p => p.id === opp).deck) : ''}</div></div>
+        <span class="bv-out ${cls}">${escapeHtml(out + score)}</span></div>`;
+    }).join('');
+    let summary = '';
+    if(bracketStageMatches(b, 'swiss').length){
+      const r = bracketEngine().standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), bracketOpts(b)).find(x => x.id === meId);
+      if(r) summary = `<div class="modal-sub" style="margin-bottom:8px;">${escapeHtml(trf('brYourStanding', { record: trf('brRecord', { w: r.wins, l: r.losses, d: r.draws }), place: bracketOrdinal(r.rank) }))}</div>`;
+    }
+    return `<div class="section-label">${tr('brYourRounds')}</div>${summary}${rows}`;
   }
 
   // ---- printing: pairings to post on the wall, result slips for the tables, standings ----
@@ -7030,7 +7114,26 @@
     const totalRounds = () => (b.settings || {}).rounds || B.recommendedRounds(b.players.filter(p => !p.dropped).length);
     const running = () => b.status === 'swiss' || b.status === 'top_cut';
 
-    const matchRow = (m, label, editable) => bracketMatchRow(b, m, label, running() && editable !== false);
+    const matchRow = (m, label, editable) => {
+      const html = bracketMatchRow(b, m, label, running() && editable !== false);
+      if(!running() || editable === false || !nudgeable(m)) return html;
+      const recent = m.nudged_at && Date.now() - new Date(m.nudged_at).getTime() < 120000;
+      const btn = `<button class="mini-btn" data-nudge="${escapeAttr(m.id)}" ${recent ? 'disabled' : ''} aria-label="${escapeAttr(trf('brNudgeTitle', { n: m.table || '?' }))}" style="flex:0 0 auto;">🔔 ${recent ? tr('brNudged') : tr('brNudge')}</button>`;
+      return html.replace(/<\/div>\s*$/, btn + '</div>');
+    };
+    // A match still waiting for its first report, with at least one player who has an account.
+    const nudgeable = m => bracketHasDepth(b) && m.p2 != null && !m.result && m.status !== 'disputed'
+      && [m.p1, m.p2].some(pid => { const p = b.players.find(x => x.id === pid); return p && !p.guest; });
+    // "7 of 12 tables reported" and how long the round has been going.
+    function roundProgress(list){
+      const real = list.filter(m => m.p2 != null), done = real.filter(m => m.result).length;
+      if(!real.length) return '';
+      const mins = b.round_started_at ? Math.floor((Date.now() - new Date(b.round_started_at).getTime()) / 60000) : null;
+      return `<div class="br-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${real.length}" aria-valuenow="${done}" aria-label="${escapeAttr(trf('brTablesReported', { done, total: real.length }))}"><span style="width:${Math.round(done * 100 / real.length)}%;"></span></div>
+        <div class="modal-sub">${escapeHtml(trf('brTablesReported', { done, total: real.length }))}${mins == null || mins < 0 ? '' : ' · ' + escapeHtml(mins < 1 ? tr('brRoundStartedNow') : trf('brRoundStartedAgo', { min: mins }))}</div>`;
+    }
+    // Tables still playing first, then by table number.
+    const playingFirst = list => list.slice().sort((x, y) => (bracketHasResult(x) - bracketHasResult(y)) || ((x.table || 999) - (y.table || 999)));
 
     // ---- actions ----
     function saveRound(stage, round, pairs){
@@ -7080,8 +7183,9 @@
         ${list.map(p=>`
           <div class="list-item">
             <div class="info"><div class="n">${escapeHtml(p.name)}</div>
-              <div class="m">${[p.guest ? tr('brGuest') : tr('brHasAccount'), p.dropped ? trf('brDroppedRound', { n: p.dropped_round || 0 }) : ''].filter(Boolean).map(escapeHtml).join(' · ')}</div></div>
+              <div class="m">${[p.deck, p.guest ? tr('brGuest') : tr('brHasAccount'), p.dropped ? trf('brDroppedRound', { n: p.dropped_round || 0 }) : ''].filter(Boolean).map(escapeHtml).join(' · ')}</div></div>
             <div style="display:flex;gap:6px;">
+              ${b.status !== 'cancelled' ? `<button class="mini-btn" data-deck="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brEditDeck', { name: p.name }))}">🃏</button>` : ''}
               ${p.guest ? `<button class="mini-btn" data-guest-link="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brGuestLinkTitle', { name: p.name }))}">🔗</button>` : ''}
               ${running() ? `<button class="mini-btn" data-drop="${escapeAttr(p.id)}">${p.dropped ? tr('brUndrop') : tr('brDrop')}</button>` : ''}
               ${b.status === 'registration' ? `<button class="mini-btn decline" data-remove="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brRemoveName', { name: p.name }))}">✕</button>` : ''}
@@ -7095,7 +7199,9 @@
       if(b.status === 'registration'){
         return `<div class="modal-sub">${bracketPlayerCount(active)}${b.format !== 'single_elim' ? ' · ' + trf('brRoundsPlanned', { n: totalRounds() }) : ''}</div>
           <button class="btn-primary" id="brStart" style="width:100%;" ${active < 2 ? 'disabled' : ''}>${b.format === 'single_elim' ? tr('brStartBracket') : tr('brStartRound1')}</button>
-          ${active < 2 ? `<div class="hint" style="margin-top:8px;">${tr('brNeedTwo')}</div>` : ''}`;
+          ${active < 2 ? `<div class="hint" style="margin-top:8px;">${tr('brNeedTwo')}</div>` : ''}
+          ${b.store && bracketHasDepth(b) ? (b.announced ? `<div class="hint" style="margin-top:12px;">✓ ${tr('brAnnouncedAlready')}</div>`
+            : `<button class="btn-secondary" id="brAnnounce" style="width:100%;margin-top:12px;">📣 ${tr('brAnnounce')}</button><div class="hint" style="margin-top:6px;">${tr('brAnnounceHint')}</div>`) : ''}`;
       }
       if(b.status === 'swiss'){
         const round = b.current_round, current = swiss.filter(m => m.round === round);
@@ -7104,7 +7210,8 @@
         const last = round >= totalRounds();
         const left = current.filter(m => !bracketHasResult(m)).length;
         return `<div class="section-label">${trf('brRoundOf', { n: round, total: totalRounds() })}</div>
-          ${current.map(m => matchRow(m, m.table ? trf('brTable', { n: m.table }) : '')).join('')}
+          ${roundProgress(current)}
+          ${playingFirst(current).map(m => matchRow(m, m.table ? trf('brTable', { n: m.table }) : '')).join('')}
           <div class="modal-sub" style="margin-top:8px;">${done ? tr('brAllIn') : (left === 1 ? tr('brWaitingOn1') : trf('brWaitingOn', { n: left }))}</div>
           <div class="modal-actions" style="flex-wrap:wrap;">
             ${untouched ? `<button class="btn-secondary" id="brRepair" style="flex:1;">${tr('brRepair')}</button>` : ''}
@@ -7120,6 +7227,7 @@
       if(b.status === 'top_cut' && e){
         const cur = curElim;
         const done = elim.filter(m => m.round === cur).every(bracketHasResult);
+        html = roundProgress(elim.filter(m => m.round === cur)) + html;
         html = (e.champion ? `<div class="modal-sub" style="font-size:16px;">🏆 ${escapeHtml(trf('brChampion', { name: nameOf(e.champion) }))}</div>` : '') + html + `
           <div class="modal-actions">
             ${done && !e.champion ? `<button class="btn-primary" id="brNextElim" style="flex:1;">${escapeHtml(trf('brStartElimRound', { name: bracketElimRoundName(e.size, cur + 1) }))}</button>` : ''}
@@ -7128,14 +7236,15 @@
       }
       if(b.status === 'finished' || b.status === 'cancelled'){
         const winner = e && e.champion ? e.champion : (B.standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), opts())[0] || {}).id;
-        html = `<div class="modal-sub" style="font-size:16px;">${b.status === 'finished' && winner ? '🏆 ' + escapeHtml(trf('brChampion', { name: nameOf(winner) })) : escapeHtml(bracketStatusLabel(b))}</div>` + html;
+        html = `<div class="modal-sub" style="font-size:16px;">${b.status === 'finished' && winner ? '🏆 ' + escapeHtml(trf('brChampion', { name: nameOf(winner) })) : escapeHtml(bracketStatusLabel(b))}</div>`
+          + (b.status === 'finished' ? `<button class="btn-primary" id="brCard" style="width:100%;margin-bottom:12px;">📸 ${tr('brShareResults')}</button>` : '') + html;
       }
       return html || `<div class="modal-sub">${tr('nothingToShow')}</div>`;
     }
 
     function standingsTab(){
-      if(!bracketStageMatches(b, 'swiss').length) return `<div class="modal-sub">${tr('brNoStandings')}</div>`;
-      return `${bracketStandingsHtml(b)}
+      if(!bracketStageMatches(b, 'swiss').length) return `<div class="modal-sub">${tr('brNoStandings')}</div>${bracketMetagameHtml(b)}`;
+      return `${bracketStandingsHtml(b)}${bracketMetagameHtml(b)}
         <button class="mini-btn" id="brCsv" style="margin-top:10px;">${tr('xDownloadCsv')}</button>
         <button class="mini-btn" id="brPrintStandings" style="margin-top:10px;margin-left:6px;">🖨 ${tr('brPrintStandings')}</button>`;
     }
@@ -7226,6 +7335,31 @@
         if(!confirm(tr('brFinishConfirm'))) return;
         act(async ()=>{ must(await supabaseClient.from('brackets').update({ status: 'finished' }).eq('id', id)); tab = 'round'; });
       });
+      on('#brCard', ()=>openBracketCardModal(b));
+      on('#brAnnounce', ()=>act(async ()=>{
+        const r = must(await supabaseClient.rpc('announce_bracket', { p_bracket: id }));
+        showToast(r.data === 1 ? tr('brAnnounced1') : trf('brAnnouncedN', { n: r.data || 0 }));
+        trackFeature('bracket_announce');
+      }));
+      body.querySelectorAll('[data-deck]').forEach(btn => {
+        btn.onclick = ()=>{
+          const p = b.players.find(x => x.id === btn.dataset.deck);
+          if(!p) return;
+          const v = prompt(trf('brDeckPrompt', { name: p.name }), p.deck || '');
+          if(v == null) return;
+          act(async ()=>{ must(await supabaseClient.from('bracket_players').update({ deck: v.trim().slice(0, 60) || null }).eq('id', p.id)); tab = 'players'; });
+        };
+      });
+      body.querySelectorAll('[data-nudge]').forEach(btn => {
+        btn.onclick = async ()=>{
+          if(busy) return;
+          btn.disabled = true;
+          const { data, error } = await supabaseClient.rpc('nudge_bracket_match', { p_match: btn.dataset.nudge });
+          if(error) showToast(/too soon/.test(error.message || '') ? tr('brNudgeTooSoon') : tr('brCouldNotSave'));
+          else { showToast(!data ? tr('brNudgeNobody') : data === 1 ? tr('brNudgeSent1') : trf('brNudgeSentN', { n: data })); trackFeature('bracket_nudge'); }
+          act(async ()=>{});
+        };
+      });
       on('#brPrintPairings', ()=>printBracketPairings(b));
       on('#brPrintSlips', ()=>printBracketSlips(b));
       on('#brPrintStandings', ()=>printBracketStandings(b));
@@ -7264,7 +7398,8 @@
         const mine = m.p1 === meId ? 'p1' : 'p2';
         const outcome = m.result === 'draw' ? 'D' : m.result === mine ? 'W' : 'L';
         if(outcome === 'W') w++; else if(outcome === 'L') l++; else d++;
-        matches.push({ opponent: bracketNameOf(b, mine === 'p1' ? m.p2 : m.p1), outcome, wentFirst: '', notes: '' });
+        const opp = b.players.find(p => p.id === (mine === 'p1' ? m.p2 : m.p1));
+        matches.push({ opponent: opp ? opp.name : '?', outcome, wentFirst: '', notes: (opp && opp.deck) || '' });
       });
     // Placement: how far they got in the elimination bracket, otherwise their Swiss rank.
     let placement = '';
@@ -7281,7 +7416,11 @@
       const row = B.standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), opts).find(r => r.id === meId);
       if(row) placement = bracketOrdinal(row.rank);
     }
-    return { placement, record: d ? `${w}-${l}-${d}` : `${w}-${l}`, notes: '', matches, bracketId: b.id };
+    const out = { placement, record: d ? `${w}-${l}-${d}` : `${w}-${l}`, notes: '', matches, bracketId: b.id };
+    // The legend / leader they registered with fills in "Your legend" (games that have one).
+    const me = b.players.find(p => p.id === meId);
+    if(me && me.deck && leaderGameKey(b.game)) out.leader = me.deck;
+    return out;
   }
   // Where a bracket's result already is in the player's list, if anywhere: { t, date }.
   function bracketResultLogged(bracketId){
@@ -7365,6 +7504,7 @@
     const body = overlay.querySelector('#bvBody');
     let b = null, tab = 'mine', busy = false;
     let picked = null;   // { match, v }: a result button tapped but not sent yet (kept across live redraws)
+    let lastMatchId = null, flash = false;   // a newly paired match pulses once (noticeNewMatch)
     const closeRow = `<div class="modal-actions"><button class="btn-secondary" id="bvClose" style="flex:1;">${tr('close')}</button></div>`;
 
     async function load(){
@@ -7387,7 +7527,41 @@
     if(!B){ body.innerHTML = `<div class="modal-sub">${tr('brEngineMissing')}</div>${closeRow}`; body.querySelector('#bvClose').onclick = ()=>overlay.remove(); return; }
     if(b.is_organizer){ overlay.remove(); openBracketModal(id); return; }
 
-    watchBracket(id, overlay, () => b.version, async () => { await load(); draw(); }, () => busy);
+    // A live update that brings this player a new match (the next round was paired): jump to My
+    // match, pulse the card and buzz the phone, so nobody has to keep checking.
+    function noticeNewMatch(){
+      const m = myMatch(), now = m ? m.id : null;
+      if(now && now !== lastMatchId){
+        tab = 'mine'; flash = true; picked = null;
+        try{ if(navigator.vibrate) navigator.vibrate([200, 100, 200]); }catch(e){}
+        showToast(tr('brNewMatchToast'));
+      }
+      lastMatchId = now;
+    }
+    watchBracket(id, overlay, () => b.version, async () => { await load(); noticeNewMatch(); draw(); }, () => busy);
+
+    // Keep the phone's screen on while the bracket is running and this screen is open (players
+    // glance at it between games). The browser drops the lock when the page is hidden, so it's
+    // asked for again on return; it's let go when the screen closes or the bracket ends.
+    let wakeLock = null;
+    const wantAwake = () => document.body.contains(overlay) && !document.hidden && !!b && ['registration', 'swiss', 'top_cut'].includes(b.status);
+    async function keepAwake(){
+      if(!wantAwake()){ if(wakeLock){ const w = wakeLock; wakeLock = null; w.release().catch(()=>{}); } return; }
+      if(wakeLock || !navigator.wakeLock) return;
+      try{
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }catch(e){ wakeLock = null; }
+    }
+    const onVisible = () => keepAwake();
+    document.addEventListener('visibilitychange', onVisible);
+    const closed = new MutationObserver(() => {
+      if(document.body.contains(overlay)) return;
+      closed.disconnect();
+      document.removeEventListener('visibilitychange', onVisible);
+      keepAwake();
+    });
+    closed.observe(document.body, { childList: true });
 
     const nameOf = pid => bracketNameOf(b, pid);
     const me = () => b.players.find(p => p.id === b.me) || null;
@@ -7410,7 +7584,21 @@
         else parts.push(`<div class="modal-sub">${tr('brWatching')}</div>`);
         return parts.join('');
       }
-      parts.push(`<div class="modal-sub">${escapeHtml(trf('brYouAre', { name: p.name }))}${p.dropped ? ' · ' + tr('brDroppedShort') : ''}</div>`);
+      const canSetDeck = bracketHasDepth(b) && !p.dropped && ['registration', 'swiss', 'top_cut'].includes(b.status) && b.current_round <= 1;
+      parts.push(`<div class="modal-sub">${escapeHtml(trf('brYouAre', { name: p.name }))}${p.deck && !canSetDeck ? ' · ' + escapeHtml(p.deck) : ''}${p.dropped ? ' · ' + tr('brDroppedShort') : ''}</div>`);
+      if(canSetDeck){
+        const key = leaderGameKey(b.game);
+        const word = key === 'riftbound' ? tr('yourLegend') : key ? tr('yourLeader') : tr('brYourDeck');
+        parts.push(`<div class="field">
+          <label for="bvDeck">${escapeHtml(word)}</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="bvDeck" list="bvDeckList" maxlength="60" autocomplete="off" value="${escapeAttr(p.deck || '')}" style="flex:1;min-width:0;"/>
+            <button class="mini-btn" id="bvDeckSave">${tr('save')}</button>
+          </div>
+          <datalist id="bvDeckList">${deckSuggestions().map(n => `<option value="${escapeAttr(n)}">`).join('')}</datalist>
+          <div class="hint">${tr('brDeckHint')}</div>
+        </div>`);
+      }
       if(token && p.guest && session) parts.push(`<div class="list-item"><div class="info"><div class="n">${tr('brClaimTitle')}</div><div class="m">${tr('brClaimHint')}</div></div><button class="mini-btn" id="bvClaim">${tr('brClaim')}</button></div>`);
       else if(token && p.guest && !session) parts.push(`<div class="hint" style="margin-bottom:10px;">${tr('brGuestSignUpHint')}</div>`);
       if(b.status === 'registration') parts.push(`<div class="modal-sub">${tr('brWaitingStart')}</div>`);
@@ -7439,7 +7627,7 @@
         else if(m.status === 'disputed'){ state = `⚠ ${tr('brDisagreeHint')}${theirs ? '<div class="m">' + escapeHtml(trf('brSays', { name: nameOf(opp), result: bracketResultLabel(b, m, theirs) })) + '</div>' : ''}`; tone = 'bad'; }
         else if(mine) state = `⏳ ${tr('brWaitingOpponent')}`;
         else if(theirs) state = escapeHtml(trf('brOpponentReported', { name: nameOf(opp), result: bracketResultLabel(b, m, theirs) }));
-        parts.push(`<div class="bv-match">
+        parts.push(`<div class="bv-match${flash ? ' bv-flash' : ''}">
             <div class="bv-where">${escapeHtml(m.stage !== 'elim' && m.table ? trf('brRoundN', { n: m.round }) : where)}</div>
             ${m.stage !== 'elim' && m.table ? `<div class="bv-table"><small>${tr('brTableLabel')}</small>${escapeHtml(String(m.table))}</div>` : ''}
             <div class="bv-vs">${escapeHtml(trf('brYouVs', { name: nameOf(opp) }))}</div>
@@ -7474,9 +7662,25 @@
       } else if(running() && !p.dropped){
         parts.push(`<div class="modal-sub">${tr('brNoMatchYet')}</div>`);
       }
+      parts.push(bracketRunHtml(b, p.id));
       if(running() && !p.dropped) parts.push(`<button class="btn-secondary" id="bvDrop" style="width:100%;margin-top:12px;">${tr('brDropMe')}</button>`);
       return parts.join('');
     }
+    // Suggestions for the deck box: the game's legends / leaders, else this user's own decks for the
+    // game; plus whatever the other players typed.
+    function deckSuggestions(){
+      const key = leaderGameKey(b.game);
+      const own = key ? leaderSuggestions(key) : decks.filter(d => !b.game || !d.game || d.game === b.game).map(d => d.name);
+      const seen = new Set(), out = [];
+      own.concat(b.players.map(p => p.deck)).forEach(n => { n = String(n || '').trim(); if(n && !seen.has(n.toLowerCase())){ seen.add(n.toLowerCase()); out.push(n); } });
+      return out.sort((x, y) => x.localeCompare(y));
+    }
+    // The full legend / leader list arrives in the background; only the suggestions are refreshed,
+    // so nothing typed is lost.
+    if(leaderGameKey(b.game)) ensureLeaderList(leaderGameKey(b.game)).then(() => {
+      const dl = overlay.querySelector('#bvDeckList');
+      if(dl) dl.innerHTML = deckSuggestions().map(n => `<option value="${escapeAttr(n)}">`).join('');
+    }).catch(()=>{});
 
     function pairingsTab(){
       if(b.status === 'registration') return `<div class="modal-sub">${bracketPlayerCount(b.players.filter(p => !p.dropped).length)}</div>
@@ -7497,7 +7701,7 @@
       overlay.querySelector('#bvHeading').textContent = '🏆 ' + b.name;
       const hasElim = b.format === 'single_elim' || bracketStageMatches(b, 'elim').length > 0;
       const tabs = [['mine', tr('brTabMe')], ['pairings', b.status === 'registration' ? tr('brTabPlayers') : hasElim && b.status !== 'swiss' ? tr('brTabBracket') : tr('brTabPairings')]];
-      if(bracketStageMatches(b, 'swiss').length) tabs.push(['standings', tr('brTabStandings')]);
+      if(bracketStageMatches(b, 'swiss').length || bracketMetagame(b).length) tabs.push(['standings', tr('brTabStandings')]);
       if(!tabs.some(([k]) => k === tab)) tab = 'mine';
       const where = [b.store && b.store.name, b.organizer && trf('brRunBy', { name: b.organizer })].filter(Boolean).join(' · ');
       body.innerHTML = `
@@ -7505,14 +7709,22 @@
         <div class="chip-row" style="margin-bottom:12px;">
           ${tabs.map(([k, l])=>`<button type="button" class="chip ${tab === k ? 'active' : ''}" data-tab="${k}" aria-pressed="${tab === k}">${escapeHtml(l)}</button>`).join('')}
         </div>
-        <div>${tab === 'pairings' ? pairingsTab() : tab === 'standings' ? bracketStandingsHtml(b, b.me) : mineTab()}</div>
+        <div>${tab === 'pairings' ? pairingsTab() : tab === 'standings' ? (bracketStageMatches(b, 'swiss').length ? bracketStandingsHtml(b, b.me) : '') + bracketMetagameHtml(b) : mineTab()}</div>
         <div class="hint" style="margin-top:12px;">${tr('brLiveHint')}</div>
+        ${b.status === 'finished' ? `<button class="btn-secondary" id="bvCard" style="width:100%;margin-top:12px;">📸 ${tr('brShareResults')}</button>` : ''}
         ${closeRow}`;
+      flash = false;
       wire();
+      keepAwake();
     }
 
     function wire(){
       const on = (sel, fn) => { const el = body.querySelector(sel); if(el) el.onclick = fn; };
+      on('#bvCard', ()=>openBracketCardModal(b));
+      on('#bvDeckSave', ()=>{
+        const v = body.querySelector('#bvDeck').value.trim();
+        act(async ()=>{ must(await supabaseClient.rpc('set_bracket_deck', { p_bracket: id, p_deck: v, p_token: token || null })); showToast(tr('brDeckSaved')); });
+      });
       body.querySelectorAll('[data-tab]').forEach(btn => { btn.onclick = ()=>{ tab = btn.dataset.tab; draw(); }; });
       on('#bvClose', ()=>overlay.remove());
       on('#bvAddResults', ()=>{ overlay.remove(); addBracketResult(b, b.me); });
@@ -7539,6 +7751,7 @@
         });
       });
     }
+    lastMatchId = (myMatch() || {}).id || null;
     draw();
   }
 
@@ -8677,6 +8890,147 @@
         await save();
         showToast(tr('cardSavedInstead'));
       }
+    };
+  }
+
+  // ---- a finished bracket as a picture: champion and the top 8, for the store to post ----
+  // Who finished where: { id, place, name, deck, record }, best first, at most `limit`. The top cut
+  // goes by how far each player got (then seed), everyone else by their Swiss rank.
+  function bracketPlacements(b, limit){
+    const B = bracketEngine(), seeds = bracketSeeds(b), elim = bracketStageMatches(b, 'elim');
+    const e = seeds.length && elim.length ? B.elimination(seeds, elim) : null;
+    const swiss = bracketStageMatches(b, 'swiss').length ? B.standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), bracketOpts(b)) : [];
+    const played = new Set(b.matches.flatMap(m => [m.p1, m.p2]).filter(Boolean));
+    const rows = b.players.filter(p => played.has(p.id)).map(p => {
+      let key = 100000;
+      if(e && seeds.includes(p.id)){
+        if(e.champion === p.id) key = 1;
+        else {
+          const lost = e.rounds.findIndex(list => list.some(m => !m.bye && (m.p1 === p.id || m.p2 === p.id) && m.winner && m.winner !== p.id));
+          key = lost >= 0 ? e.size / Math.pow(2, lost) : e.size;
+        }
+        key = key * 1000 + seeds.indexOf(p.id);
+      } else {
+        const r = swiss.find(x => x.id === p.id);
+        key = 100000 + (r ? r.rank : 9999);
+      }
+      const res = bracketResultFor(b, p.id);
+      return { id: p.id, key, place: res.placement, name: p.name, deck: p.deck || '', record: res.record };
+    }).sort((x, y) => x.key - y.key);
+    return rows.slice(0, limit || 8);
+  }
+  function drawBracketCard(canvas, b){
+    canvas.width = CARD_W; canvas.height = CARD_H;
+    const ctx = canvas.getContext('2d');
+    const css = getComputedStyle(document.documentElement);
+    const v = name => (css.getPropertyValue('--' + name) || '').trim();
+    const C = { bg: v('void') || '#100e1a', panel: v('panel-2') || '#1f1b33', text: v('text') || '#eeeaf7', dim: v('text-dim') || '#a49bc4',
+      accent: v('rift-2') || '#c084fc', teal: v('teal') || '#2dd9c1', rift: v('rift') || '#8b5cf6', gold: v('gold') || '#ffd166' };
+    const HEAD = "'Space Grotesk', 'Inter', sans-serif", BODY = "'Inter', sans-serif";
+    const P = 84, maxW = CARD_W - P * 2;
+    const fit = (text, font, width)=>{
+      ctx.font = font; let t = String(text);
+      if(ctx.measureText(t).width <= width) return t;
+      while(t.length > 1 && ctx.measureText(t + '…').width > width) t = t.slice(0, -1);
+      return t.trimEnd() + '…';
+    };
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, CARD_W, CARD_H);
+    const glow = (x, y, r, color, a)=>{
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      ctx.globalAlpha = a; g.addColorStop(0, color); g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, CARD_W, CARD_H); ctx.globalAlpha = 1;
+    };
+    glow(120, -60, 820, C.rift, 0.30);
+    glow(CARD_W + 60, CARD_H + 60, 760, C.teal, 0.16);
+    ctx.textBaseline = 'alphabetic';
+
+    let y = P + 40;
+    const day = b.occurrence_date || (b.finished_at || '').slice(0, 10);
+    ctx.fillStyle = C.dim; ctx.font = `600 34px ${BODY}`;
+    ctx.fillText(fit(b.game || '', ctx.font, maxW * 0.55), P, y);
+    if(day){ ctx.textAlign = 'right'; ctx.font = `500 32px ${BODY}`; ctx.fillText(fmtDate(new Date(day + 'T00:00:00'), { month: 'short', day: 'numeric', year: 'numeric' }), CARD_W - P, y); ctx.textAlign = 'left'; }
+    y += 110;
+    ctx.fillStyle = C.text; ctx.font = `700 72px ${HEAD}`;
+    ctx.fillText(fit(b.name, ctx.font, maxW), P, y);
+    const where = [b.store && b.store.name, b.organizer && trf('brRunBy', { name: b.organizer })].filter(Boolean).join(' · ');
+    if(where){ y += 56; ctx.fillStyle = C.dim; ctx.font = `500 34px ${BODY}`; ctx.fillText(fit(where, ctx.font, maxW), P, y); }
+
+    const rows = bracketPlacements(b, 8);
+    const champ = rows[0];
+    if(champ){
+      y += 110;
+      ctx.fillStyle = C.gold; ctx.font = `700 32px ${BODY}`; ctx.fillText('🏆 ' + tr('brCardChampion').toUpperCase(), P, y);
+      y += 112;
+      const font = `700 110px ${HEAD}`, name = fit(champ.name, font, maxW);
+      ctx.font = font;
+      const g = ctx.createLinearGradient(P, 0, P + Math.max(ctx.measureText(name).width, 1), 0);
+      g.addColorStop(0, C.accent); g.addColorStop(1, C.teal);
+      ctx.fillStyle = g; ctx.fillText(name, P, y);
+      const sub = [champ.deck, champ.record].filter(Boolean).join(' · ');
+      if(sub){ y += 60; ctx.fillStyle = C.text; ctx.font = `600 40px ${BODY}`; ctx.fillText(fit(sub, ctx.font, maxW), P, y); }
+    }
+    // The rest of the top 8, as rows.
+    const rest = rows.slice(1), footerTop = CARD_H - P - 40;
+    y += 60;
+    const rowH = Math.min(92, Math.floor((footerTop - y) / Math.max(rest.length, 1)));
+    rest.forEach((r, i)=>{
+      const top = y + i * rowH, h = rowH - 14, mid = top + h / 2 + 12;
+      ctx.fillStyle = C.panel; ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(P, top, maxW, h, 14); else ctx.rect(P, top, maxW, h);
+      ctx.fill();
+      ctx.fillStyle = C.accent; ctx.font = `700 32px ${HEAD}`; ctx.fillText(fit(r.place || '', ctx.font, 150), P + 24, mid);
+      ctx.fillStyle = C.text; ctx.font = `600 36px ${BODY}`; ctx.fillText(fit(r.name, ctx.font, 420), P + 190, mid);
+      ctx.fillStyle = C.dim; ctx.font = `500 30px ${BODY}`; ctx.textAlign = 'right';
+      ctx.fillText(fit([r.deck, r.record].filter(Boolean).join(' · '), ctx.font, maxW - 650), CARD_W - P - 24, mid);
+      ctx.textAlign = 'left';
+    });
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = C.dim; ctx.font = `500 26px ${BODY}`; ctx.textAlign = 'right';
+    ctx.fillText('Pairings · ' + location.host.replace(/^www\./, ''), CARD_W - P, CARD_H - P + 20);
+    ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+  }
+  async function openBracketCardModal(b){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>📸 ${tr('brCardTitle')}</h2>
+        <div class="modal-sub">${tr('brCardSub')}</div>
+        <canvas id="bracketCanvas" role="img" aria-label="${escapeAttr(tr('brCardTitle') + ': ' + b.name)}" style="width:100%;height:auto;border-radius:12px;border:1px solid var(--line);display:block;"></canvas>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="bcSave" style="flex:1;">⬇️ ${tr('cardSave')}</button>
+          <button class="btn-primary" id="bcShare" style="flex:1;">${tr('cardShare')}</button>
+        </div>
+        <div class="modal-actions" style="margin-top:0;"><button class="btn-secondary" id="bcClose" style="flex:1;">${tr('close')}</button></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#bcClose').onclick = ()=>overlay.remove();
+    const canvas = overlay.querySelector('#bracketCanvas');
+    try{ if(document.fonts) await Promise.race([Promise.all([
+      document.fonts.load("700 72px 'Space Grotesk'"), document.fonts.load("600 36px 'Inter'"), document.fonts.load("500 30px 'Inter'")
+    ]), new Promise(r => setTimeout(r, 2500))]); }catch(_){}
+    try{ drawBracketCard(canvas, b); }catch(e){ showToast(tr('cardFailed')); return; }
+    const fileName = ('pairings-' + (b.name || 'bracket')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.png';
+    const toBlob = ()=> new Promise(res => { try{ canvas.toBlob(x => res(x), 'image/png'); }catch(_){ res(null); } });
+    const save = async ()=>{
+      const blob = await toBlob();
+      if(!blob){ showToast(tr('cardFailed')); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      trackFeature('bracket_card');
+    };
+    overlay.querySelector('#bcSave').onclick = save;
+    overlay.querySelector('#bcShare').onclick = async ()=>{
+      const blob = await toBlob();
+      if(!blob){ showToast(tr('cardFailed')); return; }
+      const file = new File([blob], fileName, { type: 'image/png' });
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        try{ await navigator.share({ files: [file], title: b.name }); trackFeature('bracket_card'); }
+        catch(e){ if(e && e.name !== 'AbortError') save(); }
+      } else { await save(); showToast(tr('cardSavedInstead')); }
     };
   }
 
