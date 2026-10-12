@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-SEJeBDshlWGzL2QNDPfv9RslEYb16MA1NYAn+9tTmII=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-TlktFGZLH7Ks38npa3Oq2LrmM3Mvx22+fZ6nM3Diltc=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -408,7 +408,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.36.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.37.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -2581,6 +2581,7 @@
 
   let realtimeSubscribed = false;
   let realtimeChannel = null;
+  const REALTIME_IDLE_MS = 120000;   // live channels are let go after this long in the background
   function subscribeRealtime(){
     if(realtimeSubscribed) return; // never try to re-subscribe an already-subscribed channel
     realtimeSubscribed = true;
@@ -2621,9 +2622,20 @@
     realtimeSubscribed = false;
     subscribeRealtime();
   }
-  let hiddenAt = 0;
+  let hiddenAt = 0, idleTimer = null;
   document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState === 'hidden'){ hiddenAt = Date.now(); return; }
+    clearTimeout(idleTimer);
+    if(document.visibilityState === 'hidden'){
+      hiddenAt = Date.now();
+      // Background for 2 minutes: drop the notifications channel, so the socket closes and stops
+      // counting against the plan's concurrent connections. refreshOnResume subscribes again.
+      idleTimer = setTimeout(async ()=>{
+        if(document.visibilityState !== 'hidden' || !realtimeChannel) return;
+        const c = realtimeChannel; realtimeChannel = null; realtimeSubscribed = false;
+        try{ await supabaseClient.removeChannel(c); }catch(e){}
+      }, REALTIME_IDLE_MS);
+      return;
+    }
     refreshOnResume(hiddenAt ? Date.now() - hiddenAt : undefined);
   });
   window.addEventListener('pageshow', (e)=>{
@@ -3015,6 +3027,10 @@
     const matchRows = [];    // individual matches with an opponent: feeds the deck-vs-opponent matrix
     let totalWins = 0, totalLosses = 0, totalDraws = 0;
     const opponentSpelling = {};
+    // Against each legend / leader (games that have one): a round's oppDeck (from a bracket), or an
+    // opponent typed as a known legend / leader name. Matched case-insensitively.
+    const vsLegendStats = {}, legendSpelling = {}, knownLeaders = {};
+    const isKnownLeader = (key, name) => (knownLeaders[key] = knownLeaders[key] || new Set(cachedLeaders(key).map(n => n.toLowerCase()))).has(name.toLowerCase());
     const turnOrder = { first: {w:0,l:0,d:0}, second: {w:0,l:0,d:0} };  // match results by who went first
 
     function accumulate(t, date, occ){
@@ -3069,6 +3085,13 @@
             if(m.outcome === 'W') side.w++; else if(m.outcome === 'L') side.l++; else if(m.outcome === 'D') side.d++;
           }
           const typed = (m.opponent||'').trim();
+          const lk = leaderGameKey(m.game || game);
+          const legend = lk && m.outcome ? (String(m.oppDeck || '').trim() || (typed && isKnownLeader(lk, typed) ? typed : '')) : '';
+          if(legend){
+            const lkey = legendSpelling[legend.toLowerCase()] = legendSpelling[legend.toLowerCase()] || legend;
+            const v = vsLegendStats[lkey] = vsLegendStats[lkey] || {w:0,l:0,d:0};
+            if(m.outcome === 'W') v.w++; else if(m.outcome === 'L') v.l++; else if(m.outcome === 'D') v.d++;
+          }
           if(!typed || !m.outcome) return;
           // Opponents are typed by hand: "mitsurugi" and "Mitsurugi " are one opponent, shown as first typed.
           const key = opponentSpelling[typed.toLowerCase()] = opponentSpelling[typed.toLowerCase()] || typed;
@@ -3198,6 +3221,7 @@
       bestMatchups,
       deckWinRates,
       leaderWinRates,
+      vsLegends: Object.entries(vsLegendStats).map(([name, rec]) => withRate({ name, ...rec })).sort((a,b)=>b.total-a.total || a.name.localeCompare(b.name)),
       allMatchups: matchupEntries.slice().sort((a,b)=>b.total-a.total || a.name.localeCompare(b.name)),
       goingFirst: withRate(turnOrder.first),
       goingSecond: withRate(turnOrder.second),
@@ -4823,6 +4847,7 @@
         ${pastDeckRows ? `<div class="section-label">${tr('winPastDecks')}</div>${pastDeckRows}` : ''}
         ${otherDeckRows ? `<div class="section-label">${tr('winOtherDecks')}</div>${otherDeckRows}` : ''}
         ${leaderRows ? `<div class="section-label">${leaderGameKey(game) === 'riftbound' ? tr('winByLegend') : tr('winByLeader')}</div>${leaderRows}` : ''}
+        ${s.vsLegends.length ? `<div class="section-label">${leaderGameKey(game) === 'riftbound' ? tr('vsEachLegend') : tr('vsEachLeader')}</div>${s.vsLegends.map(m => statRowHtml(m, m.winRate == null ? '' : (m.winRate >= 50 ? 'teal' : 'rose'))).join('')}` : ''}
         ${bestRows ? `<div class="section-label">${tr('whatYouBeat')}</div>${bestRows}` : ''}
         ${toughRows ? `<div class="section-label">${tr('whatYouLose')}</div>${toughRows}` : ''}
         ${opponentListHtml(s.allMatchups)}
@@ -6607,22 +6632,34 @@
     const quiet = () => busy() || document.hidden
       || (overlay.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName));
     const reload = async () => { wanted = false; lastCheck = Date.now(); try{ await refresh(); }catch(e){ wanted = true; } };
-    try{
-      channel = supabaseClient.channel('bracket:' + id)
-        .on('broadcast', { event: 'version' }, msg => {
-          const v = msg && msg.payload && msg.payload.version;
-          if(typeof v !== 'number' || v <= version()) return;
-          wanted = true;
-          if(!quiet()) reload();
-        })
-        .subscribe(status => { live = status === 'SUBSCRIBED'; });
-    }catch(e){ channel = null; }
+    const connect = () => {
+      try{
+        channel = supabaseClient.channel('bracket:' + id)
+          .on('broadcast', { event: 'version' }, msg => {
+            const v = msg && msg.payload && msg.payload.version;
+            if(typeof v !== 'number' || v <= version()) return;
+            wanted = true;
+            if(!quiet()) reload();
+          })
+          .subscribe(status => { live = status === 'SUBSCRIBED'; });
+      }catch(e){ channel = null; }
+    };
+    const disconnect = () => {
+      const c = channel;
+      channel = null; live = false;
+      if(c) Promise.resolve().then(() => supabaseClient.removeChannel(c)).catch(()=>{});
+    };
+    connect();
     const timer = setInterval(async ()=>{
       if(!document.body.contains(overlay)){
         clearInterval(timer);
-        if(channel) Promise.resolve().then(() => supabaseClient.removeChannel(channel)).catch(()=>{});
+        disconnect();
         return;
       }
+      // A phone in a pocket doesn't need a live connection (the free plan allows ~200 at once):
+      // after 2 minutes in the background it's let go, and taken up again on return.
+      if(document.hidden && channel && hiddenAt && Date.now() - hiddenAt > REALTIME_IDLE_MS){ disconnect(); return; }
+      if(!document.hidden && !channel){ connect(); wanted = true; }
       if(quiet()) return;
       if(wanted) return reload();
       if(live && Date.now() - lastCheck < 60000) return;
@@ -6723,6 +6760,26 @@
   // Decks, nudges and announcing need the 1.36 SQL (master-schema.sql); until it has run,
   // get_bracket has no `announced` and those controls stay hidden.
   const bracketHasDepth = b => typeof b.announced === 'boolean';
+  // One player's decklist, as typed (shown as plain text).
+  function openDecklistModal(name, deck, list){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>📄 ${escapeHtml(name)}</h2>
+      ${deck ? `<div class="modal-sub">${escapeHtml(deck)}</div>` : ''}
+      <div style="white-space:pre-wrap;font-size:14px;line-height:1.5;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px;">${escapeHtml(list || '')}</div>
+      <div class="modal-actions"><button class="btn-secondary" id="dlClose" style="flex:1;">${tr('close')}</button></div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    overlay.querySelector('#dlClose').onclick = ()=>overlay.remove();
+  }
+  // Everyone's decklists, once a bracket has finished (get_bracket sends them then).
+  function bracketDecklistsHtml(b){
+    const withList = b.players.filter(p => p.decklist);
+    if(!withList.length) return '';
+    return `<div class="section-label">📄 ${tr('brDecklists')}</div>` + withList.map(p => `
+      <div class="list-item"><div class="info"><div class="n">${bracketNameHtml(b, p.id)}</div></div>
+        <button class="mini-btn" data-view-list="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brViewDecklist', { name: p.name }))}">📄 ${tr('brDecklist')}</button></div>`).join('');
+  }
   // A player's name with the legend / leader / deck they're on after it, as HTML.
   function bracketNameHtml(b, pid){
     const p = b.players.find(x => x.id === pid);
@@ -6952,6 +7009,26 @@
   }
   // The store's running season(s) for its public page: the top 10 of each, or '' (none, or the SQL
   // isn't there yet).
+  // The store's metagame on its public page: the 8 most played decks / legends per game in its
+  // finished brackets of the last 30 days, or '' (none, or the SQL isn't there yet).
+  async function publicMetagameHtml(store){
+    try{
+      const { data, error } = await supabaseClient.rpc('store_metagame', { p_store: store.id, p_days: 30 });
+      if(error || !data || !data.length) return '';
+      const byGame = {};
+      data.forEach(r => { (byGame[r.game || ''] = byGame[r.game || ''] || []).push(r); });
+      return Object.entries(byGame).map(([game, rows]) => {
+        const max = Math.max(...rows.map(r => r.entries), 1);
+        return `<div class="section-label" style="text-align:center;">📊 ${escapeHtml(tr('storeMetaTitle'))}${game ? ' · ' + escapeHtml(game) : ''}</div>` + rows.slice(0, 8).map(r => {
+          const games = r.wins + r.losses + r.draws;
+          const bits = [r.entries === 1 ? tr('storeMetaPlayed1') : trf('storeMetaPlayedN', { n: r.entries })];
+          if(games) bits.push(trf('brRecord', { w: r.wins, l: r.losses, d: r.draws }), trf('brMetaWinPct', { pct: Math.round(r.wins * 100 / games) }));
+          return `<div class="list-item" style="display:block;"><div class="n">${escapeHtml(r.deck)}</div><div class="m">${escapeHtml(bits.join(' · '))}</div>
+            <div class="br-bar"><span style="width:${Math.round(r.entries * 100 / max)}%;"></span></div></div>`;
+        }).join('');
+      }).join('');
+    }catch(e){ return ''; }
+  }
   async function publicSeasonsHtml(store){
     try{
       const today = todayStr();
@@ -6985,7 +7062,7 @@
     try{
       const [access, list, playedIn] = await Promise.all([
         supabaseClient.rpc('can_run_brackets'),
-        supabaseClient.from('brackets').select('id, name, game, format, status, current_round, created_at').order('created_at', { ascending: false }).limit(30),
+        supabaseClient.from('brackets').select('id, owner_id, name, game, format, status, current_round, created_at').order('created_at', { ascending: false }).limit(30),
         supabaseClient.rpc('my_brackets'),
       ]);
       if(list.error) throw list.error;
@@ -7016,6 +7093,7 @@
       </div>
       <div class="field" id="br_topcut_field" style="display:none;"><label for="br_topcut">${tr('brTopCutLabel')}</label>
         <select id="br_topcut">${BRACKET_TOP_CUTS.map(n=>`<option value="${n}" ${n === 8 ? 'selected' : ''}>${escapeHtml(trf('brTopN', { n }))}</option>`).join('')}</select></div>
+      <label class="check-row" style="display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:13px;"><input type="checkbox" id="br_decklists"/> ${tr('brAskDecklists')}</label>
       <div class="hint" style="margin-bottom:10px;">${tr('brTiebreakHint')}</div>
       <button class="btn-primary" id="br_create" style="width:100%;">${tr('brCreate')}</button>`
       : `<div class="modal-sub">${tr('brNotAllowed')}</div>`;
@@ -7025,7 +7103,7 @@
       ${mine.length ? mine.map(x=>`
         <div class="list-item">
           <div class="info"><div class="n">${escapeHtml(x.name)}</div>
-            <div class="m">${escapeHtml([x.game, bracketFormatLabel(x.format), bracketStatusLabel(x)].filter(Boolean).join(' · '))}</div></div>
+            <div class="m">${x.owner_id && session && x.owner_id !== session.user.id ? '🛡 ' + escapeHtml(tr('brStoreBracket')) + ' · ' : ''}${escapeHtml([x.game, bracketFormatLabel(x.format), bracketStatusLabel(x)].filter(Boolean).join(' · '))}</div></div>
           <button class="mini-btn" data-open-bracket="${escapeAttr(x.id)}">${tr('brOpen')}</button>
         </div>`).join('') : allowed ? `<div class="modal-sub">${tr('brNoneYet')}</div>` : ''}
       ${played.length ? `<div class="section-label">${tr('brPlayedIn')}</div>
@@ -7058,6 +7136,7 @@
       const settings = { bestOf: body.querySelector('#br_bestof').value === '1' ? 1 : 3 };
       if(fmt.value !== 'single_elim' && n >= 1 && n <= 20) settings.rounds = n;
       if(fmt.value === 'swiss_top_cut') settings.topCut = parseInt(body.querySelector('#br_topcut').value, 10) || 8;
+      if(body.querySelector('#br_decklists').checked) settings.decklists = true;
       e.target.disabled = true;
       const { data, error } = await supabaseClient.from('brackets').insert({
         owner_id: session.user.id, name, game: body.querySelector('#br_game').value, format: fmt.value, settings,
@@ -7170,6 +7249,32 @@
       await saveElimRound(1, seeds);
     }
 
+    // A new bracket like this one (same name, game, format and settings; the number of rounds goes
+    // back to automatic), for the store event's next date after this one when it has one.
+    async function runAgain(){
+      let next = null;
+      if(b.store_event_id){
+        const { data: ev } = await supabaseClient.from('store_events').select('*').eq('id', b.store_event_id).maybeSingle();
+        if(ev && !ev.cancelled){
+          const after = new Date((b.occurrence_date || todayStr()) + 'T00:00:00'); after.setDate(after.getDate() + 1);
+          const from = [dateToStr(after), todayStr()].sort().pop();
+          const until = new Date(); until.setDate(until.getDate() + 120);
+          next = getOccurrenceDates(ev, from, dateToStr(until)).filter(d => d >= from && !isCancelledOn(ev, d))[0] || null;
+        }
+      }
+      const when = next ? fmtDate(new Date(next + 'T00:00:00'), { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+      if(!confirm(next ? trf('brAgainConfirm', { date: when }) : tr('brAgainConfirmNoDate'))) return;
+      const settings = Object.assign({}, b.settings);
+      delete settings.rounds;
+      const { data, error } = await supabaseClient.from('brackets').insert({
+        owner_id: session.user.id, name: b.name, game: b.game, format: b.format, settings,
+        store_id: b.store ? b.store.id : null, store_event_id: next ? b.store_event_id : null, occurrence_date: next,
+      }).select('id').single();
+      if(error || !data){ showToast(tr('brCouldNotSave')); return; }
+      overlay.remove();
+      openBracketModal(data.id);
+    }
+
     // ---- tabs ----
     function playersTab(){
       const canAdd = b.status === 'registration' || (b.status === 'swiss' && b.format !== 'single_elim');
@@ -7179,12 +7284,13 @@
           <input id="brAddName" maxlength="40" placeholder="${escapeAttr(tr('brAddPlaceholder'))}" style="flex:1;min-width:0;"/>
           <button class="mini-btn" id="brAddBtn">${tr('brAdd')}</button>
         </div>${b.status === 'swiss' ? `<div class="hint" style="margin-bottom:10px;">${tr('brLateEntryHint')}</div>` : ''}` : ''}
-        <div class="modal-sub">${bracketPlayerCount(b.players.filter(p => !p.dropped).length)}</div>
+        <div class="modal-sub">${bracketPlayerCount(b.players.filter(p => !p.dropped).length)}${(b.settings || {}).decklists ? ' · ' + escapeHtml(trf('brDecklistsCount', { n: b.players.filter(p => p.has_decklist).length, total: b.players.length })) : ''}</div>
         ${list.map(p=>`
           <div class="list-item">
             <div class="info"><div class="n">${escapeHtml(p.name)}</div>
               <div class="m">${[p.deck, p.guest ? tr('brGuest') : tr('brHasAccount'), p.dropped ? trf('brDroppedRound', { n: p.dropped_round || 0 }) : ''].filter(Boolean).map(escapeHtml).join(' · ')}</div></div>
             <div style="display:flex;gap:6px;">
+              ${p.has_decklist ? `<button class="mini-btn" data-list="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brViewDecklist', { name: p.name }))}">📄</button>` : ''}
               ${b.status !== 'cancelled' ? `<button class="mini-btn" data-deck="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brEditDeck', { name: p.name }))}">🃏</button>` : ''}
               ${p.guest ? `<button class="mini-btn" data-guest-link="${escapeAttr(p.id)}" aria-label="${escapeAttr(trf('brGuestLinkTitle', { name: p.name }))}">🔗</button>` : ''}
               ${running() ? `<button class="mini-btn" data-drop="${escapeAttr(p.id)}">${p.dropped ? tr('brUndrop') : tr('brDrop')}</button>` : ''}
@@ -7237,7 +7343,8 @@
       if(b.status === 'finished' || b.status === 'cancelled'){
         const winner = e && e.champion ? e.champion : (B.standings(bracketPlayers(b), bracketStageMatches(b, 'swiss'), opts())[0] || {}).id;
         html = `<div class="modal-sub" style="font-size:16px;">${b.status === 'finished' && winner ? '🏆 ' + escapeHtml(trf('brChampion', { name: nameOf(winner) })) : escapeHtml(bracketStatusLabel(b))}</div>`
-          + (b.status === 'finished' ? `<button class="btn-primary" id="brCard" style="width:100%;margin-bottom:12px;">📸 ${tr('brShareResults')}</button>` : '') + html;
+          + (b.status === 'finished' ? `<div class="modal-actions" style="margin:0 0 12px;"><button class="btn-primary" id="brCard" style="flex:1;">📸 ${tr('brShareResults')}</button>
+              <button class="btn-secondary" id="brAgain" style="flex:1;">🔁 ${tr('brAgain')}</button></div>` : '') + html;
       }
       return html || `<div class="modal-sub">${tr('nothingToShow')}</div>`;
     }
@@ -7250,6 +7357,7 @@
     }
     // Under the round being played: print it for the wall, or slips for the tables.
     const printRow = () => bracketCurrentRound(b) ? `<div class="chip-row" style="margin-top:10px;">
+        <a class="mini-btn" id="brTimer" href="${escapeAttr(turnZeroUrlFor({ name: b.name + ' · ' + bracketCurrentRound(b).label, game: b.game }))}" target="_blank" rel="noopener" style="text-decoration:none;">⏱ ${tr('brRoundTimer')}</a>
         <button class="mini-btn" id="brPrintPairings">🖨 ${tr('brPrintPairings')}</button>
         <button class="mini-btn" id="brPrintSlips">🖨 ${tr('brPrintSlips')}</button></div>` : '';
 
@@ -7265,7 +7373,7 @@
         <div id="brTab">${tab === 'players' ? playersTab() : tab === 'standings' ? standingsTab() : roundTab() + printRow()}</div>
         <div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;">
           <button class="btn-secondary" id="brShare" style="flex:1 1 100%;">📱 ${tr('brPlayerLink')}</button>
-          <button class="btn-secondary" id="brDelete" style="flex:1;">${tr('brDelete')}</button>
+          ${b.is_owner === false ? '' : `<button class="btn-secondary" id="brDelete" style="flex:1;">${tr('brDelete')}</button>`}
           <button class="btn-secondary" id="closeBracket" style="flex:1;">${tr('close')}</button>
         </div>`;
       wire();
@@ -7336,6 +7444,15 @@
         act(async ()=>{ must(await supabaseClient.from('brackets').update({ status: 'finished' }).eq('id', id)); tab = 'round'; });
       });
       on('#brCard', ()=>openBracketCardModal(b));
+      on('#brAgain', runAgain);
+      body.querySelectorAll('[data-list]').forEach(btn => {
+        btn.onclick = async ()=>{
+          const p = b.players.find(x => x.id === btn.dataset.list);
+          const { data, error } = await supabaseClient.from('bracket_players').select('decklist').eq('id', btn.dataset.list).maybeSingle();
+          if(error || !data){ showToast(tr('brCouldNotLoad')); return; }
+          openDecklistModal(p ? p.name : '', p && p.deck, data.decklist);
+        };
+      });
       on('#brAnnounce', ()=>act(async ()=>{
         const r = must(await supabaseClient.rpc('announce_bracket', { p_bracket: id }));
         showToast(r.data === 1 ? tr('brAnnounced1') : trf('brAnnouncedN', { n: r.data || 0 }));
@@ -7399,7 +7516,9 @@
         const outcome = m.result === 'draw' ? 'D' : m.result === mine ? 'W' : 'L';
         if(outcome === 'W') w++; else if(outcome === 'L') l++; else d++;
         const opp = b.players.find(p => p.id === (mine === 'p1' ? m.p2 : m.p1));
-        matches.push({ opponent: opp ? opp.name : '?', outcome, wentFirst: '', notes: (opp && opp.deck) || '' });
+        const round = { opponent: opp ? opp.name : '?', outcome, wentFirst: '', notes: '' };
+        if(opp && opp.deck) round.oppDeck = opp.deck;   // their legend / deck: Stats → "Against each legend"
+        matches.push(round);
       });
     // Placement: how far they got in the elimination bracket, otherwise their Swiss rank.
     let placement = '';
@@ -7455,6 +7574,7 @@
   // the address bar, so a refresh or a second visit still knows who they are without the secret
   // sitting in the URL bar or history.
   const BRACKET_TOKENS_KEY = 'pairings-bracket-tokens';
+  const PENDING_BRACKET_KEY = 'pairings-pending-bracket';   // { id, at }: a guest who went to sign up (24 h)
   function bracketTokens(){ try{ return JSON.parse(localStorage.getItem(BRACKET_TOKENS_KEY) || '{}') || {}; }catch(e){ return {}; } }
   function bracketTokenFor(id){ const t = bracketTokens()[id]; return typeof t === 'string' && /^[0-9a-f]{32}$/.test(t) ? t : null; }
   function rememberBracketToken(id, token){
@@ -7599,7 +7719,28 @@
           <div class="hint">${tr('brDeckHint')}</div>
         </div>`);
       }
+      if((b.settings || {}).decklists && canSetDeck && 'has_decklist' in p){   // has_decklist: the 1.37 SQL has run
+        parts.push(`<div class="field">
+          <label for="bvList">📄 ${tr('brDecklist')}</label>
+          ${p.decklist ? '' : `<div class="hint" style="color:var(--amber);margin-bottom:6px;">${tr('brDecklistAsked')}</div>`}
+          <textarea id="bvList" rows="6" maxlength="8000" placeholder="${escapeAttr(tr('brDecklistPh'))}">${escapeHtml(p.decklist || '')}</textarea>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+            <div class="hint" style="flex:1;">${tr('brDecklistHint')}</div>
+            <button class="mini-btn" id="bvListSave">${tr('save')}</button>
+          </div>
+        </div>`);
+      } else if((b.settings || {}).decklists && p.has_decklist){
+        parts.push(`<div class="modal-sub">✓ ${tr('brDecklistIn')}</div>`);
+      }
       if(token && p.guest && session) parts.push(`<div class="list-item"><div class="info"><div class="n">${tr('brClaimTitle')}</div><div class="m">${tr('brClaimHint')}</div></div><button class="mini-btn" id="bvClaim">${tr('brClaim')}</button></div>`);
+      else if(token && p.guest && !session && b.status === 'finished'){
+        const res = bracketResultFor(b, p.id);
+        parts.push(`<div class="bv-state ok" style="text-align:left;">
+          <div style="font-size:17px;font-family:'Space Grotesk',sans-serif;">⭐ ${escapeHtml(trf('brGuestSaveTitle', { record: res.record }))}</div>
+          <div class="m" style="margin:6px 0 12px;">${tr('brGuestSaveText')}</div>
+          <button class="btn-primary" id="bvSignUp" style="width:100%;">${tr('brGuestSaveBtn')}</button>
+        </div>`);
+      }
       else if(token && p.guest && !session) parts.push(`<div class="hint" style="margin-bottom:10px;">${tr('brGuestSignUpHint')}</div>`);
       if(b.status === 'registration') parts.push(`<div class="modal-sub">${tr('brWaitingStart')}</div>`);
       if(b.status === 'finished' && session && !p.guest){
@@ -7701,7 +7842,7 @@
       overlay.querySelector('#bvHeading').textContent = '🏆 ' + b.name;
       const hasElim = b.format === 'single_elim' || bracketStageMatches(b, 'elim').length > 0;
       const tabs = [['mine', tr('brTabMe')], ['pairings', b.status === 'registration' ? tr('brTabPlayers') : hasElim && b.status !== 'swiss' ? tr('brTabBracket') : tr('brTabPairings')]];
-      if(bracketStageMatches(b, 'swiss').length || bracketMetagame(b).length) tabs.push(['standings', tr('brTabStandings')]);
+      if(bracketStageMatches(b, 'swiss').length || bracketMetagame(b).length || b.players.some(p => p.decklist && p.id !== b.me)) tabs.push(['standings', tr('brTabStandings')]);
       if(!tabs.some(([k]) => k === tab)) tab = 'mine';
       const where = [b.store && b.store.name, b.organizer && trf('brRunBy', { name: b.organizer })].filter(Boolean).join(' · ');
       body.innerHTML = `
@@ -7709,7 +7850,7 @@
         <div class="chip-row" style="margin-bottom:12px;">
           ${tabs.map(([k, l])=>`<button type="button" class="chip ${tab === k ? 'active' : ''}" data-tab="${k}" aria-pressed="${tab === k}">${escapeHtml(l)}</button>`).join('')}
         </div>
-        <div>${tab === 'pairings' ? pairingsTab() : tab === 'standings' ? (bracketStageMatches(b, 'swiss').length ? bracketStandingsHtml(b, b.me) : '') + bracketMetagameHtml(b) : mineTab()}</div>
+        <div>${tab === 'pairings' ? pairingsTab() : tab === 'standings' ? (bracketStageMatches(b, 'swiss').length ? bracketStandingsHtml(b, b.me) : '') + bracketMetagameHtml(b) + bracketDecklistsHtml(b) : mineTab()}</div>
         <div class="hint" style="margin-top:12px;">${tr('brLiveHint')}</div>
         ${b.status === 'finished' ? `<button class="btn-secondary" id="bvCard" style="width:100%;margin-top:12px;">📸 ${tr('brShareResults')}</button>` : ''}
         ${closeRow}`;
@@ -7721,6 +7862,21 @@
     function wire(){
       const on = (sel, fn) => { const el = body.querySelector(sel); if(el) el.onclick = fn; };
       on('#bvCard', ()=>openBracketCardModal(b));
+      on('#bvListSave', ()=>{
+        const v = body.querySelector('#bvList').value;
+        act(async ()=>{ must(await supabaseClient.rpc('set_bracket_decklist', { p_bracket: id, p_list: v, p_token: token || null })); showToast(tr('brDecklistSaved')); });
+      });
+      body.querySelectorAll('[data-view-list]').forEach(btn => {
+        btn.onclick = ()=>{ const p = b.players.find(x => x.id === btn.dataset.viewList); if(p) openDecklistModal(p.name, p.deck, p.decklist); };
+      });
+      // A guest making an account: the sign-up screen is behind this one. The bracket is remembered
+      // so it opens again after the confirmation email (which may open a new tab), with Claim.
+      on('#bvSignUp', ()=>{
+        try{ localStorage.setItem(PENDING_BRACKET_KEY, JSON.stringify({ id, at: Date.now() })); }catch(e){}
+        overlay.remove();
+        const to = document.getElementById('toSignup');
+        if(to) to.click();
+      });
       on('#bvDeckSave', ()=>{
         const v = body.querySelector('#bvDeck').value.trim();
         act(async ()=>{ must(await supabaseClient.rpc('set_bracket_deck', { p_bracket: id, p_deck: v, p_token: token || null })); showToast(tr('brDeckSaved')); });
@@ -10409,7 +10565,7 @@
         pendingCheckin = null;
         await performCheckin(id);
         if(profileLoaded && profile && profile.onboarded === false) openWelcomeModal();
-      } else if(pendingBracket){
+      } else if(pendingBracket || takePendingBracketClaim()){
         openPendingBracket(true);
       } else if(profileLoaded && profile && profile.onboarded === false){
         openWelcomeModal();
@@ -10485,9 +10641,10 @@
         return;
       }
       const today = todayStr();
-      const [{ data: events }, seasonsHtml] = await Promise.all([
+      const [{ data: events }, seasonsHtml, metaHtml] = await Promise.all([
         supabaseClient.from('store_events').select('*').eq('store_id', store.id).gte('date', today).order('date').limit(30),
         publicSeasonsHtml(store),
+        publicMetagameHtml(store),
       ]);
 
       const rows = (events||[]).map(e=>`
@@ -10522,6 +10679,7 @@
           <div class="section-label" style="text-align:center;">${tr('xUpcomingEvents')}</div>
           ${rows || `<div class="modal-sub" style="text-align:center;">${tr('xNoUpcomingEventsPostedRight')}</div>`}
           ${seasonsHtml}
+          ${metaHtml}
           <div class="empty-state" style="margin-top:24px;">
             <div>${tr('xWantTheseEventsToShow')}</div>
             <div style="margin-top:12px;"><a href="${baseAppUrl()}?follow=${encodeURIComponent(store.follow_code)}" class="btn-primary" style="display:inline-block;text-decoration:none;padding:12px 22px;border-radius:10px;">${trf('getPairingsCta', { code: escapeHtml(store.follow_code) })}</a></div>
@@ -10589,6 +10747,16 @@
   function baseAppUrl(){ return window.location.origin + window.location.pathname; }
   // Opens the bracket from the link the app was started with. Signed out, the link is kept, so
   // signing in (e.g. a guest making an account to claim their spot) opens it again.
+  // A guest who tapped "Create a free account" on a finished bracket: after signing in (here, or
+  // in the tab the confirmation email opened), their bracket opens again so they can claim the spot.
+  function takePendingBracketClaim(){
+    try{
+      const x = JSON.parse(localStorage.getItem(PENDING_BRACKET_KEY) || 'null');
+      localStorage.removeItem(PENDING_BRACKET_KEY);
+      if(x && /^[0-9a-f-]{36}$/.test(x.id) && Date.now() - x.at < 864e5 && bracketTokenFor(x.id)){ pendingBracket = x.id; return true; }
+    }catch(e){}
+    return false;
+  }
   function openPendingBracket(signedIn){
     const id = pendingBracket;
     if(pendingBracketToken){ rememberBracketToken(id, pendingBracketToken); pendingBracketToken = null; }
