@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-pHJQ+MjmFBIHlMqW4U33IaI8dRk3ZNjpAkyu7FZkJsw=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-wrVoEOktjEOdx0vSsLGuEg/g1BG9jLCXfkh5QNhSfw4=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -436,7 +436,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.39.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.40.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -4857,7 +4857,7 @@
     if(!rows.length) return `<div class="hint">${tr('rkBoardEmpty')}</div>`;
     return rows.map(r => {
       const t = rankTier(r.rating);
-      return `<div class="result-row${r.is_me ? ' rank-me' : ''}">
+      return `<div class="result-row${r.is_me ? ' rank-me' : ''}"${r.user_id ? ` data-profile="${escapeAttr(r.user_id)}" data-profile-name="${escapeAttr(r.name)}" style="cursor:pointer;"` : ''}>
         <div style="display:flex;gap:10px;align-items:center;min-width:0;">
           <div class="rank-no">${r.ranked && r.rank ? '#' + r.rank : '🔰'}</div>
           <div style="min-width:0;"><div class="n">${escapeHtml(r.name)}${r.is_me ? ' · ' + escapeHtml(tr('rkYou')) : ''}</div>
@@ -4906,6 +4906,7 @@
         return;
       }
       boardKey = key; board = null;
+      if(scope === 'near' && (profile.home_lat == null || profile.home_lng == null)){ board = []; draw(); return; }
       const store = scope.startsWith('store:') ? scope.slice(6) : null;
       const { data, error } = await supabaseClient.rpc('rating_leaderboard', { p_game: game, p_scope: store ? 'store' : scope, p_store: store, p_limit: 50 });
       if(boardKey !== key) return;
@@ -4928,7 +4929,7 @@
         const last = g && (g.history || [])[0];
         const rec = g ? g.season_wins + g.season_losses + g.season_draws : 0;
         const stores = (g && g.stores) || [];
-        const scopes = (g ? [['friends', tr('rkScopeFriends')], ['all', tr('rkScopeAll')]] : []).concat(stores.map(s => ['store:' + s.id, '🏪 ' + s.name]))
+        const scopes = (g ? [['friends', tr('rkScopeFriends')], ['near', '📍 ' + tr('rkScopeNear')], ['all', tr('rkScopeAll')]] : []).concat(stores.map(s => ['store:' + s.id, '🏪 ' + s.name]))
           .concat(friendly.some(r => r.game === game) ? [['friendly', '🤝 ' + tr('mcFriendlyScope')]] : []);
         body = `
           ${gameNames.length > 1 ? `<div class="chip-row" style="margin-bottom:12px;">${gameNames.map(x => `<button class="chip ${x === game ? 'active' : ''}" data-rk-game="${escapeAttr(x)}" aria-pressed="${x === game}">${gameIcon(x)} ${escapeHtml(x)}</button>`).join('')}</div>` : ''}
@@ -4949,7 +4950,10 @@
           ${how}
           <div class="section-label">${tr('rkBoardTitle')}</div>
           <div class="chip-row" style="margin-bottom:10px;">${scopes.map(([k, label]) => `<button class="chip ${scope === k ? 'active' : ''}" data-rk-scope="${escapeAttr(k)}" aria-pressed="${scope === k}">${escapeHtml(label)}</button>`).join('')}</div>
-          ${board == null ? `<div class="modal-sub">${tr('loadingDots')}</div>` : board.error ? `<div class="hint">${tr('rkLoadFailed')}</div>` : rankRowsHtml(board)}
+          ${scope === 'near' && (profile.home_lat == null || profile.home_lng == null) ? `<div class="hint">${tr('rkNearNoCity')}</div>`
+            : board == null ? `<div class="modal-sub">${tr('loadingDots')}</div>` : board.error ? `<div class="hint">${tr('rkLoadFailed')}</div>` : rankRowsHtml(board)}
+          ${scope === 'near' && profile.home_city && board && !board.error ? `<div class="hint">${escapeHtml(trf('rkNearHint', { city: profile.home_city }))}</div>` : ''}
+          ${board && !board.error && board.some(r => r.user_id) ? `<div class="hint">${tr('ppTapHint')}</div>` : ''}
           ${scope === 'friendly' ? `<div class="hint">${tr('mcFriendlyHint')}</div>` : ''}
           ${g && (g.history || []).length ? `<div class="section-label">${tr('rkHistoryTitle')}</div>${g.history.map(h => `
             <div class="result-row"><div><div class="n">${escapeHtml(h.bracket)}</div>
@@ -4987,9 +4991,81 @@
         draw(); loadBoard();
       });
       overlay.querySelectorAll('[data-rk-scope]').forEach(b => b.onclick = ()=>{ scope = b.dataset.rkScope; draw(); loadBoard(); });
+      overlay.querySelectorAll('[data-profile]').forEach(r => r.onclick = ()=>openPlayerProfileModal(r.dataset.profile, r.dataset.profileName));
     }
     draw();
     if(game) loadBoard();
+  }
+  // A player's profile, opened from a leaderboard row (player_profile): who they are, the badges
+  // they show and, when they show their rank, their ranks, best season, recent rated brackets
+  // and stores. Private players (not friends, rank hidden) come back null.
+  async function openPlayerProfileModal(userId, name){
+    trackFeature('player_profile');
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(name || tr('someone'))}</h2><div class="modal-sub">${tr('loadingDots')}</div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    const fail = msg => {
+      overlay.innerHTML = `<div class="modal"><h2>${escapeHtml(name || tr('someone'))}</h2><div class="modal-sub">${msg}</div>
+        <div class="modal-actions"><button class="btn-secondary" id="closePP" style="flex:1;">${tr('close')}</button></div></div>`;
+      overlay.querySelector('#closePP').onclick = ()=>overlay.remove();
+    };
+    let p;
+    try{
+      const { data, error } = await supabaseClient.rpc('player_profile', { p_user: userId });
+      if(error) return fail(rankUnavailable(error) ? tr('rkNotReady') : tr('ppLoadFailed'));
+      p = data;
+    }catch(e){ return fail(tr('ppLoadFailed')); }
+    if(!p) return fail(tr('ppPrivate'));
+    const shown = featuredBadgeIds(p);
+    const draw = () => {
+      const state = p.is_me ? 'me' : friendState(userId);
+      const games = (p.games || []).map(g => {
+        const rec = g.season_wins + g.season_losses + g.season_draws;
+        const best = g.best ? rankTier(g.best.peak) : null;
+        return `<div class="result-row"><div><div class="n">${gameIcon(g.game)} ${escapeHtml(g.game)}</div>
+          <div class="m">${rec ? escapeHtml(trf('rkThisSeason', { w: g.season_wins, l: g.season_losses, d: g.season_draws })) : escapeHtml(tr('ppNoSeason'))}${g.ranked && rec ? ' · ' + escapeHtml(trf('rkPeak', { n: g.season_peak })) : ''}${best ? ' · ' + escapeHtml(trf('ppBest', { tier: best.icon + ' ' + tierName(best), season: g.best.season })) : ''}</div></div>
+          <div class="p">${escapeHtml(rankText(g))}</div></div>`;
+      }).join('');
+      const recent = (p.recent || []).map(h => `
+        <div class="result-row" data-pp-bracket="${escapeAttr(h.bracket_id)}" style="cursor:pointer;"><div><div class="n">${escapeHtml(h.bracket)}</div>
+          <div class="m">${escapeHtml(fmtDate(new Date(h.date + 'T00:00:00'), { month: 'short', day: 'numeric', year: 'numeric' }))} · ${escapeHtml(h.game)}${h.store ? ' · ' + escapeHtml(h.store) : ''}</div></div>
+          <div class="p">${escapeHtml(trf('rkSeasonRecord', { w: h.wins, l: h.losses, d: h.draws }))} ${rankDeltaHtml(h.change)}</div></div>`).join('');
+      overlay.innerHTML = `
+        <div class="modal">
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">
+            ${avatarImg(p.avatar_url, 56, p.name)}
+            <div style="min-width:0;"><h2 style="margin:0;">${escapeHtml(p.name)}</h2>
+              <div class="m">${p.username && p.name !== '@' + p.username ? '@' + escapeHtml(p.username) : ''}${p.is_me ? ' ' + escapeHtml(tr('ppThisIsYou')) : p.is_friend ? ' 🤝 ' + escapeHtml(tr('ppFriend')) : ''}</div></div>
+          </div>
+          ${shown.length ? badgeChipsHtml(shown) : ''}
+          ${games ? `<div class="section-label">📈 ${tr('rkTitle')}</div>${games}` : `<div class="hint">${escapeHtml(trf('ppRankHidden', { name: p.name }))}</div>`}
+          ${(p.stores || []).length ? `<div class="section-label">🏪 ${tr('ppStores')}</div><div class="m">${p.stores.map(escapeHtml).join(' · ')}</div>` : ''}
+          ${recent ? `<div class="section-label">${tr('ppRecent')}</div>${recent}` : ''}
+          ${p.is_me ? `<div class="hint">${tr('ppYouHint')}</div>` : ''}
+          <div class="modal-actions">
+            ${state === 'none' ? `<button class="btn-primary" id="ppAddFriend" style="flex:1;">➕ ${tr('ppAddFriend')}</button>` : ''}
+            ${state === 'pending' ? `<button class="btn-secondary" disabled style="flex:1;">${tr('ppRequested')}</button>` : ''}
+            ${state === 'friends' ? `<button class="btn-secondary" id="ppStats" style="flex:1;">📊 ${tr('ppTheirStats')}</button>` : ''}
+            <button class="btn-secondary" id="closePP" style="flex:1;">${tr('close')}</button>
+          </div>
+        </div>`;
+      overlay.querySelector('#closePP').onclick = ()=>overlay.remove();
+      const add = overlay.querySelector('#ppAddFriend');
+      if(add) add.onclick = async ()=>{
+        add.disabled = true;
+        const { error } = await supabaseClient.from('friendships').insert({ requester_id: session.user.id, addressee_id: userId, status: 'pending' });
+        if(error){ add.disabled = false; showToast(error.code === '23505' ? tr('xAlreadyFriendsOrARequest') : tr('couldNotSendRequest')); return; }
+        showToast(tr('friendRequestSent'));
+        await loadFriendsData();
+        draw();
+      };
+      const st = overlay.querySelector('#ppStats');
+      if(st) st.onclick = ()=>openFriendStatsModal(userId, p.name);
+      overlay.querySelectorAll('[data-pp-bracket]').forEach(r => r.onclick = ()=>openBracketViewModal(r.dataset.ppBracket));
+    };
+    draw();
   }
   // Friend stats: their rank in each game, when they show it.
   async function fillFriendRanks(el, userId){
