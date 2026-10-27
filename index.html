@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-LbkGhkfiXsAB3BJqJRJvvjGXUWhGR2/SbgmN6JMOjQ8=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-pHJQ+MjmFBIHlMqW4U33IaI8dRk3ZNjpAkyu7FZkJsw=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -436,7 +436,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.38.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.39.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -489,7 +489,7 @@
   // the already-open page. Only these names are honoured; anything else in the URL is ignored.
   // decks: Brewhouse's "sync this deck" reminder links to /?open=decks (opening Decks syncs linked decks).
   // mystore: the push for "you're now an admin of X" opens Stores → My store.
-  const OPEN_TARGETS = { notifications: ()=>openNotificationsModal(), decks: ()=>openDecksModal(), mystore: ()=>openStoresModal('mystore') };
+  const OPEN_TARGETS = { notifications: ()=>openNotificationsModal(), decks: ()=>openDecksModal(), mystore: ()=>openStoresModal('mystore'), matches: ()=>openMatchClaimsModal() };
   const isOpenTarget = (name)=>typeof name === 'string' && Object.prototype.hasOwnProperty.call(OPEN_TARGETS, name);
   let pendingOpen = null;
   // A store's check-in QR opens the app at /?checkin=<store event id>. Only a UUID is accepted.
@@ -568,6 +568,7 @@
     bracket_open:           { re: /^(.+?) opened registration for (.+)$/,                       key: 'notifBracketOpen',    vars: ['store', 'event'] },
     store_admin:            { re: /^(.+?) made you an admin of (.+)$/,                          key: 'notifStoreAdmin',     vars: ['name', 'store'] },
     store_owner:            { re: /^(.+?) made you the owner of (.+)$/,                         key: 'notifStoreOwner',     vars: ['name', 'store'] },
+    match_claim:            { re: /^(.+?) asked you to confirm your matches in (.+)$/,          key: 'notifMatchClaim',     vars: ['name', 'game'] },
   };
   function localizeNotification(n){
     const raw = (n && n.message) || '';
@@ -744,6 +745,7 @@
     { key: 'playgroup_shared_event', get label(){ return tr('prefPlaygroupShared'); } },
     { key: 'bracket_round', get label(){ return tr('prefBracketRound'); } },
     { key: 'store_admin', get label(){ return tr('prefStoreAdmin'); } },
+    { key: 'match_confirm', get label(){ return tr('prefMatchConfirm'); } },
   ];
 
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
@@ -3676,6 +3678,7 @@
     if(!isRepeating(t)){
       if(!confirm(tr('xDeleteThisTournament'))) return;
       markDeleted('tournaments', id);
+      withdrawClaims(eventClaimIds(t));
       tournaments = tournaments.filter(x=>x.id!==id);
       saveTournaments(); render();
       showToast(tr('xDeleted'));
@@ -3686,7 +3689,7 @@
       message: trf('removeSeriesMsg', { name: t.name, label: (REPEATS.find(r=>r.v===t.repeat)||{}).l || '' }),
       choices: [
         { label: trf('justThisDate', { date: fmtFriendly(date) }), action: ()=>{ setOcc(t, date, {skip:true}); saveTournaments(); render(); showToast(tr('xThatDateRemoved')); } },
-        { label: tr('entireSeries'), danger:true, action: ()=>{ markDeleted('tournaments', id); tournaments = tournaments.filter(x=>x.id!==id); saveTournaments(); render(); showToast(tr('xSeriesDeleted')); } }
+        { label: tr('entireSeries'), danger:true, action: ()=>{ markDeleted('tournaments', id); withdrawClaims(eventClaimIds(t)); tournaments = tournaments.filter(x=>x.id!==id); saveTournaments(); render(); showToast(tr('xSeriesDeleted')); } }
       ]
     });
   }
@@ -4104,6 +4107,26 @@
             </div>`;
     }
 
+    // Friendly matches: which friend a round was against, and whether they've confirmed it.
+    // A bracket result is rated already, so it has no picker.
+    let claimStatus = {};
+    function roundFriendHtml(m, idx){
+      if(m.claimFrom) return `<div class="m" style="margin-top:6px;color:var(--teal);">${escapeHtml(claimStatusText(m))}</div>`;
+      if(r.bracketId || !friendsAccepted.length) return '';
+      const st = claimStatusText(m, claimStatus[m.claimId]);
+      return `
+            <div style="margin-top:6px;">
+              <select data-m="${idx}" data-f="friendId" aria-label="${escapeAttr(trf('mcRoundFriend', { n: idx+1 }))}" style="${inputStyle}">
+                <option value="">${tr('mcNotAFriend')}</option>
+                ${friendsAccepted.map(f=>`<option value="${escapeAttr(f.userId)}" ${m.friendId===f.userId?'selected':''}>🤝 ${escapeHtml(friendLabel(f.userId))}</option>`).join('')}
+              </select>
+              ${m.friendId ? `<div class="m" data-claim-note="${idx}" style="margin-top:4px;">${escapeHtml(st || tr('mcWillAsk'))}</div>` : ''}
+            </div>`;
+    }
+    const savedResult = occ.result;   // as it was before this form saves over it
+    const savedClaimIds = claimIdsIn(savedResult);
+    if(savedClaimIds.length) loadClaimStatuses(savedClaimIds).then(map=>{ claimStatus = map; if(overlay.isConnected) drawMatches(); });
+
     function drawMatches(){
       const rowsEl = overlay.querySelector('#matchRows');
       if(matches.length === 0){
@@ -4132,6 +4155,7 @@
               <input data-m="${idx}" data-f="notes" value="${escapeAttr(m.notes||'')}" placeholder="${escapeAttr(tr('xNotesOptional'))}" style="${inputStyle}"/>
             </div>
             ${perRound ? roundDeckHtml(m, idx) : ''}
+            ${roundFriendHtml(m, idx)}
           </div>
           <button class="icon-btn" data-remove-match="${idx}" title="${escapeAttr(tr('xRemoveRound'))}">✕</button>
         </div>`).join('');
@@ -4141,7 +4165,14 @@
           const idx = parseInt(el.dataset.m,10);
           matches[idx][el.dataset.f] = el.value;
           recomputeRecordFromMatches();
+          // Picking a friend, or typing one's name as the opponent, shows the "will be asked" line.
+          if(el.dataset.f === 'friendId') drawMatches();
+          else if(el.dataset.f === 'opponent' && !matches[idx].friendId && friendIdForOpponent(el.value) && !r.bracketId){
+            matches[idx].friendId = friendIdForOpponent(el.value);
+            if(el.type !== 'text' || !el.matches(':focus')) drawMatches();
+          }
         };
+        if(el.dataset.f === 'opponent') el.onblur = ()=>{ if(matches[parseInt(el.dataset.m,10)].friendId) drawMatches(); };
       });
       // A round's deck brings its game (and the version in use on that date) along with it.
       rowsEl.querySelectorAll('[data-round-deck]').forEach(el=>{
@@ -4225,8 +4256,10 @@
 
     if(occ.result){
       overlay.querySelector('#clearResult').onclick = async ()=>{
+        const clearedClaims = claimIdsIn(occ.result);
         setOcc(t, date, { result: null });
         await saveTournaments();
+        withdrawClaims(clearedClaims);
         syncResultLogged(t, date, false);
         overlay.remove(); render();
         showToast(tr('xResultCleared'));
@@ -4258,6 +4291,7 @@
       }
       else if(r.deck) resultObj.deck = r.deck; // keep old free-text entry if you didn't switch it to a tracked deck
       if(markInProgress) resultObj.inProgress = true;
+      stampClaimIds(t, resultObj, date);
       const progressBefore = playerProgress();
       setOcc(t, date, { result: resultObj });
       trackFeature(opts.draft ? 'quick_log' : 'result_logged');
@@ -4275,8 +4309,12 @@
       // the reminder if it's left unfinished.
       syncResultLogged(t, date, !markInProgress);
       overlay.remove(); render();
-      showToast(markInProgress ? tr('xProgressSavedAddMoreRounds') : tr('xResultSaved') + progressGainText(progressBefore));
+      const gain = progressGainText(progressBefore);
+      showToast(markInProgress ? tr('xProgressSavedAddMoreRounds') : tr('xResultSaved') + gain);
       if(opts.onSaved) opts.onSaved();
+      // Ask friends to confirm (after the toast: it's a network call, and the result is already safe).
+      const asked = await syncMatchClaims(t, date, resultObj, savedResult).catch(()=>[]);
+      if(asked.length) showToast((markInProgress ? tr('xProgressSavedAddMoreRounds') : tr('xResultSaved') + gain) + ' · ' + trf('mcAskedToast', { names: asked.join(', ') }));
     }
     overlay.querySelector('#saveInProgress').onclick = ()=>doSave(true);
     overlay.querySelector('#saveResult').onclick = ()=>doSave(false);
@@ -4367,6 +4405,7 @@
             <button class="mini-btn" id="sendReqBtn">${tr('send')}</button>
           </div>
         </div>
+        <div id="mcPendingRow"></div>
         ${pendingIncoming.length ? `<div class="section-label">${tr('requestsForYou')}</div>` + pendingIncoming.map(p=>`
           <div class="list-item">
             <div class="info"><div class="n">${escapeHtml(friendLabel(p.userId))}</div><div class="m">${friendSubLabel(p.userId) ? escapeHtml(friendSubLabel(p.userId)) + ' · ' : ''}${tr('wantsFriend')}</div></div>
@@ -4403,6 +4442,14 @@
         openFriendStatsModal(b.dataset.friendStats, friendLabel(b.dataset.friendStats));
       });
       body.querySelector('#closeFriends').onclick = ()=>overlay.remove();
+      // Matches friends asked you to confirm (Friendly matches).
+      if(friendsAccepted.length) pendingClaimsForMe().then(list=>{
+        const slot = body.querySelector('#mcPendingRow');
+        if(!slot || !list.length) return;
+        slot.innerHTML = `<div class="list-item"><div class="info"><div class="n">🤝 ${escapeHtml(trf(list.length === 1 ? 'mcPending1' : 'mcPendingN', { n: list.length }))}</div><div class="m">${tr('mcPendingHint')}</div></div>
+          <button class="mini-btn accept" id="mcOpen">${tr('mcReview')}</button></div>`;
+        slot.querySelector('#mcOpen').onclick = ()=>openMatchClaimsModal(draw);
+      }).catch(()=>{});
     }
     draw();
   }
@@ -4434,6 +4481,8 @@
           <div class="rsvp-row" style="margin-top:8px;"><button class="rsvp-btn going" data-notif-mystore="1">🏪 ${tr('xMyStore')}</button></div>` : ''}
         ${n.bracket_id && /^bracket_/.test(n.type) ? `
           <div class="rsvp-row" style="margin-top:8px;"><button class="rsvp-btn going" data-notif-bracket="${escapeAttr(n.bracket_id)}">🏆 ${tr('brOpenBracket')}</button></div>` : ''}
+        ${n.type === 'match_claim' ? `
+          <div class="rsvp-row" style="margin-top:8px;"><button class="rsvp-btn going" data-notif-matches="1">🤝 ${tr('mcReview')}</button></div>` : ''}
         ${isInvite && inviteStatus === 'pending' ? `
           <div class="rsvp-row" style="margin-top:8px;">
             <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">${tr('accept')}</button>
@@ -4475,6 +4524,7 @@
     });
     overlay.querySelectorAll('[data-notif-bracket]').forEach(b=>b.onclick = ()=>{ overlay.remove(); openBracketViewModal(b.dataset.notifBracket); });
     overlay.querySelectorAll('[data-notif-mystore]').forEach(b=>b.onclick = ()=>{ overlay.remove(); openStoresModal('mystore'); });
+    overlay.querySelectorAll('[data-notif-matches]').forEach(b=>b.onclick = ()=>{ overlay.remove(); openMatchClaimsModal(); });
     overlay.querySelectorAll('[data-notif-accept-friend]').forEach(b=>b.onclick = async ()=>{
       b.disabled = true;
       await acceptFriend(b.dataset.notifAcceptFriend);
@@ -4824,8 +4874,12 @@
     overlay.innerHTML = `<div class="modal"><h2>📈 ${tr('rkTitle')}</h2><div class="modal-sub">${tr('loadingDots')}</div></div>`;
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
-    let mine;
-    try{ mine = await loadMyRatings(true); }
+    let mine, friendly = [];
+    try{
+      const fr = supabaseClient.rpc('friendly_leaderboard', { p_game: null }).then(res => res.error ? [] : (res.data || []), ()=>[]);
+      mine = await loadMyRatings(true);
+      friendly = await fr;
+    }
     catch(e){
       overlay.innerHTML = `<div class="modal"><h2>📈 ${tr('rkTitle')}</h2><div class="modal-sub">${rankUnavailable(e) ? tr('rkNotReady') : tr('rkLoadFailed')}</div>
         <div class="modal-actions"><button class="btn-secondary" id="closeRank" style="flex:1;">${tr('close')}</button></div></div>`;
@@ -4833,14 +4887,24 @@
       return;
     }
     const games = mine.games || [];
-    let game = (games.find(g => g.game === preferGame) || games[0] || {}).game || null;
-    let scope = 'friends';
+    // Games with a bracket rating, then games with only a Friendly one.
+    const gameNames = games.map(g => g.game);
+    friendly.forEach(r => { if(r.is_me && !gameNames.includes(r.game)) gameNames.push(r.game); });
+    const friendlyMine = Object.fromEntries(friendly.filter(r => r.is_me).map(r => [r.game, r]));
+    let game = gameNames.includes(preferGame) ? preferGame : (gameNames[0] || null);
+    let scope = games.some(g => g.game === game) ? 'friends' : 'friendly';
     let board = null, boardKey = '';
     const seasonEnd = mine.season_ends ? fmtDate(new Date(mine.season_ends + 'T00:00:00'), { month: 'short', day: 'numeric' }) : '';
 
     async function loadBoard(){
       const key = game + '|' + scope;
       if(boardKey === key) return;
+      if(scope === 'friendly'){   // already loaded with the screen
+        boardKey = key;
+        board = friendly.filter(r => r.game === game).map(r => Object.assign({}, r, { ranked: true }));   // no placement among friends
+        draw();
+        return;
+      }
       boardKey = key; board = null;
       const store = scope.startsWith('store:') ? scope.slice(6) : null;
       const { data, error } = await supabaseClient.rpc('rating_leaderboard', { p_game: game, p_scope: store ? 'store' : scope, p_store: store, p_limit: 50 });
@@ -4855,16 +4919,23 @@
           <input type="checkbox" id="rkShow" ${mine.show_rating ? 'checked' : ''} style="width:20px;height:20px;flex:none;"/></label>`;
       const how = `<details class="more-rows"><summary>${tr('rkHowTitle')}</summary><div class="hint">${tr('rkHow')}</div></details>`;
       let body;
-      if(!g){
+      const fm = friendlyMine[game];
+      const friendlyLine = fm ? `<div class="m">🤝 ${escapeHtml(trf('mcFriendlyLine', { n: fm.rating, matches: fm.matches }))}</div>` : '';
+      if(!game){
         body = `<div class="empty-state"><div class="big">${tr('rkEmptyTitle')}</div><div>${tr('rkEmptyBody')}</div></div>${how}`;
       } else {
-        const t = rankTier(g.rating);
-        const last = (g.history || [])[0];
-        const rec = g.season_wins + g.season_losses + g.season_draws;
-        const stores = g.stores || [];
-        const scopes = [['friends', tr('rkScopeFriends')], ['all', tr('rkScopeAll')]].concat(stores.map(s => ['store:' + s.id, '🏪 ' + s.name]));
+        const t = g ? rankTier(g.rating) : null;
+        const last = g && (g.history || [])[0];
+        const rec = g ? g.season_wins + g.season_losses + g.season_draws : 0;
+        const stores = (g && g.stores) || [];
+        const scopes = (g ? [['friends', tr('rkScopeFriends')], ['all', tr('rkScopeAll')]] : []).concat(stores.map(s => ['store:' + s.id, '🏪 ' + s.name]))
+          .concat(friendly.some(r => r.game === game) ? [['friendly', '🤝 ' + tr('mcFriendlyScope')]] : []);
         body = `
-          ${games.length > 1 ? `<div class="chip-row" style="margin-bottom:12px;">${games.map(x => `<button class="chip ${x.game === game ? 'active' : ''}" data-rk-game="${escapeAttr(x.game)}" aria-pressed="${x.game === game}">${gameIcon(x.game)} ${escapeHtml(x.game)}</button>`).join('')}</div>` : ''}
+          ${gameNames.length > 1 ? `<div class="chip-row" style="margin-bottom:12px;">${gameNames.map(x => `<button class="chip ${x === game ? 'active' : ''}" data-rk-game="${escapeAttr(x)}" aria-pressed="${x === game}">${gameIcon(x)} ${escapeHtml(x)}</button>`).join('')}</div>` : ''}
+          ${!g ? `<div class="rank-card"><div class="rank-icon" aria-hidden="true">🤝</div><div>
+              <div class="rank-tier">${escapeHtml(tr('mcFriendlyScope'))}</div>
+              ${fm ? `<div class="rank-num">${escapeHtml(trf('rkRatingN', { n: fm.rating }))}</div><div class="m">${escapeHtml(game)} · ${escapeHtml(trf('rkSeasonRecord', { w: fm.wins, l: fm.losses, d: fm.draws }))}</div>` : ''}
+              <div class="m">${escapeHtml(trf('mcNoBracketRank', { game }))}</div></div></div>` : `
           <div class="rank-card">
             <div class="rank-icon" aria-hidden="true">${g.ranked ? t.icon : '🔰'}</div>
             <div>
@@ -4872,17 +4943,19 @@
               <div class="rank-num">${g.ranked ? escapeHtml(trf('rkRatingN', { n: g.rating })) : escapeHtml(trf('rkPlacement', { n: g.matches, total: PLACEMENT_MATCHES }))}</div>
               <div class="m">${escapeHtml(g.game)}${rec ? ' · ' + escapeHtml(trf('rkThisSeason', { w: g.season_wins, l: g.season_losses, d: g.season_draws })) : ''}${g.ranked && rec ? ' · ' + escapeHtml(trf('rkPeak', { n: g.season_peak })) : ''}</div>
               ${last ? `<div class="m">${escapeHtml(trf('rkLastBracket', { name: last.bracket }))} ${rankDeltaHtml(last.after - last.before)}</div>` : ''}
+              ${friendlyLine}
             </div>
-          </div>
+          </div>`}
           ${how}
           <div class="section-label">${tr('rkBoardTitle')}</div>
           <div class="chip-row" style="margin-bottom:10px;">${scopes.map(([k, label]) => `<button class="chip ${scope === k ? 'active' : ''}" data-rk-scope="${escapeAttr(k)}" aria-pressed="${scope === k}">${escapeHtml(label)}</button>`).join('')}</div>
           ${board == null ? `<div class="modal-sub">${tr('loadingDots')}</div>` : board.error ? `<div class="hint">${tr('rkLoadFailed')}</div>` : rankRowsHtml(board)}
-          ${(g.history || []).length ? `<div class="section-label">${tr('rkHistoryTitle')}</div>${g.history.map(h => `
+          ${scope === 'friendly' ? `<div class="hint">${tr('mcFriendlyHint')}</div>` : ''}
+          ${g && (g.history || []).length ? `<div class="section-label">${tr('rkHistoryTitle')}</div>${g.history.map(h => `
             <div class="result-row"><div><div class="n">${escapeHtml(h.bracket)}</div>
               <div class="m">${escapeHtml(fmtDate(new Date(h.date + 'T00:00:00'), { month: 'short', day: 'numeric', year: 'numeric' }))} · ${escapeHtml(trf('rkSeasonRecord', { w: h.wins, l: h.losses, d: h.draws }))}</div></div>
               <div class="p">${h.after} ${rankDeltaHtml(h.after - h.before)}</div></div>`).join('')}` : ''}
-          ${(g.seasons || []).length ? `<div class="section-label">${tr('rkPastSeasons')}</div>${g.seasons.map(s => { const pt = rankTier(s.peak); return `
+          ${g && (g.seasons || []).length ? `<div class="section-label">${tr('rkPastSeasons')}</div>${g.seasons.map(s => { const pt = rankTier(s.peak); return `
             <div class="result-row"><div><div class="n">${escapeHtml(s.season)}</div>
               <div class="m">${escapeHtml(trf('rkSeasonSummary', { peak: s.peak, final: s.final, n: s.matches }))}</div></div>
               <div class="p" title="${escapeAttr(tierName(pt))}">${pt.icon} ${escapeHtml(tierName(pt))}</div></div>`; }).join('')}` : ''}`;
@@ -4906,7 +4979,13 @@
         boardKey = ''; loadBoard();   // your row's visibility changed for everyone else; reload yours
         showToast(want ? tr('rkShownToast') : tr('rkHiddenToast'));
       };
-      overlay.querySelectorAll('[data-rk-game]').forEach(b => b.onclick = ()=>{ game = b.dataset.rkGame; draw(); loadBoard(); });
+      overlay.querySelectorAll('[data-rk-game]').forEach(b => b.onclick = ()=>{
+        game = b.dataset.rkGame;
+        if(!games.some(x => x.game === game)) scope = 'friendly';
+        else if(scope === 'friendly' && !friendly.some(r => r.game === game)) scope = 'friends';
+        else if(scope.startsWith('store:')) scope = 'friends';
+        draw(); loadBoard();
+      });
       overlay.querySelectorAll('[data-rk-scope]').forEach(b => b.onclick = ()=>{ scope = b.dataset.rkScope; draw(); loadBoard(); });
     }
     draw();
@@ -4921,6 +5000,19 @@
         `<div class="result-row"><div><div class="n">${gameIcon(r.game)} ${escapeHtml(r.game)}</div></div><div class="p">${escapeHtml(rankText(r))}</div></div>`).join('');
     }catch(e){}
   }
+  // Friend stats: your record in the matches you and this friend both confirmed (Friendly matches).
+  async function fillConfirmedHeadToHead(el, friendId, name){
+    try{
+      const me = session.user.id;
+      const { data, error } = await supabaseClient.from('match_claims').select('reporter_id,outcome').eq('status', 'confirmed')
+        .or(`and(reporter_id.eq.${me},opponent_id.eq.${friendId}),and(reporter_id.eq.${friendId},opponent_id.eq.${me})`);
+      if(error || !data || !data.length || !el.isConnected) return;
+      const flip = { W: 'L', L: 'W', D: 'D' }, n = { W: 0, L: 0, D: 0 };
+      data.forEach(c => n[c.reporter_id === me ? c.outcome : flip[c.outcome]]++);
+      el.innerHTML = `<div class="result-row"><div><div class="n">🤝 ${escapeHtml(trf('mcConfirmedH2h', { name }))}</div>
+        <div class="m">${escapeHtml(tr('mcConfirmedH2hHint'))}</div></div><div class="p">${n.W}-${n.L}${n.D ? '-' + n.D : ''}</div></div>`;
+    }catch(e){}
+  }
   // The public store page: this season's top 10 per game (players who show their rank).
   async function publicRankingsHtml(store){
     try{
@@ -4931,6 +5023,166 @@
       return Object.entries(byGame).map(([game, rows]) =>
         `<div class="section-label" style="text-align:center;">📈 ${escapeHtml(trf('rkStoreBoard', { game }))}</div>${rankRowsHtml(rows)}`).join('');
     }catch(e){ return ''; }
+  }
+
+  // ---------- Friendly matches (casual rounds a friend confirms) ----------
+  // A round can say which friend it was against (m.friendId). Saving the result sends it as a claim
+  // (claim_matches; the round keeps its id as m.claimId); the friend confirms or declines it in
+  // openMatchClaimsModal, which can also add the rounds to their own results (marked m.claimFrom,
+  // so they aren't claimed back). Confirmed claims feed a Friendly rating only friends see.
+  // Bracket results are rated already and never claimed. master-schema.sql "Friendly matches".
+  const CLAIM_MAX_DAYS = 30;
+  const newClaimId = () => (crypto.randomUUID ? crypto.randomUUID()
+    : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)));
+  const friendIds = () => friendsAccepted.map(f => f.userId);
+  // The friend an opponent box names (display name or @username, any case), if exactly one does.
+  function friendIdForOpponent(name){
+    const norm = x => String(x || '').trim().replace(/^@/, '').replace(/\s+/g, ' ').toLowerCase();
+    const want = norm(name);
+    if(!want) return '';
+    const hits = friendIds().filter(id => { const p = profilesById[id] || {}; return norm(p.display_name) === want || norm(p.username) === want; });
+    return hits.length === 1 ? hits[0] : '';
+  }
+  function claimableRound(t, result, m, date){
+    if(!m || !m.friendId || m.claimFrom || result.bracketId || !['W', 'L', 'D'].includes(m.outcome)) return false;
+    if(!friendIds().includes(m.friendId) || !(roundGame(t, m) || t.game)) return false;
+    const min = dateToStr(new Date(Date.now() - CLAIM_MAX_DAYS * 864e5)), max = dateToStr(new Date(Date.now() + 864e5));
+    return date >= min && date <= max;
+  }
+  // Before a result is saved: give every claimable round an id (kept if it already has one).
+  function stampClaimIds(t, result, date){
+    (result.matches || []).forEach(m => { if(claimableRound(t, result, m, date)){ if(!m.claimId) m.claimId = newClaimId(); } else if(!m.claimFrom) delete m.claimId; });
+  }
+  function claimIdsIn(result){ return ((result && result.matches) || []).map(m => m && m.claimId).filter(Boolean); }
+  function eventClaimIds(t){
+    const out = claimIdsIn(t.result);
+    Object.values(t.occurrences || {}).forEach(o => out.push(...claimIdsIn(o && o.result)));
+    return out;
+  }
+  async function withdrawClaims(ids){
+    if(!ids.length) return;
+    try{ await supabaseClient.rpc('withdraw_match_claims', { p_ids: ids }); }catch(e){}
+  }
+  // After a result is saved: send its claims, withdraw the ones its rounds no longer make.
+  // Returns the friends asked (names), for the toast.
+  async function syncMatchClaims(t, date, result, before){
+    const decksArr = decks;
+    const deckName = id => { const d = decksArr.find(x => x.id === id); return d ? (deckLeaderName(d) || d.name) : ''; };
+    const claims = (result.matches || []).filter(m => m.claimId && !m.claimFrom).map(m => ({
+      id: m.claimId, opponent: m.friendId, game: roundGame(t, m) || t.game, date, outcome: m.outcome,
+      my_deck: (result.leader || deckName(m.deckId || result.deckId) || '').slice(0, 60) || undefined,
+      their_deck: String(m.opponent || '').slice(0, 60) || undefined,
+    }));
+    const keep = new Set(claims.map(c => c.id));
+    await withdrawClaims(claimIdsIn(before).filter(id => !keep.has(id)));
+    if(!claims.length) return [];
+    const { data, error } = await supabaseClient.rpc('claim_matches', { p_claims: claims });
+    if(error || !data) return [];
+    trackFeature('match_claim');
+    return [...new Set(claims.map(c => friendLabel(c.opponent)))];
+  }
+  // "⏳ Waiting for Bea" / "✓ Confirmed by Bea" / "✕ Bea declined" under a round in the result form.
+  function claimStatusText(m, status){
+    if(m.claimFrom) return '✓ ' + trf('mcFromFriend', { name: friendLabel(m.friendId) });
+    if(!m.claimId || !m.friendId) return '';
+    const name = friendLabel(m.friendId);
+    if(status === 'confirmed') return '✓ ' + trf('mcConfirmedBy', { name });
+    if(status === 'declined') return '✕ ' + trf('mcDeclinedBy', { name });
+    if(status === 'pending') return '⏳ ' + trf('mcWaitingFor', { name });
+    return '';
+  }
+  async function loadClaimStatuses(ids){
+    if(!ids.length) return {};
+    const { data, error } = await supabaseClient.from('match_claims').select('id,status').in('id', ids);
+    if(error) return {};
+    return Object.fromEntries((data || []).map(r => [r.id, r.status]));
+  }
+  async function pendingClaimsForMe(){
+    const { data, error } = await supabaseClient.from('match_claims').select('*').eq('opponent_id', session.user.id).eq('status', 'pending').order('played_on', { ascending: false });
+    if(error) throw error;
+    return data || [];
+  }
+  // Confirmed claims as rounds in your own results: one casual event per friend, date and game,
+  // "Casual vs Dana", each round from your side (the result turned around, their deck as the
+  // opponent). A claim already in your results is skipped.
+  async function addClaimsToResults(claims){
+    const have = new Set();
+    tournaments.forEach(t => [t.result, ...Object.values(t.occurrences || {}).map(o => o && o.result)].forEach(r => ((r && r.matches) || []).forEach(m => m && m.claimFrom && have.add(m.claimFrom))));
+    const flip = { W: 'L', L: 'W', D: 'D' };
+    let added = 0;
+    claims.filter(c => !have.has(c.id)).forEach(c => {
+      const name = friendLabel(c.reporter_id);
+      let t = tournaments.find(x => x.fromClaims === c.reporter_id && x.date === c.played_on && x.game === c.game);
+      if(!t){
+        t = { id: uid(), name: trf('mcEventName', { name }), game: c.game, date: c.played_on, time: '', repeat: 'none', rsvp: 'going', isCasual: true, fromClaims: c.reporter_id,
+              result: { placement: '', record: '', notes: '', matches: [] } };
+        tournaments.push(t);
+      }
+      t.result.matches.push({ opponent: c.reporter_deck || name, outcome: flip[c.outcome], wentFirst: '', notes: c.opponent_deck ? trf('mcYourDeckNote', { deck: c.opponent_deck }) : '', friendId: c.reporter_id, claimFrom: c.id });
+      const n = { W: 0, L: 0, D: 0 };
+      t.result.matches.forEach(m => n[m.outcome]++);
+      t.result.record = n.D ? `${n.W}-${n.L}-${n.D}` : `${n.W}-${n.L}`;
+      added++;
+    });
+    if(added){ await saveTournaments(); render(); }
+    return added;
+  }
+  function openMatchClaimsModal(onDone){
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.innerHTML = `<div class="modal"><h2>🤝 ${tr('mcTitle')}</h2><div class="modal-sub">${tr('loadingDots')}</div></div>`;
+    document.body.appendChild(overlay);
+    overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+    let claims = [], busy = false, addToMine = true;
+    const outcomeText = o => ({ W: tr('mcTheyWon'), L: tr('mcYouWon'), D: tr('mcDrew') })[o];
+    async function respond(ids, confirm){
+      if(busy) return;
+      busy = true;
+      const { error } = await supabaseClient.rpc('respond_match_claims', { p_ids: ids, p_confirm: confirm });
+      busy = false;
+      if(error){ showToast(tr('mcFailed')); return; }
+      trackFeature('match_confirm');
+      const done = claims.filter(c => ids.includes(c.id));
+      claims = claims.filter(c => !ids.includes(c.id));
+      let added = 0;
+      if(confirm && addToMine && userDataLoaded) added = await addClaimsToResults(done);
+      showToast(confirm ? (added ? trf('mcConfirmedAdded', { n: added }) : tr('mcConfirmedToast')) : tr('mcDeclinedToast'));
+      draw();
+      if(onDone) onDone();
+    }
+    function draw(){
+      const byFriend = {};
+      claims.forEach(c => { (byFriend[c.reporter_id] = byFriend[c.reporter_id] || []).push(c); });
+      overlay.innerHTML = `
+        <div class="modal">
+          <h2>🤝 ${tr('mcTitle')}</h2>
+          <div class="modal-sub">${tr('mcIntro')}</div>
+          ${claims.length ? `<label class="list-item" style="cursor:pointer;"><div class="info"><div class="n">${tr('mcAddToMine')}</div><div class="m">${tr('mcAddToMineHint')}</div></div>
+            <input type="checkbox" id="mcAdd" ${addToMine ? 'checked' : ''} style="width:20px;height:20px;flex:none;"/></label>` : `<div class="empty-state"><div class="big">${tr('mcNone')}</div></div>`}
+          ${Object.entries(byFriend).map(([rid, list]) => `
+            <div class="section-label">${escapeHtml(friendLabel(rid))}</div>
+            ${list.map(c => `<div class="list-item">
+              <div class="info"><div class="n">${gameIcon(c.game)} ${escapeHtml(c.game)} · ${escapeHtml(fmtFriendly(c.played_on))}</div>
+                <div class="m">${escapeHtml(outcomeText(c.outcome))}${c.reporter_deck || c.opponent_deck ? ' · ' + escapeHtml([c.opponent_deck ? trf('mcYouOn', { deck: c.opponent_deck }) : '', c.reporter_deck ? trf('mcTheyOn', { name: friendLabel(rid), deck: c.reporter_deck }) : ''].filter(Boolean).join(' · ')) : ''}</div></div>
+              <div style="display:flex;gap:6px;">
+                <button class="mini-btn accept" data-mc-yes="${escapeAttr(c.id)}" aria-label="${escapeAttr(tr('mcConfirm'))}">✓</button>
+                <button class="mini-btn decline" data-mc-no="${escapeAttr(c.id)}" aria-label="${escapeAttr(tr('mcDecline'))}">✕</button>
+              </div></div>`).join('')}
+            ${list.length > 1 ? `<button class="btn-secondary" data-mc-all="${escapeAttr(rid)}" style="width:100%;margin:4px 0 8px;">${escapeHtml(trf('mcConfirmAll', { n: list.length, name: friendLabel(rid) }))}</button>` : ''}`).join('')}
+          <div class="modal-actions"><button class="btn-secondary" id="closeMc" style="flex:1;">${tr('close')}</button></div>
+        </div>`;
+      overlay.querySelector('#closeMc').onclick = ()=>overlay.remove();
+      const add = overlay.querySelector('#mcAdd');
+      if(add) add.onchange = ()=>{ addToMine = add.checked; };
+      overlay.querySelectorAll('[data-mc-yes]').forEach(b => b.onclick = ()=>respond([b.dataset.mcYes], true));
+      overlay.querySelectorAll('[data-mc-no]').forEach(b => b.onclick = ()=>respond([b.dataset.mcNo], false));
+      overlay.querySelectorAll('[data-mc-all]').forEach(b => b.onclick = ()=>respond(claims.filter(c => c.reporter_id === b.dataset.mcAll).map(c => c.id), true));
+    }
+    pendingClaimsForMe().then(list => { claims = list; draw(); }).catch(()=>{
+      overlay.innerHTML = `<div class="modal"><h2>🤝 ${tr('mcTitle')}</h2><div class="modal-sub">${tr('mcLoadFailed')}</div>
+        <div class="modal-actions"><button class="btn-secondary" id="closeMc" style="flex:1;">${tr('close')}</button></div></div>`;
+      overlay.querySelector('#closeMc').onclick = ()=>overlay.remove();
+    });
   }
 
   // ---------- Stats modal ----------
@@ -5435,6 +5687,7 @@
         </div>
         ${friendBadgesHtml(friendTournaments, friendDecks, friendShown, friendName)}
         <div id="friendRanks"></div>
+        <div id="h2hConfirmed"></div>
 
         ${headToHeadHtml(headToHeadRounds(tournaments, friendNames), headToHeadRounds(friendTournaments, [profile && profile.display_name, profile && profile.username]), friendName)}
         ${gameRows ? `<div class="section-label">${tr('theyPlayGames')}</div>${gameRows}` : ''}
@@ -5446,6 +5699,7 @@
       </div>`;
     overlay.querySelector('#closeFriendStats').onclick = ()=>overlay.remove();
     fillFriendRanks(overlay.querySelector('#friendRanks'), friendUserId);
+    fillConfirmedHeadToHead(overlay.querySelector('#h2hConfirmed'), friendUserId, friendName);
     overlay.querySelectorAll('[data-friend-game-details]').forEach(b=>{
       b.onclick = ()=>{ overlay.remove(); openGameStatsModal(b.dataset.friendGameDetails, friendTournaments, friendDecks, friendName+"'s"); };
     });

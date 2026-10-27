@@ -5,6 +5,22 @@
 window.PAIRINGS_TRANSLATIONS = (function(){
   const TRANSLATIONS = {
     en: {
+      // Friendly matches
+      mcTitle: 'Matches to confirm', mcIntro: 'Friends logged these rounds against you. Confirming one counts it for both of you in your Friendly rating.',
+      mcAddToMine: 'Also add confirmed matches to my results', mcAddToMineHint: 'Saved as a casual event, so your stats and badges count them too.',
+      mcNone: 'Nothing to confirm right now.', mcLoadFailed: "Couldn't load your matches to confirm. Try again.", mcFailed: "Couldn't save that. Try again.",
+      mcTheyWon: 'They say they won', mcYouWon: 'They say you won', mcDrew: 'They say it was a draw',
+      mcYouOn: 'you on {deck}', mcTheyOn: '{name} on {deck}', mcConfirm: 'Confirm', mcDecline: 'Decline', mcConfirmAll: 'Confirm all {n} with {name}',
+      mcConfirmedToast: 'Confirmed', mcConfirmedAdded: 'Confirmed, and {n} added to your results', mcDeclinedToast: 'Declined',
+      mcReview: 'Review', mcPending1: '1 match to confirm', mcPendingN: '{n} matches to confirm', mcPendingHint: 'Friends logged rounds against you',
+      mcRoundFriend: 'Round {n}: played against a friend', mcNotAFriend: 'Not against a friend', mcWillAsk: 'They will be asked to confirm it when you save',
+      mcWaitingFor: 'Waiting for {name} to confirm', mcConfirmedBy: 'Confirmed by {name}', mcDeclinedBy: '{name} declined', mcFromFriend: 'Confirmed match with {name}',
+      mcAskedToast: 'asked {names} to confirm', mcEventName: 'Casual vs {name}', mcYourDeckNote: 'You were on {deck}',
+      mcFriendlyScope: 'Friendly', mcFriendlyLine: 'Friendly rating {n} · {matches} confirmed matches',
+      mcFriendlyHint: 'From casual matches you and your friends confirmed. Only you and your friends see it, and it never affects bracket ranks.',
+      mcNoBracketRank: 'No bracket rank in {game} yet: play in a bracket run on Pairings to get one.',
+      mcConfirmedH2h: 'Confirmed matches against {name}', mcConfirmedH2hHint: 'Rounds one of you logged and the other confirmed',
+      notifMatchClaim: '{name} asked you to confirm your matches in {game}', prefMatchConfirm: 'A friend asks you to confirm a match',
       // Rankings
       rkTitle: 'Rankings', rkOpen: 'Rankings', rkNotReady: "Rankings aren't switched on yet on this server.", rkLoadFailed: "Couldn't load rankings. Try again.",
       rkSaveFailed: "Couldn't save that. Try again.", rkSeasonLine: 'Season {season} · ends {date}',
@@ -563,6 +579,22 @@ window.PAIRINGS_TRANSLATIONS = (function(){
       csvRank: 'Rank', csvWins: 'Wins', csvLosses: 'Losses', csvDraws: 'Draws', csvPoints: 'Points', csvTiebreakers: 'Tiebreakers', csvDropped: 'Dropped',
     },
     es: {
+      // Partidas amistosas
+      mcTitle: 'Partidas por confirmar', mcIntro: 'Tus amigos registraron estas rondas contra ti. Confirmar una hace que cuente para los dos en la puntuación amistosa de ambos.',
+      mcAddToMine: 'Añadir también las partidas confirmadas a mis resultados', mcAddToMineHint: 'Se guardan como un evento casual, así que también cuentan en tus estadísticas e insignias.',
+      mcNone: 'No hay nada que confirmar ahora.', mcLoadFailed: 'No se pudieron cargar tus partidas por confirmar. Inténtalo de nuevo.', mcFailed: 'No se pudo guardar. Inténtalo de nuevo.',
+      mcTheyWon: 'Dice que ganó', mcYouWon: 'Dice que ganaste tú', mcDrew: 'Dice que fue empate',
+      mcYouOn: 'tú con {deck}', mcTheyOn: '{name} con {deck}', mcConfirm: 'Confirmar', mcDecline: 'Rechazar', mcConfirmAll: 'Confirmar las {n} con {name}',
+      mcConfirmedToast: 'Confirmada', mcConfirmedAdded: 'Confirmada, y {n} añadidas a tus resultados', mcDeclinedToast: 'Rechazada',
+      mcReview: 'Revisar', mcPending1: '1 partida por confirmar', mcPendingN: '{n} partidas por confirmar', mcPendingHint: 'Tus amigos registraron rondas contra ti',
+      mcRoundFriend: 'Ronda {n}: jugada contra un amigo', mcNotAFriend: 'No fue contra un amigo', mcWillAsk: 'Se le pedirá que la confirme cuando guardes',
+      mcWaitingFor: 'Esperando a que {name} la confirme', mcConfirmedBy: 'Confirmada por {name}', mcDeclinedBy: '{name} la rechazó', mcFromFriend: 'Partida confirmada con {name}',
+      mcAskedToast: 'se pidió a {names} que confirme', mcEventName: 'Casual contra {name}', mcYourDeckNote: 'Jugaste con {deck}',
+      mcFriendlyScope: 'Amistosa', mcFriendlyLine: 'Puntuación amistosa {n} · {matches} partidas confirmadas',
+      mcFriendlyHint: 'Sale de las partidas casuales que tú y tus amigos confirmaron. Solo la ven tú y tus amigos, y nunca afecta a los rangos de torneo.',
+      mcNoBracketRank: 'Aún no tienes rango de torneo en {game}: juega un torneo organizado en Pairings para conseguirlo.',
+      mcConfirmedH2h: 'Partidas confirmadas contra {name}', mcConfirmedH2hHint: 'Rondas que uno registró y el otro confirmó',
+      notifMatchClaim: '{name} te pidió que confirmes las partidas que jugaron en {game}', prefMatchConfirm: 'Un amigo te pide confirmar una partida',
       // Clasificación
       rkTitle: 'Clasificación', rkOpen: 'Clasificación', rkNotReady: 'La clasificación aún no está activada en este servidor.', rkLoadFailed: 'No se pudo cargar la clasificación. Inténtalo de nuevo.',
       rkSaveFailed: 'No se pudo guardar. Inténtalo de nuevo.', rkSeasonLine: 'Temporada {season} · termina el {date}',
