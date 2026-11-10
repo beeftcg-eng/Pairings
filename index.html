@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-qAIXfkJIROnJjV4xHidPGekxGfnZcFUioZWz0AVuovs=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-9VtUAdverW3XgXoLIuxieooTsZK6K2wNmmtqHaJ+3rU=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -403,6 +403,51 @@
     .card{padding:11px;gap:10px;}
     .date-block{width:44px;height:44px;}
   }
+  /* In-store display (?display=, renderBracketDisplay): sized from the screen, for a TV across the room. */
+  .wrap.ds-mode{max-width:none;padding:0;}   /* the display uses the whole screen, not the app's column */
+  .ds{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;box-sizing:border-box;padding:clamp(12px,2.4vw,40px);gap:clamp(10px,1.6vw,26px);background:var(--void);color:var(--text);}
+  .ds-msg{margin:auto;font-size:clamp(18px,2.6vw,42px);color:var(--text-dim);text-align:center;padding:4vh 0;}
+  .ds-head{display:flex;justify-content:space-between;align-items:center;gap:20px;}
+  .ds-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(22px,3.3vw,58px);line-height:1.1;overflow-wrap:anywhere;}
+  .ds-meta{color:var(--text-dim);font-size:clamp(14px,1.6vw,28px);margin-top:4px;}
+  .ds-scan{display:flex;flex-direction:column;align-items:center;gap:6px;flex:none;}
+  .ds-qr{background:#fff;padding:8px;border-radius:10px;line-height:0;}
+  .ds-qr img,.ds-qr canvas{width:clamp(72px,9vw,160px)!important;height:auto!important;}
+  .ds-scanhint{font-size:clamp(11px,1vw,17px);color:var(--text-dim);max-width:11em;text-align:center;}
+  .ds-panel{flex:1;min-height:0;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;}
+  .ds-title{font-family:'Space Grotesk',sans-serif;font-size:clamp(20px,2.7vw,48px);margin:0 0 4px;color:var(--rift-2);}
+  .ds-subt{color:var(--text-dim);font-size:clamp(12px,1.3vw,22px);margin-bottom:clamp(8px,1.2vw,20px);}
+  .ds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr));gap:clamp(6px,0.9vw,14px);align-content:start;}
+  .ds-grid-pairs{grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr));}
+  .ds-grid-names{grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));}
+  .ds-pair,.ds-row,.ds-pill{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:clamp(8px,1vw,16px) clamp(10px,1.2vw,20px);font-size:clamp(15px,1.7vw,30px);}
+  .ds-pair,.ds-row{display:flex;align-items:center;gap:clamp(8px,1vw,18px);}
+  .ds-pair{flex-wrap:wrap;}
+  .ds-pair.done{border-color:color-mix(in srgb,var(--teal) 55%,var(--line));}   /* reported: a teal edge and the ✓ (no dimming: names stay 4.5:1) */
+  .ds-row.dropped .ds-who{text-decoration:line-through;}
+  .ds-pair.tbd .ds-names{color:var(--text-dim);}
+  .ds-tbl{flex:none;font-weight:700;color:var(--teal);min-width:4.4em;}
+  .ds-names,.ds-who{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:600;}
+  .ds-res{flex:none;color:var(--teal);font-size:.75em;}
+  .ds-dim{color:var(--text-dim);font-weight:400;}
+  .ds-rank{min-width:2.2em;font-weight:700;color:var(--text-dim);}
+  .ds-rec{flex:none;color:var(--text-dim);font-size:.85em;}
+  .ds-pill{text-align:center;font-weight:600;overflow-wrap:anywhere;}
+  .ds-cols{display:flex;gap:clamp(8px,1.2vw,22px);flex:1;min-height:0;}
+  .ds-col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-around;gap:8px;}
+  .ds-col .ds-pair{font-size:clamp(13px,1.4vw,26px);}
+  .ds-colhead{text-align:center;color:var(--text-dim);font-size:clamp(12px,1.3vw,22px);}
+  .ds-champ{margin:auto;text-align:center;font-size:clamp(48px,9vw,160px);line-height:1.15;}
+  .ds-champ-name{font-family:'Space Grotesk',sans-serif;font-size:clamp(30px,5vw,96px);font-weight:700;color:var(--gold);overflow-wrap:anywhere;}
+  .ds-champ .ds-dim{font-size:clamp(16px,2vw,34px);}
+  .ds-season{font-size:clamp(15px,1.6vw,28px);}
+  .ds-season .result-row{font-size:inherit;padding:.5em 0;}
+  .ds-season .section-label,.ds-season .modal-sub{font-size:.7em;text-align:left!important;}
+  .ds-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  .ds-dots{display:flex;gap:8px;flex-wrap:wrap;}
+  .ds-dots span{width:10px;height:10px;border-radius:50%;background:var(--line);}
+  .ds-dots span.on{background:var(--rift);}
+  .ds-ctl{display:flex;gap:8px;opacity:.75;}
 </style>
 </head>
 <body>
@@ -417,12 +462,12 @@
   updated pairings.html, you just drop it in and config.js stays untouched.
   ============================================================
 -->
-<!-- supabase.js is supabase-js 2.118.0 (dist/umd/supabase.js from jsdelivr), hosted next to
+<!-- supabase.js is supabase-js 2.119.0 (dist/umd/supabase.js from jsdelivr), hosted next to
      this file so the service worker can cache it and the app starts with no connection.
      The integrity hash pins the exact file. To upgrade: download the new version over
      supabase.js, then regenerate the hash with
      openssl dgst -sha384 -binary supabase.js | openssl base64 -A -->
-<script src="/supabase.js" integrity="sha384-TcHRA3zBbn+Lexh5n+Oil4guNPOS3rjNDpGRAN46u/s/mB2IZ50ceC6TYDU2yvgK"></script>
+<script src="/supabase.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O"></script>
 <script src="/config.js"></script>
 <script src="/i18n.js"></script>
 <!-- bracket.js: the tournament bracket engine (Swiss pairings, tiebreakers, single elimination).
@@ -436,7 +481,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.40.1'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.41.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -489,7 +534,7 @@
   // the already-open page. Only these names are honoured; anything else in the URL is ignored.
   // decks: Brewhouse's "sync this deck" reminder links to /?open=decks (opening Decks syncs linked decks).
   // mystore: the push for "you're now an admin of X" opens Stores → My store.
-  const OPEN_TARGETS = { notifications: ()=>openNotificationsModal(), decks: ()=>openDecksModal(), mystore: ()=>openStoresModal('mystore'), matches: ()=>openMatchClaimsModal() };
+  const OPEN_TARGETS = { notifications: ()=>openNotificationsModal(), decks: ()=>openDecksModal(), mystore: ()=>openStoresModal('mystore'), matches: ()=>openMatchClaimsModal(), rankings: ()=>openRankingsModal() };
   const isOpenTarget = (name)=>typeof name === 'string' && Object.prototype.hasOwnProperty.call(OPEN_TARGETS, name);
   let pendingOpen = null;
   // A store's check-in QR opens the app at /?checkin=<store event id>. Only a UUID is accepted.
@@ -569,6 +614,8 @@
     store_admin:            { re: /^(.+?) made you an admin of (.+)$/,                          key: 'notifStoreAdmin',     vars: ['name', 'store'] },
     store_owner:            { re: /^(.+?) made you the owner of (.+)$/,                         key: 'notifStoreOwner',     vars: ['name', 'store'] },
     match_claim:            { re: /^(.+?) asked you to confirm your matches in (.+)$/,          key: 'notifMatchClaim',     vars: ['name', 'game'] },
+    season_ending:          { re: /^⏳ (\d+) days left in the (.+?) season: (.+) (\d+), (\d+) from (\w+)$/, key: 'notifSeasonEnding', vars: ['days', 'season', 'game', 'rating', 'points', 'tier'] },
+    season_recap:           { re: /^📊 Your (.+?) season in (.+): peak (\d+) \((\w+)\), (\d+)-(\d+)-(\d+)\. A new season has started!$/, key: 'notifSeasonRecap', vars: ['season', 'game', 'peak', 'tier', 'w', 'l', 'd'] },
   };
   function localizeNotification(n){
     const raw = (n && n.message) || '';
@@ -577,6 +624,8 @@
     const m = p && raw.match(p.re);
     if(!m) return raw;
     const vars = {}; p.vars.forEach((v, i)=>{ vars[v] = m[i + 1]; });
+    // Rank tiers arrive as their English names ("Platinum"); RANK_TIERS keys are the same words.
+    if(vars.tier && RANK_TIERS.some(t => t.key === vars.tier.toLowerCase())) vars.tier = tr('rkTier_' + vars.tier.toLowerCase());
     return trf(p.key, vars);
   }
 
@@ -746,6 +795,7 @@
     { key: 'bracket_round', get label(){ return tr('prefBracketRound'); } },
     { key: 'store_admin', get label(){ return tr('prefStoreAdmin'); } },
     { key: 'match_confirm', get label(){ return tr('prefMatchConfirm'); } },
+    { key: 'rank_season', get label(){ return tr('prefRankSeason'); } },
   ];
 
   const GAMES = ['Riftbound','One Piece Card Game','Magic: The Gathering','Pokémon TCG','Yu-Gi-Oh!','Digimon Card Game','Flesh and Blood','Disney Lorcana','Star Wars: Unlimited','Other'];
@@ -4483,6 +4533,8 @@
           <div class="rsvp-row" style="margin-top:8px;"><button class="rsvp-btn going" data-notif-bracket="${escapeAttr(n.bracket_id)}">🏆 ${tr('brOpenBracket')}</button></div>` : ''}
         ${n.type === 'match_claim' ? `
           <div class="rsvp-row" style="margin-top:8px;"><button class="rsvp-btn going" data-notif-matches="1">🤝 ${tr('mcReview')}</button></div>` : ''}
+        ${n.type === 'season_ending' || n.type === 'season_recap' ? `
+          <div class="rsvp-row" style="margin-top:8px;"><button class="rsvp-btn going" data-notif-rankings="1">📈 ${tr('rkOpen')}</button></div>` : ''}
         ${isInvite && inviteStatus === 'pending' ? `
           <div class="rsvp-row" style="margin-top:8px;">
             <button class="rsvp-btn going" data-invite-accept="${n.related_invitation_id}" data-notif="${n.id}">${tr('accept')}</button>
@@ -4525,6 +4577,7 @@
     overlay.querySelectorAll('[data-notif-bracket]').forEach(b=>b.onclick = ()=>{ overlay.remove(); openBracketViewModal(b.dataset.notifBracket); });
     overlay.querySelectorAll('[data-notif-mystore]').forEach(b=>b.onclick = ()=>{ overlay.remove(); openStoresModal('mystore'); });
     overlay.querySelectorAll('[data-notif-matches]').forEach(b=>b.onclick = ()=>{ overlay.remove(); openMatchClaimsModal(); });
+    overlay.querySelectorAll('[data-notif-rankings]').forEach(b=>b.onclick = ()=>{ overlay.remove(); openRankingsModal(); });
     overlay.querySelectorAll('[data-notif-accept-friend]').forEach(b=>b.onclick = async ()=>{
       b.disabled = true;
       await acceptFriend(b.dataset.notifAcceptFriend);
@@ -4846,11 +4899,34 @@
       const g = (mine.games || []).find(x => x.game === b.game);
       const h = g && (g.history || []).find(x => x.bracket_id === b.id);
       if(!h || !el.isConnected) return;
+      const ask = !mine.show_rating && profileLoaded && !rankAskSeen();
       el.innerHTML = `<div class="list-item"><div class="info"><div class="n">📈 ${escapeHtml(tr('rkYourRating'))}: ${escapeHtml(rankText(g))} (${rankDeltaHtml(h.after - h.before)})</div>
         <div class="m">${escapeHtml(trf('rkFromBracket', { game: b.game }))}</div></div>
-        <button class="mini-btn" id="bvRankings">${tr('rkOpen')}</button></div>`;
+        <button class="mini-btn" id="bvRankings">${tr('rkOpen')}</button></div>
+        ${ask ? `<div class="list-item" id="bvRankAsk" style="border-color:var(--rift);flex-wrap:wrap;">
+          <div class="info"><div class="n">👀 ${tr('rkAskTitle')}</div><div class="m">${tr('rkAskBody')}</div></div>
+          <div style="display:flex;gap:6px;flex:none;"><button class="mini-btn" id="bvRankYes">${tr('rkAskYes')}</button><button class="mini-btn" id="bvRankNo">${tr('rkAskNo')}</button></div>
+        </div>` : ''}`;
       el.querySelector('#bvRankings').onclick = ()=>openRankingsModal(b.game);
+      if(ask) wireRankAsk(el.querySelector('#bvRankAsk'), mine);
     }catch(e){ /* the rating line is extra; without it the bracket view is complete */ }
+  }
+  // "Show your rank?", asked once (per account, on this device) under the rating line of a finished
+  // bracket: show_rating starts off, so without asking the leaderboards stay nearly empty.
+  const rankAskKey = () => 'pairings-rank-asked:' + (session ? session.user.id : '');
+  function rankAskSeen(){ try{ return !!localStorage.getItem(rankAskKey()); }catch(e){ return true; } }
+  function wireRankAsk(box, mine){
+    const done = () => { try{ localStorage.setItem(rankAskKey(), '1'); }catch(e){} box.remove(); };
+    box.querySelector('#bvRankNo').onclick = ()=>{ trackFeature('rank_ask_no'); done(); showToast(tr('rkAskLater')); };
+    box.querySelector('#bvRankYes').onclick = async ()=>{
+      if(!profileLoaded){ showToast(tr('profileNotLoadedSave')); return; }
+      const { error } = await supabaseClient.from('profiles').update({ show_rating: true }).eq('id', session.user.id);
+      if(error){ showToast(error.code === '42703' || error.code === 'PGRST204' ? tr('rkNotReady') : tr('rkSaveFailed')); return; }
+      mine.show_rating = true; profile.show_rating = true;
+      trackFeature('rank_ask_yes');
+      done();
+      showToast(tr('rkShownToast'));
+    };
   }
   // A leaderboard's rows (rating_leaderboard): rank, tier, name, rating, season record.
   function rankRowsHtml(rows){
@@ -6586,7 +6662,7 @@
         function weekRangeLabel(){
           const start = new Date(startOfWeekStr()+'T00:00:00');
           const end = new Date(start); end.setDate(end.getDate()+6);
-          const f = (x)=>x.toLocaleDateString(undefined,{month:'short', day:'numeric'});
+          const f = (x)=>x.toLocaleDateString(dateLocale(),{month:'short', day:'numeric'});
           return `${f(start)} – ${f(end)}`;
         }
 
@@ -8161,6 +8237,7 @@
         <div id="brTab">${tab === 'players' ? playersTab() : tab === 'standings' ? standingsTab() : roundTab() + printRow()}</div>
         <div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;">
           <button class="btn-secondary" id="brShare" style="flex:1 1 100%;">📱 ${tr('brPlayerLink')}</button>
+          <a class="btn-secondary" id="brDisplay" href="${escapeAttr(bracketDisplayLink(id))}" target="_blank" rel="noopener" style="flex:1 1 100%;text-align:center;text-decoration:none;">📺 ${tr('dsOpen')}</a>
           ${b.is_owner === false ? '' : `<button class="btn-secondary" id="brDelete" style="flex:1;">${tr('brDelete')}</button>`}
           <button class="btn-secondary" id="closeBracket" style="flex:1;">${tr('close')}</button>
         </div>`;
@@ -8173,6 +8250,7 @@
       body.querySelectorAll('[data-tab]').forEach(btn => { btn.onclick = ()=>{ tab = btn.dataset.tab; draw(); }; });
       on('#closeBracket', ()=>overlay.remove());
       on('#brShare', ()=>openBracketQrModal(tr('brPlayerLink'), b.name, bracketLink(id), tr('brPlayerLinkHint')));
+      on('#brDisplay', ()=>trackFeature('bracket_display'));
       body.querySelectorAll('[data-guest-link]').forEach(btn => {
         btn.onclick = async ()=>{
           const p = b.players.find(x => x.id === btn.dataset.guestLink);
@@ -8373,6 +8451,8 @@
     }catch(e){ /* private mode: the link still works while it is open */ }
   }
   const bracketLink = (id, token) => baseAppUrl() + '?bracket=' + id + (token ? '&p=' + token : '');
+  // The in-store screen (renderBracketDisplay): anyone with the bracket's id can already read it.
+  const bracketDisplayLink = id => baseAppUrl() + '?display=' + id;
 
   // A link plus its QR code (a bracket's player link, or one guest's own link).
   function openBracketQrModal(title, sub, url, hint){
@@ -11540,6 +11620,176 @@
       app.innerHTML = `<div class="wrap"><div class="empty-state" style="margin-top:60px;"><div class="big">${tr('xSomethingWentWrong')}</div></div></div>`;
     }
   }
+  // ---------- In-store display (?display=<bracket id>) ----------
+  // A TV or tablet at the store, signed in or not: the bracket's pairings, its standings, then the
+  // store's top players and running season, one panel at a time on a loop. It reads only what anyone
+  // with the bracket's link can (get_bracket, the store page's board and season), stays current with
+  // watchBracket and keeps the screen on. Tap or ←/→ to move on; Esc goes back to the app.
+  const DISPLAY_PANEL_MS = { pairings: 20000, standings: 15000, players: 15000, other: 12000 };
+  const DISPLAY_PAGE = 16;   // pairings / standings rows per panel; more become "(2/3)" panels
+  const DISPLAY_EXTRAS_MS = 600000;   // the store's board and season are reloaded every 10 minutes
+  async function renderBracketDisplay(id){
+    app.classList.add('ds-mode');
+    const msg = text => { app.innerHTML = `<div class="ds"><div class="ds-msg">${text}</div></div>`; };
+    msg(tr('loadingDots'));
+    const B = bracketEngine();
+    let b = null;
+    async function load(){
+      const { data, error } = await supabaseClient.rpc('get_bracket', { p_bracket: id, p_token: null });
+      if(error || !data) throw error || new Error('bracket not found');
+      b = data; b.players = b.players || []; b.matches = b.matches || [];
+    }
+    try{ await load(); }catch(e){ msg(tr('brNotFound')); return; }
+    if(!B){ msg(tr('brEngineMissing')); return; }
+    document.title = b.name + ' · Pairings';
+
+    // The store's part: this game's top 10 this season, and its running season(s).
+    let ranks = [], seasonHtml = '', extrasAt = 0;
+    async function loadExtras(){
+      if(!b.store || Date.now() - extrasAt < DISPLAY_EXTRAS_MS) return;
+      extrasAt = Date.now();
+      const board = b.game ? supabaseClient.rpc('rating_leaderboard', { p_game: b.game, p_scope: 'store', p_store: b.store.id, p_limit: 10 })
+        .then(r => r.error ? [] : (r.data || []), () => []) : Promise.resolve([]);
+      [ranks, seasonHtml] = await Promise.all([board, publicSeasonsHtml(b.store)]);
+      ranks = (ranks || []).filter(r => r.ranked);
+    }
+    await loadExtras().catch(()=>{});
+
+    const name = pid => escapeHtml(bracketNameOf(b, pid));
+    const pages = (list, n) => { const out = []; for(let i = 0; i < list.length; i += n) out.push(list.slice(i, i + n)); return out; };
+    const part = (title, i, all) => title + (all.length > 1 ? ` (${i + 1}/${all.length})` : '');
+    function pairCell(m, label){
+      const tbl = label ? `<div class="ds-tbl">${escapeHtml(label)}</div>` : '';
+      if(m.p2 == null) return `<div class="ds-pair">${tbl}<div class="ds-names">${name(m.p1)} <span class="ds-dim">· ${tr('dsBye')}</span></div></div>`;
+      const res = m.result ? bracketResultLabel(b, m, m) : '';
+      return `<div class="ds-pair${m.result ? ' done' : ''}">${tbl}
+        <div class="ds-names">${name(m.p1)} <span class="ds-dim">${tr('brVs')}</span> ${name(m.p2)}</div>
+        ${res ? `<div class="ds-res">✓ ${escapeHtml(res)}</div>` : ''}</div>`;
+    }
+    // The panels for the bracket as it is now: { key, ms, title, sub, html }.
+    function panels(){
+      const out = [];
+      const swiss = bracketStageMatches(b, 'swiss'), elim = bracketStageMatches(b, 'elim');
+      const hasElim = b.format === 'single_elim' || elim.length > 0;
+      if(b.status === 'registration'){
+        const here = b.players.filter(p => !p.dropped);
+        const chunks = here.length ? pages(here, DISPLAY_PAGE * 2) : [[]];
+        chunks.forEach((list, i, all) => out.push({ key: 'players' + i, ms: DISPLAY_PANEL_MS.players,
+          title: part(tr('dsRegistration'), i, all), sub: bracketPlayerCount(here.length),
+          html: list.length ? `<div class="ds-grid ds-grid-names">${list.map(p => `<div class="ds-pill">${escapeHtml(p.name)}</div>`).join('')}</div>`
+            : `<div class="ds-msg">${tr('dsScanToJoin')}</div>` }));
+      }
+      if(b.status === 'swiss'){
+        const round = Math.max(0, ...swiss.map(m => m.round));
+        const list = swiss.filter(m => m.round === round).sort((x, y) => (x.table || 1e9) - (y.table || 1e9));
+        pages(list, DISPLAY_PAGE).forEach((ms, i, all) => out.push({ key: 'pairings' + i, ms: DISPLAY_PANEL_MS.pairings,
+          title: part(trf('brRoundN', { n: round }), i, all), sub: tr('dsPairings'),
+          html: `<div class="ds-grid ds-grid-pairs">${ms.map(m => pairCell(m, m.table ? trf('brTable', { n: m.table }) : '')).join('')}</div>` }));
+      }
+      let champion = null;
+      if(hasElim && ['top_cut', 'swiss', 'finished'].includes(b.status) && (b.status !== 'swiss' || b.format === 'single_elim')){
+        const seeds = bracketSeeds(b);
+        const e = seeds.length ? B.elimination(seeds, elim) : null;
+        if(e){
+          champion = e.champion || null;
+          const saved = (r, p1, p2) => elim.find(m => m.round === r && ((m.p1 === p1 && m.p2 === p2) || (m.p1 === p2 && m.p2 === p1)));
+          const cols = e.rounds.map((list, i) => `<div class="ds-col"><div class="ds-colhead">${escapeHtml(bracketElimRoundName(e.size, i + 1))}</div>${list.map(m => {
+            if(m.bye) return `<div class="ds-pair"><div class="ds-names">${name(m.p1 || m.p2)} <span class="ds-dim">· ${tr('dsBye')}</span></div></div>`;
+            const row = m.p1 && m.p2 ? saved(i + 1, m.p1, m.p2) : null;
+            if(row) return pairCell(row, '');
+            return `<div class="ds-pair tbd"><div class="ds-names">${m.p1 ? name(m.p1) : escapeHtml(tr('brTbd'))} <span class="ds-dim">${tr('brVs')}</span> ${m.p2 ? name(m.p2) : escapeHtml(tr('brTbd'))}</div></div>`;
+          }).join('')}</div>`).join('');
+          out.push({ key: 'bracket', ms: DISPLAY_PANEL_MS.pairings, title: tr('brTabBracket'), sub: b.game || '', html: `<div class="ds-cols">${cols}</div>` });
+        }
+      }
+      if(swiss.length && b.status !== 'registration'){
+        const rows = B.standings(bracketPlayers(b), swiss, bracketOpts(b));
+        if(b.status === 'finished' && !champion && rows.length) champion = rows[0].id;
+        pages(rows, DISPLAY_PAGE).forEach((list, i, all) => out.push({ key: 'standings' + i, ms: DISPLAY_PANEL_MS.standings,
+          title: part(tr('brTabStandings'), i, all), sub: '',
+          html: `<div class="ds-grid">${list.map(r => `<div class="ds-row${r.dropped ? ' dropped' : ''}"><span class="ds-rank">${r.rank}</span>
+            <span class="ds-who">${name(r.id)}${r.dropped ? ` <span class="ds-dim">(${tr('brDroppedShort')})</span>` : ''}</span>
+            <span class="ds-rec">${escapeHtml(trf('brRecord', { w: r.wins, l: r.losses, d: r.draws }))}</span></div>`).join('')}</div>` }));
+      }
+      if(b.status === 'finished' && champion){
+        out.unshift({ key: 'champion', ms: DISPLAY_PANEL_MS.standings, title: tr('brStatusFinished'), sub: '',
+          html: `<div class="ds-champ"><div aria-hidden="true">🏆</div><div class="ds-champ-name">${name(champion)}</div><div class="ds-dim">${escapeHtml(tr('dsChampion'))}</div></div>` });
+      }
+      if(ranks.length){
+        out.push({ key: 'ranks', ms: DISPLAY_PANEL_MS.other, title: '📈 ' + trf('rkStoreBoard', { game: b.game }), sub: b.store.name,
+          html: `<div class="ds-grid">${ranks.map(r => { const t = rankTier(r.rating); return `<div class="ds-row"><span class="ds-rank">#${r.rank}</span>
+            <span class="ds-who">${escapeHtml(r.name)}</span><span class="ds-rec">${t.icon} ${escapeHtml(tierName(t))} · ${r.rating}</span></div>`; }).join('')}</div>` });
+      }
+      if(seasonHtml) out.push({ key: 'season', ms: DISPLAY_PANEL_MS.other, title: '🏅 ' + tr('dsSeason'), sub: b.store.name, html: `<div class="ds-season">${seasonHtml}</div>` });
+      return out;
+    }
+
+    app.innerHTML = `<div class="ds" id="dsRoot">
+      <div class="ds-head">
+        <div style="min-width:0;"><div class="ds-name">🏆 ${escapeHtml(b.name)}</div><div class="ds-meta" id="dsMeta"></div></div>
+        <div class="ds-scan"><div class="ds-qr" id="dsQr"></div><div class="ds-scanhint">${tr('dsScanHint')}</div></div>
+      </div>
+      <div class="ds-panel" id="dsPanel" aria-live="polite"></div>
+      <div class="ds-foot">
+        <div class="ds-dots" id="dsDots" aria-hidden="true"></div>
+        <div class="ds-ctl">
+          <button type="button" class="mini-btn" id="dsFull">⛶ ${tr('dsFullScreen')}</button>
+          <a class="mini-btn" href="${escapeAttr(baseAppUrl())}" style="text-decoration:none;" aria-label="${escapeAttr(tr('dsExit'))}">✕</a>
+        </div>
+      </div>
+    </div>`;
+    const root = app.querySelector('#dsRoot');
+    loadQrLib().then(() => {
+      const holder = root.querySelector('#dsQr');
+      if(holder) new QRCode(holder, { text: bracketLink(id), width: 200, height: 200 });
+    }).catch(() => { const q = root.querySelector('.ds-scan'); if(q) q.remove(); });
+
+    let list = [], idx = 0, curKey = null, timer = null;
+    function show(){
+      if(!document.body.contains(root)) return;
+      list = panels();
+      if(!list.length) list = [{ key: 'none', ms: DISPLAY_PANEL_MS.other, title: bracketStatusLabel(b), sub: '', html: '' }];
+      const at = list.findIndex(p => p.key === curKey);
+      idx = at >= 0 ? at : Math.min(idx, list.length - 1);
+      const p = list[idx];
+      curKey = p.key;
+      root.querySelector('#dsMeta').textContent = [b.store && b.store.name, b.game, bracketStatusLabel(b)].filter(Boolean).join(' · ');
+      root.querySelector('#dsPanel').innerHTML = `<h1 class="ds-title">${escapeHtml(p.title)}</h1>${p.sub ? `<div class="ds-subt">${escapeHtml(p.sub)}</div>` : ''}${p.html}`;
+      root.querySelector('#dsDots').innerHTML = list.length > 1 ? list.map((x, i) => `<span class="${i === idx ? 'on' : ''}"></span>`).join('') : '';
+    }
+    function schedule(){ clearTimeout(timer); timer = setTimeout(() => step(1), list[idx] ? list[idx].ms : DISPLAY_PANEL_MS.other); }
+    function step(n){
+      if(!document.body.contains(root)) return;
+      idx = ((idx + n) % list.length + list.length) % list.length;
+      curKey = list[idx].key;
+      show(); schedule();
+    }
+    show(); schedule();
+    root.querySelector('#dsPanel').onclick = () => step(1);
+    root.querySelector('#dsFull').onclick = () => {
+      const el = document.documentElement;
+      try{ if(document.fullscreenElement) document.exitFullscreen(); else if(el.requestFullscreen) el.requestFullscreen().catch(()=>{}); }catch(e){}
+    };
+    document.addEventListener('keydown', e => {
+      if(!document.body.contains(root)) return;
+      if(e.key === 'ArrowRight' || e.key === ' '){ e.preventDefault(); step(1); }
+      else if(e.key === 'ArrowLeft'){ e.preventDefault(); step(-1); }
+      else if(e.key === 'Escape' && !document.fullscreenElement) window.location.href = baseAppUrl();
+    });
+    watchBracket(id, root, () => b.version, async () => { await load(); show(); }, () => false);
+    const extras = setInterval(async () => {
+      if(!document.body.contains(root)){ clearInterval(extras); return; }
+      try{ await loadExtras(); show(); }catch(e){}
+    }, DISPLAY_EXTRAS_MS);
+    // A store screen stays on: the lock is asked for again whenever the page comes back.
+    let wakeLock = null;
+    async function keepAwake(){
+      if(wakeLock || document.hidden || !navigator.wakeLock) return;
+      try{ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }catch(e){ wakeLock = null; }
+    }
+    document.addEventListener('visibilitychange', keepAwake);
+    keepAwake();
+  }
   function baseAppUrl(){ return window.location.origin + window.location.pathname; }
   // Opens the bracket from the link the app was started with. Signed out, the link is kept, so
   // signing in (e.g. a guest making an account to claim their spot) opens it again.
@@ -11572,6 +11822,11 @@
     }
     if(publicParams.has('storeevent')){
       await renderPublicStoreEventPage(publicParams.get('storeevent'));
+      return;
+    }
+    // The in-store screen (renderBracketDisplay): a bracket id only, signed in or not.
+    if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(publicParams.get('display') || '')){
+      await renderBracketDisplay(publicParams.get('display').toLowerCase());
       return;
     }
     const { data: { session: s } } = await supabaseClient.auth.getSession();
