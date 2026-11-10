@@ -8,7 +8,7 @@
      changes, so after editing this file run `npm run csp` in tests/ (tests/csp.test.js fails
      until you do). Talking to a new outside service means adding it to connect-src here, and
      a Supabase URL in config.js that is not *.supabase.co would need adding too. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-9VtUAdverW3XgXoLIuxieooTsZK6K2wNmmtqHaJ+3rU=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/ https://accounts.google.com/gsi/ 'sha256-mwev3x6rj8Z6xJeTClwt0acfTr2DblDzxaLZzn8DsH4=' 'sha256-Vfwkzscco8UBFX+xJV5hpnHLjKClpwao4/lOsz2KTbo=' 'sha256-O9T9iaAxbhdP/jE1n2XwlPITjwTLcpruoDs0C5MsjX4=' 'sha256-WM8IwcU2W832QRQHl2qUfui4/YnvulKkZzU69lXF/Zw='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.riftcodex.com https://www.optcgapi.com https://api.scryfall.com https://api.pokemontcg.io https://api.bandai-tcg-plus.com https://api.tabletop.wizards.com https://api.pwnedpasswords.com https://nominatim.openstreetmap.org https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <title>Pairings — TCG Tournament Tracker</title>
 <!-- Link previews (Discord, iMessage, WhatsApp, X...). Those bots don't run JavaScript,
      so this is the same card for every link to the site. og-image.png is 1200×630. -->
@@ -219,6 +219,11 @@
   .card-link{font-size:11.5px;color:var(--teal);text-decoration:none;}
   .card-link.gold{color:var(--gold);}
 
+  .home-find{margin-top:18px;padding-top:14px;border-top:1px dashed var(--line);}
+  .home-find-label{font-size:12px;color:var(--text-dim);margin-bottom:8px;}
+  .home-find-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+  .home-find-row .mini-btn{min-height:40px;}
+  .auth-shared{background:color-mix(in srgb,var(--teal) 14%,transparent);border:1px solid color-mix(in srgb,var(--teal) 45%,var(--line));color:var(--text);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45;margin:0 0 14px;}
   .empty-state{text-align:center;padding:44px 18px;color:var(--text-dim);border:1px dashed var(--line);border-radius:16px;}
   .empty-state .big{font-family:'Space Grotesk',sans-serif;font-size:16px;color:var(--text);margin-bottom:6px;font-weight:700;}
 
@@ -481,7 +486,7 @@
   const VAPID_PUBLIC_KEY = CFG.VAPID_PUBLIC_KEY || 'BOZU4eZ0JCuAnFXlLzsjUJ1gUYaXLD_LLnJ032FRE7SZVA1VtHg1Qz6tKoKdldRsiiVrbzH4UUxAcqO9F_EU3_o';
   const GOOGLE_CLIENT_ID = CFG.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
   const DONATION_URL = CFG.DONATION_URL || '';
-  const APP_VERSION = '1.41.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
+  const APP_VERSION = '1.42.0'; // bumped each time this file is updated — check this in Account to confirm a deploy actually landed
   const TURNZERO_URL = 'https://turn-zero-nine.vercel.app/';
   // Beef's Brewhouse (the deckbuilder) keeps its decks in a different Supabase project with its own
   // accounts (it shares Pawmodoro's). Public anon key, like ours; config.js may override both.
@@ -1237,11 +1242,28 @@
       return p && p.code && Date.now() - p.at < 24*3600*1000 ? p.code : null;
     }catch(_){ return null; }
   }
+  // A shared event (?share=<code>) is also kept on the device for a day, like ?follow= below:
+  // a friend who opens the link, signs up and confirms by email lands in a fresh tab without it.
+  const PENDING_SHARE_KEY = 'pairings-pending-share';
+  function storedPendingShare(){
+    try{
+      const p = JSON.parse(localStorage.getItem(PENDING_SHARE_KEY) || 'null');
+      return p && p.code && Date.now() - p.at < 24*3600*1000 ? p.code : null;
+    }catch(_){ return null; }
+  }
+  function hasPendingShare(){ return !!(pendingShareCode || storedPendingShare()); }
+  function takePendingShare(){
+    const code = pendingShareCode || storedPendingShare();
+    pendingShareCode = null;
+    try{ localStorage.removeItem(PENDING_SHARE_KEY); }catch(_){}
+    return code;
+  }
   (function captureShareParam(){
     const params = new URLSearchParams(window.location.search);
     const code = params.get('share');
     if(code){
-      pendingShareCode = code.toUpperCase();
+      pendingShareCode = /^[A-Za-z0-9]{3,32}$/.test(code) ? code.toUpperCase() : null;
+      if(pendingShareCode){ try{ localStorage.setItem(PENDING_SHARE_KEY, JSON.stringify({ code: pendingShareCode, at: Date.now() })); }catch(_){} }
       const url = new URL(window.location.href);
       url.searchParams.delete('share');
       window.history.replaceState({}, '', url.toString());
@@ -3355,6 +3377,7 @@
         <div class="auth-card">
           <h1>Pairings</h1>
           <div class="auth-sub">${tr('authTagline')}</div>
+          ${hasPendingShare() ? `<div class="auth-shared" id="authShared">📅 ${tr('authSharedEvent')}</div>` : ''}
           <div class="field"><label>${tr('email')}</label><input id="a_email" type="email" placeholder="you@example.com" autocomplete="email"/></div>
           <div class="field"><label>${tr('password')}</label><input id="a_password" type="password" placeholder="••••••••" autocomplete="${mode==='signin'?'current-password':'new-password'}"/></div>
           ${mode==='signin' ? `<div class="auth-toggle" style="margin:-4px 0 12px;text-align:right;"><a id="forgotPw">${tr('forgotPassword')}</a></div>` : ''}
@@ -3537,9 +3560,19 @@
 
     let listHtml = '';
     if(list.length === 0){
+      // Nothing saved at all (a new account): point at the finders, the games you picked first.
+      const brandNew = viewMode === 'upcoming' && tournaments.length === 0;
+      const finders = brandNew ? homeFinders() : [];
       listHtml = `<div class="empty-state">
         <div class="big">${viewMode==='upcoming' ? tr('nothingYet') : tr('noPastEvents')}</div>
         <div>${viewMode==='upcoming' ? tr('tapAddOrPaste') : tr('eventsMovehere')}</div>
+        ${brandNew ? `<div class="home-find" id="homeFind">
+          <div class="home-find-label">${tr('homeFindLabel')}</div>
+          <div class="home-find-row">
+            ${finders.map((f, i)=>`<button type="button" class="mini-btn" data-home-finder="${i}">${f.icon} ${escapeHtml(tr(f.label))}</button>`).join('')}
+            <button type="button" class="mini-btn" id="homeStores">🏪 ${tr('storesWord')}</button>
+          </div>
+        </div>` : ''}
       </div>`;
     } else {
       let lastMonth = '';
@@ -3687,6 +3720,9 @@
     app.querySelectorAll('.edit-btn').forEach(b=>b.onclick=()=>openModal(b.dataset.id));
     app.querySelectorAll('.del-btn').forEach(b=>b.onclick=()=>handleDelete(b.dataset.id, b.dataset.date));
     app.querySelectorAll('.rsvp-btn').forEach(b=>b.onclick=()=>toggleRsvp(b.dataset.id,b.dataset.date,b.dataset.rsvp));
+    app.querySelectorAll('[data-home-finder]').forEach(b=>b.onclick=()=>{ trackFeature('home_finder'); homeFinders()[parseInt(b.dataset.homeFinder,10)].open(); });
+    const homeStores = app.querySelector('#homeStores');
+    if(homeStores) homeStores.onclick = ()=>{ trackFeature('home_finder'); openStoresModal(); };
     app.querySelectorAll('[data-action="logresult"]').forEach(b=>b.onclick=()=>openResultModal(b.dataset.id,b.dataset.date));
     app.querySelectorAll('[data-action="gsync"]').forEach(b=>b.onclick=(e)=>{ e.preventDefault(); const t=tournaments.find(x=>x.id===b.dataset.id); if(t) syncEventToGoogle(t, b.dataset.date); });
     app.querySelectorAll('[data-action="resultcard"]').forEach(b=>b.onclick=(e)=>{
@@ -5931,6 +5967,22 @@
     }
   };
 
+  // The first sign-in gets four steps: what it is, getting events in, logging results, where the
+  // rest lives. The full tour below stays in Account → "How this works".
+  const ONBOARDING_FIRST_BY_LANG = {
+    en: [
+      { title: 'Welcome to Pairings 👋', body: 'Your calendar of local TCG events, the results you log at them, and your stats, shared with friends if you like. Four quick screens.' },
+      { title: 'Get events on your calendar', body: 'The finders list official Riftbound, Pokémon, One Piece and Magic events around your city: tap one on the home screen, or ☰ → Find events. You can also tap "+ Add" and paste an event link, or follow a store in ☰ → Stores so its events show up by themselves.' },
+      { title: 'Log results as you play', body: 'Tap "Going" on an event and you’ll get a reminder afterwards to log how it went: placement, deck and each round. That’s what your stats, badges and result cards are built from.' },
+      { title: 'Everything else is under ☰', body: 'Friends, stores, brackets, stats, rankings, your player IDs and settings all live behind the ☰ button. The full tour is in ☰ → Account → "How this works".' },
+    ],
+    es: [
+      { title: '¡Bienvenido a Pairings! 👋', body: 'Tu calendario de eventos locales de TCG, los resultados que registras en ellos y tus estadísticas, compartidos con amigos si quieres. Cuatro pantallas rápidas.' },
+      { title: 'Llena tu calendario', body: 'Los buscadores muestran eventos oficiales de Riftbound, Pokémon, One Piece y Magic alrededor de tu ciudad: toca uno en la pantalla de inicio, o ☰ → Buscar eventos. También puedes tocar "+ Agregar" y pegar el enlace de un evento, o seguir una tienda en ☰ → Tiendas para que sus eventos aparezcan solos.' },
+      { title: 'Registra resultados mientras juegas', body: 'Toca "Voy" en un evento y después te recordaremos registrar cómo te fue: posición, mazo y cada ronda. De ahí salen tus estadísticas, insignias y tarjetas de resultado.' },
+      { title: 'Todo lo demás está en ☰', body: 'Amigos, tiendas, brackets, estadísticas, clasificación, tus IDs de jugador y los ajustes están detrás del botón ☰. El recorrido completo está en ☰ → Cuenta → "Cómo funciona".' },
+    ],
+  };
   const ONBOARDING_STEPS_BY_LANG = {
     en: [
       {
@@ -6064,9 +6116,10 @@
     overlay.querySelector('#closeInstallGuide').onclick = ()=>overlay.remove();
   }
 
-  function openWelcomeModal(){
+  function openWelcomeModal(full){
     let step = 0;
-    const ONBOARDING_STEPS = ONBOARDING_STEPS_BY_LANG[currentLang] || ONBOARDING_STEPS_BY_LANG.en;
+    const set = full === true ? ONBOARDING_STEPS_BY_LANG : ONBOARDING_FIRST_BY_LANG;
+    const ONBOARDING_STEPS = set[currentLang] || set.en;
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     document.body.appendChild(overlay);
@@ -9025,8 +9078,11 @@
           const card = (val, lbl) => `<div class="stat-card"><div class="val">${val}</div><div class="lbl">${escapeHtml(lbl)}</div></div>`;
           const row = (lbl, val, hint) => `<div class="result-row"><div><div class="n">${escapeHtml(lbl)}</div>${hint?`<div class="m">${escapeHtml(hint)}</div>`:''}</div><div class="p">${val}</div></div>`;
 
-          const u = m.users, e = m.engagement, f = m.features, s = m.settings;
-          const activeRate = u.total ? Math.round((u.active_week / u.total) * 100) : 0;
+          const u = m.users, e = m.engagement, f = m.features, s = m.settings, b = m.brackets;
+          // saved_* (accounts whose saved data changed) is real use; older databases only have sign-ins.
+          const hasSaved = u.saved_week != null;
+          const usedWeek = hasSaved ? u.saved_week : u.active_week;
+          const activeRate = u.total ? Math.round((usedWeek / u.total) * 100) : 0;
           const engagedRate = (e.zero_events + e.light + e.engaged) > 0
             ? Math.round((e.engaged / (e.zero_events + e.light + e.engaged)) * 100) : 0;
 
@@ -9042,7 +9098,7 @@
           el.innerHTML = `
             <div class="stat-grid" style="margin-bottom:12px;">
               ${card(u.total, 'Total users')}
-              ${card(u.active_week, 'Active this week')}
+              ${card(usedWeek, hasSaved ? 'Used this week' : 'Active this week')}
               ${card(activeRate+'%', 'Weekly active rate')}
               ${card(u.new_week, 'New this week')}
             </div>
@@ -9056,9 +9112,19 @@
             ${row('Users tracking decks', e.with_decks)}
 
             <div class="section-label">Activity window</div>
-            ${row('Active today', u.active_today)}
-            ${row('Active this month', u.active_month)}
+            ${hasSaved ? row('Used today', u.saved_today, 'saved something in the last 24 hours') : ''}
+            ${hasSaved ? row('Used this month', u.saved_month) : ''}
+            ${row('Signed in today', u.active_today, 'typed a password; the app keeps people signed in, so this undercounts')}
+            ${row('Signed in this week', u.active_week)}
+            ${row('Signed in this month', u.active_month)}
             ${row('New this month', u.new_month)}
+
+            ${b ? `<div class="section-label">Brackets</div>
+            ${row('Brackets run', b.total, b.finished + ' finished')}
+            ${row('Finished in the last 30 days', b.finished_month, 'Rankings only move when these happen')}
+            ${row('Players with accounts (30 days)', b.players_month, b.guests_month + ' guest entries')}
+            ${row('Players with a rating', b.rated_players, b.ranked_players + ' ranked (10+ matches)')}
+            ${row('Rank shown on boards', b.rank_shown)}` : ''}
 
             <div class="section-label">Features</div>
             ${row('Playgroups', f.playgroups, f.pg_members+' memberships')}
@@ -9092,7 +9158,12 @@
             finder_add_riftbound: 'Added from Riftbound finder', finder_add_onepiece: 'Added from One Piece finder', finder_add_magic: 'Added from Magic finder', finder_add_pokemon: 'Added from Pokémon finder',
             link_riftbound: 'Riftbound link pasted', link_onepiece: 'Bandai TCG+ link pasted', link_magic: 'Wizards link pasted',
             result_logged: 'Results logged', quick_log: 'Stats → Log a result', result_card_share: 'Result cards shared', result_card_save: 'Result cards saved',
-            theme_change: 'Theme changed', store_poster: 'Store posters printed', share_list: 'Share my list opened', install_app: 'Install app tapped'
+            theme_change: 'Theme changed', store_poster: 'Store posters printed', share_list: 'Share my list opened', install_app: 'Install app tapped',
+            bracket_print: 'Bracket sheets printed', bracket_announce: 'Brackets announced to followers', bracket_nudge: 'Bracket players nudged', bracket_card: 'Bracket result cards',
+            bracket_display: 'Store display opened', badges_open: 'Badges opened', badge_feature: 'Badges featured', rankings_open: 'Rankings opened',
+            match_claim: 'Friendly matches claimed', match_confirm: 'Friendly matches confirmed', player_profile: 'Player profiles opened',
+            rank_ask_yes: '"Show your rank?" → yes', rank_ask_no: '"Show your rank?" → not now',
+            event_share: 'Events shared', shared_event_add: 'Shared events added', added_going: '"I\'m going" after adding', home_finder: 'Finder opened from the empty home'
           };
           const fcEl = el.querySelector('#adminFeatureCounts');
           try{
@@ -10348,8 +10419,96 @@
     };
   }
 
-  function openEventFinderModal(src){
-    trackFeature('finder_' + src.key);
+  // The event finders, for the empty home screen: the games picked in Account first.
+  function homeFinders(){
+    const all = [
+      { game: 'Riftbound', icon: '🌀', label: 'rbNearYou', open: ()=>openEventFinderModal(riftboundFinderSource()) },
+      { game: 'Pokémon TCG', icon: '⚡', label: 'pokeNearYou', open: ()=>openPokedataModal() },
+      { game: 'One Piece Card Game', icon: '🏴‍☠️', label: 'opNearYou', open: ()=>openEventFinderModal(onePieceFinderSource()) },
+      { game: 'Magic: The Gathering', icon: '🧙', label: 'mtgNearYou', open: ()=>openEventFinderModal(magicFinderSource()) },
+    ];
+    const mine = (profile && profile.interested_games) || [];
+    return all.filter(f=>mine.includes(f.game)).concat(all.filter(f=>!mine.includes(f.game)));
+  }
+
+  // After adding an event from a finder or a friend's link, the Add button turns into "I'm going":
+  // Going is what the "log your result" reminder (remind_log_results) and friends' "going too" use,
+  // and an added event isn't marked on its own.
+  function offerGoing(btn, t, date){
+    const going = document.createElement('button');
+    going.type = 'button';
+    going.className = 'rsvp-btn going';
+    going.textContent = tr('imGoing');
+    going.onclick = async ()=>{
+      going.disabled = true;
+      going.classList.add('active');
+      going.textContent = '✓ ' + tr('going');
+      if(getOcc(t, date).rsvp !== 'going') setOcc(t, date, { rsvp: 'going' });
+      render();
+      await saveTournaments();
+      await syncAttendance(t, date);
+      trackFeature('added_going');
+      showToast(tr('goingLogReminder'));
+    };
+    btn.replaceWith(going);
+  }
+
+  // A finder opened without a home city asks for it right there (typed, or the phone's location)
+  // instead of sending a new player off to Account; it is saved to the profile as Account does,
+  // then the events show. Account still changes it later.
+  async function reverseCity(lat, lng){
+    try{
+      const res = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng));
+      const a = ((await res.json()) || {}).address || {};
+      return [a.city || a.town || a.village || a.county, a.state].filter(Boolean).join(', ');
+    }catch(_){ return ''; }
+  }
+  function askHomeCity(body, overlay, done){
+    body.innerHTML = `
+      <div class="modal-sub">${tr('finderCityAsk')}</div>
+      <div class="field"><label for="fcCity">${tr('finderCityLabel')}</label>
+        <div style="display:flex;gap:8px;">
+          <input id="fcCity" placeholder="${escapeAttr(tr('xEGAustinTx'))}" style="flex:1;" autocomplete="address-level2"/>
+          <button type="button" class="mini-btn" id="fcLoc">${tr('useMyLocation')}</button>
+        </div>
+      </div>
+      <div class="modal-actions"><button type="button" class="btn-primary" id="fcGo" style="flex:1;">${tr('finderCityGo')}</button></div>`;
+    const input = body.querySelector('#fcCity'), go = body.querySelector('#fcGo'), loc = body.querySelector('#fcLoc');
+    const busy = on => { go.disabled = on; loc.disabled = on; };
+    async function save(home_city, home_lat, home_lng){
+      if(!profileLoaded){ showToast(tr('profileNotLoadedSave')); return; }
+      try{
+        const { error } = await supabaseClient.from('profiles').update({ home_city, home_lat, home_lng }).eq('id', session.user.id);
+        if(error){ showToast(tr('xCouldNotSaveProfile')); return; }
+      }catch(_){ showToast(tr('xCouldNotSaveProfile')); return; }
+      profile = Object.assign({}, profile, { home_city, home_lat, home_lng });
+      if(overlay.isConnected) done();
+    }
+    go.onclick = async ()=>{
+      const city = input.value.trim();
+      if(!city){ input.focus(); return; }
+      busy(true);
+      const geo = await geocode(city);
+      if(!geo){ busy(false); showToast(tr('finderCityNotFound')); return; }
+      await save(city, geo.lat, geo.lng);
+      busy(false);
+    };
+    input.onkeydown = e=>{ if(e.key === 'Enter') go.click(); };
+    loc.onclick = ()=>{
+      if(!navigator.geolocation){ showToast(tr('xGeolocationIsNotAvailableOn')); return; }
+      busy(true);
+      navigator.geolocation.getCurrentPosition(async pos=>{
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        const city = input.value.trim() || await reverseCity(lat, lng);
+        await save(city, lat, lng);
+        busy(false);
+      }, ()=>{ busy(false); showToast(tr('xCouldNotGetYourLocation')); });
+    };
+    setTimeout(()=>{ try{ input.focus(); }catch(_){} }, 50);
+  }
+
+  function openEventFinderModal(src, again){
+    if(!again) trackFeature('finder_' + src.key);
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `<div class="modal"><h2>${src.icon} ${escapeHtml(src.title)}</h2><div id="efBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
@@ -10358,13 +10517,7 @@
     const body = overlay.querySelector('#efBody');
 
     if(profile.home_lat == null || profile.home_lng == null){
-      body.innerHTML = `
-        <div class="empty-state">
-          <div class="big">${tr('pokeSetCity')}</div>
-          <div>${tr('pokeSetCityBody')}</div>
-        </div>
-        <div class="modal-actions"><button class="btn-primary" id="efGoAccount" style="flex:1;">${tr('pokeOpenAccount')}</button></div>`;
-      body.querySelector('#efGoAccount').onclick = ()=>{ overlay.remove(); openAccountModal(); };
+      askHomeCity(body, overlay, ()=>{ overlay.remove(); openEventFinderModal(src, true); });
       return;
     }
 
@@ -10442,15 +10595,15 @@
           render();
           trackFeature('finder_add_' + src.key);
           showToast(tr('xAddedToYourCalendar'));
-          btn.textContent = tr('xAdded'); btn.disabled = true;
+          offerGoing(btn, ev, ev.date);
         };
       });
     }
     load(false);
   }
 
-  async function openPokedataModal(){
-    trackFeature('finder_pokemon');
+  async function openPokedataModal(again){
+    if(again !== true) trackFeature('finder_pokemon');
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     overlay.innerHTML = `<div class="modal"><h2>⚡ ${tr('pokeTitle')}</h2><div id="pokeBody"><div class="modal-sub">${tr('loadingDots')}</div></div></div>`;
@@ -10459,13 +10612,7 @@
     const body = overlay.querySelector('#pokeBody');
 
     if(profile.home_lat == null || profile.home_lng == null){
-      body.innerHTML = `
-        <div class="empty-state">
-          <div class="big">${tr('pokeSetCity')}</div>
-          <div>${tr('pokeSetCityBody')}</div>
-        </div>
-        <div class="modal-actions"><button class="btn-primary" id="pokeGoAccount" style="flex:1;">${tr('pokeOpenAccount')}</button></div>`;
-      body.querySelector('#pokeGoAccount').onclick = ()=>{ overlay.remove(); openAccountModal(); };
+      askHomeCity(body, overlay, ()=>{ overlay.remove(); openPokedataModal(true); });
       return;
     }
 
@@ -10528,19 +10675,20 @@
             showToast(tr('xYouAlreadyHaveThisEvent'));
             btn.textContent = tr('xAlreadyHaveIt'); btn.disabled = true; return;
           }
-          tournaments.push({
+          const added = {
             id: uid(), name: candidate.name, game: 'Pokémon TCG', store: e.shop||'',
             date: e.date, time: e.time||'', repeat:'none', format: e.event_type||'',
             fee: e.cost||'', address: e.street_address||'', city: e.city||'',
             link: e.pokemon_url||'', storeLink: e.event_website||'',
             notes:'', rsvp:null, result:null, occurrences:{},
             lat: e.latitude, lng: e.longitude, googleEventId:null
-          });
+          };
+          tournaments.push(added);
           trackFeature('finder_add_pokemon');
           await saveTournaments();
           render();
           showToast(tr('xAddedToYourCalendar'));
-          btn.textContent = tr('xAdded'); btn.disabled = true;
+          offerGoing(btn, added, added.date);
         };
       });
     }
@@ -10841,7 +10989,7 @@
     document.body.appendChild(overlay);
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.querySelector('#closeAccount').onclick = ()=>overlay.remove();
-    overlay.querySelector('#reopenWelcome').onclick = ()=>{ overlay.remove(); openWelcomeModal(); };
+    overlay.querySelector('#reopenWelcome').onclick = ()=>{ overlay.remove(); openWelcomeModal(true); };
     overlay.querySelector('#openInstallGuide').onclick = ()=>{ overlay.remove(); openInstallGuideModal(); };
     overlay.querySelector('#exportDataBtn').onclick = exportMyData;
     overlay.querySelector('#importDataBtn').onclick = importMyData;
@@ -10984,6 +11132,12 @@
     try{
       const code = await createShareRow(payload);
       const url = window.location.origin + window.location.pathname + '?share=' + code;
+      trackFeature('event_share');
+      // The phone's share sheet when there is one (straight into a chat), else copy the link.
+      if(navigator.share){
+        try{ await navigator.share({ title: t.name, text: trf('shareEventText', { name: t.name, when: fmtFriendly(date, t.time) }), url }); return; }
+        catch(e){ if(e && e.name === 'AbortError') return; }
+      }
       const ok = copyText(url);
       showToast(ok ? tr('xLinkCopiedSendItTo') : (tr('xCouldNotCopyHereS') + url));
     }catch(e){ showToast(tr('xCouldNotCreateAShare')); }
@@ -11020,17 +11174,20 @@
             btn.disabled = true;
             return;
           }
-          tournaments.push({
+          const added = {
             id: uid(), name: e.name, game: e.game||'', store: e.store||'', date: e.date, time: e.time||'',
             repeat: e.repeat||'none', format: e.format||'', fee: e.fee||'', address: e.address||'', city:'', link: e.link||'', storeLink: e.storeLink||'',
             notes:'', rsvp:null, result:null, occurrences:{}, lat:null, lng:null, googleEventId:null,
             readOnly: true
-          });
+          };
+          tournaments.push(added);
           await saveTournaments();
           render();
+          trackFeature('shared_event_add');
           showToast(e.repeat && e.repeat!=='none' ? tr('xAddedAsARepeatingSeries') : tr('xAddedToYourCalendar'));
-          btn.textContent = tr('xAdded');
-          btn.disabled = true;
+          // A one-off event from a friend: offer Going. A whole shared series has no single date to mark.
+          if(!isRepeating(added) && /^\d{4}-\d{2}-\d{2}$/.test(added.date || '')) offerGoing(btn, added, added.date);
+          else { btn.textContent = tr('xAdded'); btn.disabled = true; }
         };
       });
       body.querySelector('#closeShared').onclick = ()=>overlay.remove();
@@ -11430,10 +11587,8 @@
         const pgCode = pendingPlaygroupCode;
         pendingPlaygroupCode = null;
         joinPlaygroupByCode(pgCode);
-      } else if(pendingShareCode){
-        const code = pendingShareCode;
-        pendingShareCode = null;
-        openSharedEventModal(code);
+      } else if(!offlineMode && hasPendingShare()){
+        openSharedEventModal(takePendingShare());
       } else if(pendingCheckin){
         const id = pendingCheckin;
         pendingCheckin = null;
@@ -11837,7 +11992,7 @@
     }
     if(session && recoveryPending) renderSetNewPassword();
     else if(session) await bootstrapApp();
-    else { renderAuth('signin'); if(emailLinkError) showToast(tr('emailLinkExpired')); if(pendingBracket) openPendingBracket(false); }
+    else { renderAuth(hasPendingShare() ? 'signup' : 'signin'); if(emailLinkError) showToast(tr('emailLinkExpired')); if(pendingBracket) openPendingBracket(false); }
     // Try to send queued changes as soon as the connection or the tab comes back.
     window.addEventListener('online', ()=>{ syncPending(); });
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) syncPending(); });
